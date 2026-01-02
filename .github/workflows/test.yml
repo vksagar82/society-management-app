@@ -41,26 +41,29 @@ jobs:
     needs: lint-and-build
     outputs:
       deployment-url: ${{ steps.deploy.outputs.url }}
-      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
       - name: Deploy to Vercel
         id: deploy
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: "--prod"
-          working-directory: ./
-
-      - name: Output deployment URL
         run: |
-          echo "Deployment URL: ${{ steps.deploy.outputs.preview-url }}"
-          echo "DEPLOYMENT_URL=${{ steps.deploy.outputs.preview-url }}" >> $GITHUB_OUTPUT
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $DEPLOYMENT_URL"
 
   test-database:
     name: Database Tests
@@ -226,7 +229,7 @@ jobs:
              [ "${{ needs.test-api.result }}" = "failure" ] || \
              [ "${{ needs.test-login.result }}" = "failure" ] || \
              [ "${{ needs.security-scan.result }}" = "failure" ]; then
-            echo "❌ Tests failed - will rollback deployment"
+            echo "❌ Tests failed - marking deployment as failed"
             echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
             exit 1
           else
@@ -234,20 +237,13 @@ jobs:
             echo "TESTS_FAILED=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Rollback Vercel deployment
-        if: steps.check-tests.outputs.TESTS_FAILED == 'true'
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: "rollback ${{ needs.deploy-vercel.outputs.deployment-id }} --yes"
-
       - name: Comment on failure
         if: steps.check-tests.outputs.TESTS_FAILED == 'true'
         run: |
-          echo "## ❌ Deployment Rolled Back" >> $GITHUB_STEP_SUMMARY
-          echo "Tests failed. The Vercel deployment has been rolled back." >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "Tests failed. Check the logs and redeploy after fixes." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment URL: ${{ needs.deploy-vercel.outputs.deployment-url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Failed Jobs:" >> $GITHUB_STEP_SUMMARY
           echo "- Database Tests: ${{ needs.test-database.result }}" >> $GITHUB_STEP_SUMMARY
