@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StatCard, StatusBadge } from "@/components/Badge";
+import { StatCard } from "@/components/Badge";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { useAuth } from "@/lib/auth/context";
 
