@@ -29,6 +29,11 @@ jobs:
 
       - name: Build application
         run: npm run build
+        env:
+          NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
   test-database:
     name: Database Tests
