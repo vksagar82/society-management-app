@@ -1,7 +1,8 @@
 require("dotenv").config({ path: ".env.local" });
 const { createClient } = require("@supabase/supabase-js");
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_URL;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 console.log("URL:", supabaseUrl ? "Found" : "MISSING");
@@ -9,8 +10,8 @@ console.log("Key:", supabaseKey ? "Found" : "MISSING");
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("\n❌ Environment variables not loaded!");
-  console.error("Make sure .env.local file exists with:");
-  console.error("  NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_URL");
+  console.error("Make sure environment variables are set:");
+  console.error("  SUPABASE_URL or NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_URL");
   console.error("  SUPABASE_SERVICE_ROLE_KEY");
   process.exit(1);
 }
