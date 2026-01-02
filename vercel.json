@@ -12,7 +12,6 @@
     "TELEGRAM_BOT_TOKEN": "@telegram_bot_token",
     "JWT_SECRET": "@jwt_secret"
   },
-  "envPrefix": "NEXT_PUBLIC_",
   "outputDirectory": ".next",
   "crons": [
     {
