@@ -209,8 +209,7 @@ jobs:
           fi
 
   notify-status:
-    name: Test Results Summary
-    runs-oDeploy to Production (if tests pass)
+    name: Deploy to Production (if tests pass)
     runs-on: ubuntu-latest
     needs:
       [
