@@ -1,4 +1,5 @@
-require("dotenv").config({ path: ".env.local" });
+// Load .env.local if it exists (local development), otherwise use env vars from CI/CD
+require("dotenv").config({ path: ".env.local", silent: true });
 const { createClient } = require("@supabase/supabase-js");
 const crypto = require("crypto");
 
