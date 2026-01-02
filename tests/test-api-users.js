@@ -65,9 +65,15 @@ function generateToken(userId) {
   // Test API call
   console.log("\n📡 Testing API call to /api/users...");
 
-  const apiUrl = `${
+  let apiUrl = `${
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   }/api/users`;
+
+  // Add Vercel bypass token if available
+  if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+    apiUrl += `?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${process.env.VERCEL_AUTOMATION_BYPASS_SECRET}`;
+  }
+
   console.log(`   URL: ${apiUrl}`);
 
   try {
