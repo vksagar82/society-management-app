@@ -6,6 +6,11 @@ export const createBrowserClient = () => {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SOCIETY_MMGTSUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    // During build time, environment variables might not be available
+    if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
+      // Return a mock client for build time
+      return createClient('https://placeholder.supabase.co', 'placeholder-key');
+    }
     throw new Error("Missing Supabase environment variables");
   }
 
@@ -18,6 +23,11 @@ export const createServerClient = () => {
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceRoleKey) {
+    // During build time, environment variables might not be available
+    if (process.env.NODE_ENV === 'production' && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      // Return a mock client for build time
+      return createClient('https://placeholder.supabase.co', 'placeholder-key');
+    }
     throw new Error("Missing Supabase environment variables");
   }
 
