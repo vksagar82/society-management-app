@@ -2,11 +2,11 @@
 
 ## Overview
 
-This project uses GitHub Actions for automated testing and deployment to Vercel. The CI/CD pipeline runs on every push and pull request to ensure code quality and automatic deployments.
+This project uses GitHub Actions for automated testing. The CI/CD pipeline runs on every push and pull request to ensure code quality, validate all integrations, and maintain high standards.
 
-## Workflows
+## Workflow
 
-### 1. Tests & Validation (`test.yml`)
+### Tests & Validation (`test.yml`)
 
 Runs automatically on every push and pull request:
 
@@ -17,13 +17,6 @@ Runs automatically on every push and pull request:
 - **Login Tests**: End-to-end authentication flow validation
 - **Security Scan**: Detects exposed credentials and runs dependency audit
 - **Status Summary**: Final report of all test results
-
-### 2. Deploy to Vercel (`deploy.yml`)
-
-Handles application deployments:
-
-- **Pull Requests**: Deploy preview to staging environment
-- **Main Branch**: Deploy to production Vercel instance
 
 ## Setup Instructions
 
@@ -60,14 +53,6 @@ Click "New repository secret" and add the following secrets:
 | `SMTP_USER` | Your Gmail address        | Your email account             |
 | `SMTP_PASS` | 16-character app password | Google Account → App Passwords |
 
-#### Vercel Deployment
-
-| Secret              | Value           | Source                               |
-| ------------------- | --------------- | ------------------------------------ |
-| `VERCEL_TOKEN`      | Your API token  | Vercel Dashboard → Settings → Tokens |
-| `VERCEL_ORG_ID`     | Organization ID | Vercel Dashboard → Team Settings     |
-| `VERCEL_PROJECT_ID` | Project ID      | Vercel Project → Settings → General  |
-
 ### Step 2: Generate Gmail App Password
 
 1. Go to [Google Account](https://myaccount.google.com)
@@ -77,23 +62,7 @@ Click "New repository secret" and add the following secrets:
 5. Copy the 16-character password
 6. Add as `SMTP_PASS` secret in GitHub
 
-### Step 3: Generate Vercel Token
-
-1. Go to [Vercel Settings → Tokens](https://vercel.com/account/tokens)
-2. Click **"Create"**
-3. Name it "GitHub Actions"
-4. Copy the token
-5. Add as `VERCEL_TOKEN` secret in GitHub
-
-### Step 4: Get Vercel IDs
-
-1. Go to your Vercel project
-2. Click **Settings** → **General**
-3. Copy "Project ID" → Add as `VERCEL_PROJECT_ID` secret
-4. Go to [Vercel Team Settings](https://vercel.com/account)
-5. Copy Team ID → Add as `VERCEL_ORG_ID` secret
-
-### Step 5: Trigger Workflows
+### Step 3: Trigger Workflows
 
 Push your code to GitHub:
 
