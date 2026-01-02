@@ -54,7 +54,9 @@ export default function Dashboard() {
           totalIssues: issues.length,
           openIssues,
           totalAssets: assets.length,
-          activeAMCs: amcs.filter((a: { status: string }) => a.status === "active").length,
+          activeAMCs: amcs.filter(
+            (a: { status: string }) => a.status === "active"
+          ).length,
           expiringAMCs,
         });
       } catch (error) {
