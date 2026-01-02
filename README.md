@@ -7,6 +7,7 @@ A comprehensive web application for managing housing societies with authenticati
 👉 **[View Full Documentation](docs/)** - GitHub Pages site with comprehensive guides
 
 Quick links:
+
 - 🚀 [Quick Start](docs/quick-start.md) - Get running in 5 minutes
 - 🔐 [Authentication](docs/authentication.md) - User roles, JWT, security
 - 📡 [API Reference](docs/api-reference.md) - Complete API documentation
@@ -70,6 +71,7 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000)
 
 **Default Test Accounts**:
+
 - Admin: `admin@test.com` / `admin123`
 - Manager: `manager@test.com` / `manager123`
 - Member: `member@test.com` / `member123`

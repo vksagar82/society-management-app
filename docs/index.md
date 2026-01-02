@@ -10,21 +10,25 @@ A comprehensive web application for managing housing societies, built with Next.
 ## 🚀 Features
 
 - **User Authentication & Authorization**
+
   - Role-based access control (Admin, Manager, Member)
   - JWT-based authentication
   - Secure password hashing (SHA256)
 
 - **AMC Management**
+
   - Track annual maintenance contracts
   - Multiple vendor contacts support
   - Automatic expiry alerts via email
 
 - **Asset Management**
+
   - Maintain inventory of society assets
   - Track maintenance schedules
   - Asset lifecycle management
 
 - **Issue Tracking**
+
   - Report and track issues
   - Status updates and notifications
   - Priority-based categorization

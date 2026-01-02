@@ -14,9 +14,11 @@ The system uses **JWT-based authentication** with role-based access control (RBA
 ## User Roles
 
 ### 👑 Admin
+
 **Full system access** including user management.
 
 **Permissions**:
+
 - ✅ View all resources
 - ✅ Create/edit/delete AMCs, assets, issues
 - ✅ Manage users (create, update roles, deactivate)
@@ -24,9 +26,11 @@ The system uses **JWT-based authentication** with role-based access control (RBA
 - ✅ Receive email alerts for critical events
 
 ### 👔 Manager
+
 **Resource management** without user administration.
 
 **Permissions**:
+
 - ✅ View all resources
 - ✅ Create/edit AMCs, assets
 - ✅ View and update issues
@@ -34,9 +38,11 @@ The system uses **JWT-based authentication** with role-based access control (RBA
 - ❌ Cannot delete resources
 
 ### 👤 Member
+
 **Basic access** for residents.
 
 **Permissions**:
+
 - ✅ View AMCs, assets
 - ✅ Create and view own issues
 - ✅ Receive notifications about their issues
@@ -60,6 +66,7 @@ sequenceDiagram
 ## Password Security
 
 ### Hashing Algorithm
+
 - **Algorithm**: SHA256
 - **Storage**: 64-character hex string
 - **Salt**: Not implemented (consider adding for production)
@@ -67,8 +74,8 @@ sequenceDiagram
 ### Generate Password Hash
 
 ```javascript
-const crypto = require('crypto');
-const hash = crypto.createHash('sha256').update('password').digest('hex');
+const crypto = require("crypto");
+const hash = crypto.createHash("sha256").update("password").digest("hex");
 console.log(hash);
 // Output: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
 ```
@@ -79,8 +86,8 @@ Run in Supabase SQL Editor:
 
 ```sql
 -- Update user password
-UPDATE users 
-SET password_hash = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9' 
+UPDATE users
+SET password_hash = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'
 WHERE email = 'admin@test.com';
 -- Password: admin123
 ```
@@ -98,6 +105,7 @@ WHERE email = 'admin@test.com';
 ```
 
 ### Token Properties
+
 - **Encoding**: base64url (URL-safe)
 - **Expiration**: 7 days
 - **Storage**: localStorage (client-side)
@@ -108,9 +116,9 @@ WHERE email = 'admin@test.com';
 Server-side verification in API routes:
 
 ```typescript
-import { verifyToken } from '@/lib/auth/utils';
+import { verifyToken } from "@/lib/auth/utils";
 
-const token = req.headers.get('authorization')?.split(' ')[1];
+const token = req.headers.get("authorization")?.split(" ")[1];
 const payload = verifyToken(token);
 const userId = payload.sub;
 ```
@@ -118,9 +126,11 @@ const userId = payload.sub;
 ## API Endpoints
 
 ### POST /api/auth/login
+
 Login with email and password.
 
 **Request**:
+
 ```json
 {
   "email": "admin@test.com",
@@ -129,6 +139,7 @@ Login with email and password.
 ```
 
 **Response**:
+
 ```json
 {
   "token": "eyJhbGc...",
@@ -144,9 +155,11 @@ Login with email and password.
 ```
 
 ### POST /api/auth/signup
+
 Create new user account.
 
 **Request**:
+
 ```json
 {
   "email": "user@example.com",
@@ -158,32 +171,39 @@ Create new user account.
 ```
 
 **Response**:
+
 ```json
 {
   "token": "eyJhbGc...",
-  "user": { /* user object */ }
+  "user": {
+    /* user object */
+  }
 }
 ```
 
 ### GET /api/auth/me
+
 Get current authenticated user.
 
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "id": "uuid",
   "email": "admin@test.com",
-  "role": "admin",
+  "role": "admin"
   /* ... */
 }
 ```
 
 ### PUT /api/auth/update-role
+
 Update user role (Admin only).
 
 **Request**:
+
 ```json
 {
   "userId": "target-user-uuid",
@@ -196,14 +216,14 @@ Update user role (Admin only).
 ### Client-Side Protection
 
 ```tsx
-import { useAuth } from '@/lib/auth/context';
+import { useAuth } from "@/lib/auth/context";
 
 export default function ProtectedPage() {
   const { user, loading } = useAuth();
 
   if (loading) return <div>Loading...</div>;
   if (!user) {
-    redirect('/auth/login');
+    redirect("/auth/login");
   }
 
   return <div>Protected Content</div>;
@@ -213,8 +233,8 @@ export default function ProtectedPage() {
 ### Role-Based UI
 
 ```tsx
-import { useAuth } from '@/lib/auth/context';
-import { canManageUsers } from '@/lib/auth/permissions';
+import { useAuth } from "@/lib/auth/context";
+import { canManageUsers } from "@/lib/auth/permissions";
 
 export default function AdminPanel() {
   const { user } = useAuth();
@@ -251,27 +271,30 @@ CREATE TABLE users (
 
 Default test accounts (created by `setup-society.js`):
 
-| Email | Password | Role |
-|-------|----------|------|
-| admin@test.com | admin123 | admin |
+| Email            | Password   | Role    |
+| ---------------- | ---------- | ------- |
+| admin@test.com   | admin123   | admin   |
 | manager@test.com | manager123 | manager |
-| member@test.com | member123 | member |
+| member@test.com  | member123  | member  |
 
 ⚠️ **Security Note**: Change these passwords before production deployment!
 
 ## Security Best Practices
 
 1. **Password Requirements**
+
    - Minimum 8 characters
    - Consider adding complexity requirements
    - Implement password reset functionality
 
 2. **Token Management**
+
    - Tokens expire after 7 days
    - Store securely in httpOnly cookies (recommended for production)
    - Clear token on logout
 
 3. **API Security**
+
    - Always verify JWT on server-side
    - Check user permissions for each action
    - Use HTTPS in production

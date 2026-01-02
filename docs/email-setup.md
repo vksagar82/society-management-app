@@ -10,6 +10,7 @@ Configure Gmail SMTP for automated email notifications.
 ## Overview
 
 The system sends automated email alerts for:
+
 - 📧 Expired/expiring AMC contracts
 - 📧 Issue status updates
 - 📧 Asset maintenance reminders
@@ -37,11 +38,13 @@ The system sends automated email alerts for:
 ### Step 3: Copy Password
 
 Google shows a 16-character password like:
+
 ```
 abcd efgh ijkl mnop
 ```
 
 **Important**: Remove all spaces when adding to .env.local:
+
 ```bash
 SMTP_PASS=abcdefghijklmnop
 ```
@@ -122,6 +125,7 @@ node test-email.js
 **Cause**: App password is incorrect or has spaces.
 
 **Solutions**:
+
 1. Regenerate app password at [Google App Passwords](https://myaccount.google.com/apppasswords)
 2. Ensure 2-Step Verification is enabled
 3. Copy password without spaces to `.env.local`
@@ -142,6 +146,7 @@ SMTP_PASS=abcdefghijklmnop
 **Cause**: Firewall blocking SMTP port 587.
 
 **Solutions**:
+
 1. Check firewall allows outbound connections to port 587
 2. Try alternative port 465 (SSL):
    ```bash
@@ -157,6 +162,7 @@ SMTP_PASS=abcdefghijklmnop
 **Cause**: TLS certificate verification issue.
 
 **Solution**: Already handled in code with:
+
 ```typescript
 tls: {
   rejectUnauthorized: false,
@@ -170,12 +176,14 @@ If still failing, check Node.js version (18+ recommended).
 ### Email not received
 
 **Check**:
+
 1. ✅ Spam/Junk folder
 2. ✅ Gmail filters not blocking
 3. ✅ `test-email.js` shows success
 4. ✅ Correct recipient email in test
 
 **Debug**:
+
 ```bash
 # Check Gmail activity
 https://myaccount.google.com/notifications
@@ -192,6 +200,7 @@ https://myaccount.google.com/notifications
 **Subject**: AMC Expiry Alert - [Vendor Name]
 
 **Template**:
+
 ```
 Subject: AMC Expiry Alert
 
@@ -202,15 +211,16 @@ The AMC for [Vendor Name] is expiring on [Date]. Please renew the contract in ti
 ```
 
 **HTML Version**:
+
 ```html
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
     <h2 style="color: #333; margin-top: 0;">AMC Expiry Alert</h2>
     <div style="color: #666; line-height: 1.6;">
-      The AMC for <strong>Star Cool</strong> is expiring on <strong>1/2/2026</strong>.
-      <br/>Please renew the contract in time.
+      The AMC for <strong>Star Cool</strong> is expiring on
+      <strong>1/2/2026</strong>. <br />Please renew the contract in time.
     </div>
-    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
     <p style="color: #999; font-size: 12px;">
       This is an automated message from Society Management System.
     </p>
@@ -225,17 +235,19 @@ The AMC for [Vendor Name] is expiring on [Date]. Please renew the contract in ti
 ### When Emails are Sent
 
 1. **AMC Creation**: If contract expires within 30 days
+
    ```typescript
    const daysUntilExpiry = Math.ceil(
      (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
    );
-   
+
    if (daysUntilExpiry <= 30) {
      // Send email to all society admins
    }
    ```
 
 2. **Scheduled Cron**: Daily check at 9 AM UTC
+
    ```json
    {
      "path": "/api/crons/check-amc-expiry",
@@ -259,6 +271,7 @@ societyalerts@yourdomain.com
 ```
 
 **Benefits**:
+
 - Separate from personal email
 - Easier to monitor
 - Better security isolation
@@ -266,10 +279,12 @@ societyalerts@yourdomain.com
 ### Email Limits
 
 **Gmail Free Account**:
+
 - 500 emails/day
 - 100 recipients per email
 
 **Gmail Workspace**:
+
 - 2000 emails/day
 - Better for production
 

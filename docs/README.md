@@ -38,6 +38,7 @@ Open [http://localhost:4000](http://localhost:4000)
 5. Click Save
 
 Your docs will be available at:
+
 ```
 https://YOUR_USERNAME.github.io/society-management-app/
 ```
@@ -45,11 +46,13 @@ https://YOUR_USERNAME.github.io/society-management-app/
 ### Custom Domain (Optional)
 
 1. Add CNAME file:
+
    ```bash
    echo "docs.yourdomain.com" > docs/CNAME
    ```
 
 2. Configure DNS:
+
    ```
    Type: CNAME
    Name: docs
@@ -80,6 +83,7 @@ Your markdown content here...
 Current theme: `jekyll-theme-cayman`
 
 To change theme, update `_config.yml`:
+
 ```yaml
 theme: jekyll-theme-minimal
 ```
@@ -89,6 +93,7 @@ Available themes: https://pages.github.com/themes/
 ### Navigation
 
 Edit navigation in `_config.yml`:
+
 ```yaml
 navigation:
   - title: New Page
@@ -98,6 +103,7 @@ navigation:
 ### Styling
 
 Add custom CSS in page front matter:
+
 ```markdown
 <style>
 /* Custom styles */

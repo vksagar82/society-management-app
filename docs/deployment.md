@@ -29,6 +29,7 @@ Vercel provides seamless Next.js deployment with zero configuration.
 **Framework Preset**: Next.js (auto-detected)
 
 **Build Settings**:
+
 ```bash
 Build Command: npm run build
 Output Directory: .next
@@ -66,6 +67,7 @@ CRON_SECRET=random_cron_secret
 ### Step 4: Deploy
 
 Click "Deploy" and wait 2-3 minutes. Vercel will:
+
 - Install dependencies
 - Build the application
 - Deploy to CDN
@@ -74,15 +76,18 @@ Click "Deploy" and wait 2-3 minutes. Vercel will:
 ### Step 5: Post-Deployment
 
 1. **Test the deployment**:
+
    ```bash
    curl https://your-app.vercel.app/api/health
    ```
 
 2. **Run database migrations** (if not done):
+
    - Execute `database/schema.sql` in Supabase
    - Execute `database/AUTH_MIGRATIONS.sql`
 
 3. **Create production society**:
+
    ```bash
    # Update setup-society.js with production credentials
    node setup-society.js
@@ -105,8 +110,8 @@ Click "Deploy" and wait 2-3 minutes. Vercel will:
 
 **DNS Configuration** (for Cloudflare/Namecheap):
 
-| Type | Name | Value | TTL |
-|------|------|-------|-----|
+| Type  | Name    | Value                | TTL  |
+| ----- | ------- | -------------------- | ---- |
 | CNAME | society | cname.vercel-dns.com | Auto |
 
 Wait 5-10 minutes for DNS propagation.
@@ -143,6 +148,7 @@ Create `vercel.json` in root:
 ```
 
 **Schedule Format**: [Cron expression](https://crontab.guru/)
+
 - `0 9 * * *` = Every day at 9:00 AM UTC
 - `0 */6 * * *` = Every 6 hours
 
@@ -188,10 +194,11 @@ CREATE POLICY "Users see own society"
 
 1. **Supabase Auto-Backups**: Enabled by default (7-day retention on free tier)
 2. **Manual Backup**:
+
    ```bash
    # Install Supabase CLI
    npm install -g supabase
-   
+
    # Export database
    supabase db dump -f backup.sql
    ```
@@ -203,6 +210,7 @@ CREATE POLICY "Users see own society"
 ### Vercel Analytics
 
 Enable in Vercel Dashboard:
+
 - Real-time analytics
 - Performance metrics
 - Error tracking
@@ -229,7 +237,7 @@ export async function GET() {
   return NextResponse.json({
     status: "healthy",
     timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version
+    version: process.env.npm_package_version,
   });
 }
 ```
@@ -273,11 +281,11 @@ async headers() {
 ```typescript
 // In API routes
 const allowedOrigins = [
-  'https://society.yourdomain.com',
-  process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''
+  "https://society.yourdomain.com",
+  process.env.NODE_ENV === "development" ? "http://localhost:3000" : "",
 ];
 
-const origin = req.headers.get('origin');
+const origin = req.headers.get("origin");
 if (origin && allowedOrigins.includes(origin)) {
   // Allow request
 }
@@ -289,14 +297,14 @@ Consider using Vercel Edge Middleware:
 
 ```typescript
 // middleware.ts
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   // Implement rate limiting logic
-  const ip = request.ip ?? '127.0.0.1';
+  const ip = request.ip ?? "127.0.0.1";
   // Check redis/kv for rate limits
-  
+
   return NextResponse.next();
 }
 ```
@@ -310,24 +318,18 @@ export function middleware(request: NextRequest) {
 Use Next.js Image component:
 
 ```tsx
-import Image from 'next/image';
+import Image from "next/image";
 
-<Image 
-  src="/logo.png" 
-  alt="Logo" 
-  width={200} 
-  height={200}
-  priority
-/>
+<Image src="/logo.png" alt="Logo" width={200} height={200} priority />;
 ```
 
 ### 2. Code Splitting
 
 ```tsx
 // Lazy load components
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 
-const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+const HeavyComponent = dynamic(() => import("./HeavyComponent"), {
   loading: () => <p>Loading...</p>,
 });
 ```
@@ -375,6 +377,7 @@ CREATE INDEX idx_users_email ON users(email);
 ### Build Failures
 
 **Check**:
+
 - All dependencies in `package.json`
 - No TypeScript errors (`npm run build` locally)
 - Environment variables set in Vercel
@@ -382,12 +385,14 @@ CREATE INDEX idx_users_email ON users(email);
 ### Runtime Errors
 
 **Check Vercel Logs**:
+
 - Dashboard → Your Project → Deployments → Latest → Runtime Logs
 - Look for error stack traces
 
 ### Database Connection Issues
 
 **Check**:
+
 - Supabase project not paused
 - Correct connection strings
 - RLS policies not blocking queries

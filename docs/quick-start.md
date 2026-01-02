@@ -69,6 +69,7 @@ node setup-society.js
 ```
 
 This creates:
+
 - Test society: "Test Society"
 - Admin user: `admin@test.com` / `admin123`
 - Manager user: `manager@test.com` / `manager123`
@@ -110,6 +111,7 @@ If successful, you'll receive a test email! 📧
 ### Login not working?
 
 Make sure you've run:
+
 1. `database/AUTH_MIGRATIONS.sql` in Supabase
 2. `node setup-society.js` to create test users
 
@@ -122,6 +124,7 @@ Make sure you've run:
 ### Database errors?
 
 Verify:
+
 1. Supabase URL and keys are correct
 2. Schema has been applied via `database/schema.sql`
 3. RLS policies are configured

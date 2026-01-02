@@ -28,6 +28,7 @@ SUPABASE_JWT_SECRET=your_jwt_secret_here
 ```
 
 **Where to find these**:
+
 1. Go to [Supabase Dashboard](https://app.supabase.com)
 2. Select your project
 3. Go to Settings → API
@@ -58,6 +59,7 @@ JWT_SECRET=your_random_32_character_secret_here_change_in_production
 ```
 
 **Generate a secure secret**:
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
@@ -79,6 +81,7 @@ SMTP_PASS=your_16_char_app_password
 📧 **Important**: Use Gmail App Password, not your regular password!
 
 **How to get Gmail App Password**:
+
 1. Go to [Google Account Settings](https://myaccount.google.com)
 2. Security → 2-Step Verification (must be enabled)
 3. App passwords → Select "Mail" and "Other (Custom name)"
@@ -161,6 +164,7 @@ node setup-society.js
 ```
 
 This creates:
+
 - Society: "Test Society"
 - Users: admin@test.com, manager@test.com, member@test.com
 
@@ -211,6 +215,7 @@ When deploying to Vercel:
 3. Set appropriate environments: Production, Preview, Development
 
 **Variable Types**:
+
 - `NEXT_PUBLIC_*` → Available to browser
 - Others → Server-side only (more secure)
 
@@ -221,6 +226,7 @@ When deploying to Vercel:
 ### Database Connection Failed
 
 **Check**:
+
 - Supabase URL is correct
 - ANON_KEY and SERVICE_ROLE_KEY are valid
 - Project is not paused (Supabase free tier)
@@ -228,6 +234,7 @@ When deploying to Vercel:
 ### Email Not Sending
 
 **Check**:
+
 - Gmail app password has no spaces
 - 2-Step Verification enabled in Google account
 - SMTP_USER and SMTP_PASS are correct
@@ -236,6 +243,7 @@ When deploying to Vercel:
 ### JWT Token Invalid
 
 **Check**:
+
 - JWT_SECRET is set and same across requests
 - Token hasn't expired (7-day limit)
 - Token format is correct (base64url encoded)
@@ -243,6 +251,7 @@ When deploying to Vercel:
 ### CORS Errors
 
 **Check**:
+
 - Supabase URL includes `https://`
 - API routes don't have hardcoded localhost URLs
 - Vercel environment variables are set correctly

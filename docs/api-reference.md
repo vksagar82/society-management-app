@@ -31,6 +31,7 @@ Authorization: Bearer <your-jwt-token>
 Authenticate user and receive JWT token.
 
 **Request Body**:
+
 ```json
 {
   "email": "admin@test.com",
@@ -39,6 +40,7 @@ Authenticate user and receive JWT token.
 ```
 
 **Response** (200):
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
@@ -54,6 +56,7 @@ Authenticate user and receive JWT token.
 ```
 
 **Errors**:
+
 - `400`: Missing email or password
 - `401`: Invalid credentials
 - `403`: Account disabled
@@ -65,6 +68,7 @@ Authenticate user and receive JWT token.
 Create new user account.
 
 **Request Body**:
+
 ```json
 {
   "email": "newuser@example.com",
@@ -76,10 +80,13 @@ Create new user account.
 ```
 
 **Response** (201):
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": { /* user object */ }
+  "user": {
+    /* user object */
+  }
 }
 ```
 
@@ -92,6 +99,7 @@ Get current authenticated user.
 **Headers**: `Authorization: Bearer <token>`
 
 **Response** (200):
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -111,9 +119,11 @@ Get current authenticated user.
 Get all AMCs (filtered by society if provided).
 
 **Query Parameters**:
+
 - `society_id` (optional): UUID of society
 
 **Response** (200):
+
 ```json
 [
   {
@@ -141,6 +151,7 @@ Get all AMCs (filtered by society if provided).
 Create new AMC (sends email alert if expiring soon).
 
 **Request Body**:
+
 ```json
 {
   "society_id": "uuid",
@@ -157,9 +168,10 @@ Create new AMC (sends email alert if expiring soon).
 ```
 
 **Response** (201):
+
 ```json
 {
-  "id": "uuid",
+  "id": "uuid"
   /* ... all AMC fields ... */
 }
 ```
@@ -175,9 +187,11 @@ Create new AMC (sends email alert if expiring soon).
 Get all assets.
 
 **Query Parameters**:
+
 - `society_id` (optional): Filter by society
 
 **Response** (200):
+
 ```json
 [
   {
@@ -202,6 +216,7 @@ Get all assets.
 Create new asset.
 
 **Request Body**:
+
 ```json
 {
   "society_id": "uuid",
@@ -216,9 +231,10 @@ Create new asset.
 ```
 
 **Response** (201):
+
 ```json
 {
-  "id": "uuid",
+  "id": "uuid"
   /* ... all asset fields ... */
 }
 ```
@@ -232,10 +248,12 @@ Create new asset.
 Get all issues.
 
 **Query Parameters**:
+
 - `society_id` (optional): Filter by society
 - `status` (optional): Filter by status (open, in_progress, resolved)
 
 **Response** (200):
+
 ```json
 [
   {
@@ -260,6 +278,7 @@ Get all issues.
 Report new issue.
 
 **Request Body**:
+
 ```json
 {
   "society_id": "uuid",
@@ -272,9 +291,10 @@ Report new issue.
 ```
 
 **Response** (201):
+
 ```json
 {
-  "id": "uuid",
+  "id": "uuid"
   /* ... all issue fields ... */
 }
 ```
@@ -290,9 +310,11 @@ Get all users (Admin only).
 **Headers**: `Authorization: Bearer <admin-token>`
 
 **Query Parameters**:
+
 - `society_id` (optional): Filter by society
 
 **Response** (200):
+
 ```json
 [
   {
@@ -314,6 +336,7 @@ Get all users (Admin only).
 Update user role (Admin only).
 
 **Request Body**:
+
 ```json
 {
   "userId": "target-user-uuid",
@@ -322,6 +345,7 @@ Update user role (Admin only).
 ```
 
 **Response** (200):
+
 ```json
 {
   "message": "Role updated successfully"
@@ -337,9 +361,11 @@ Update user role (Admin only).
 Get all alerts for a society.
 
 **Query Parameters**:
+
 - `society_id` (required): UUID of society
 
 **Response** (200):
+
 ```json
 [
   {
@@ -366,6 +392,7 @@ Check for expiring AMCs and send alerts (called by scheduled cron).
 **Headers**: `Authorization: Bearer <cron-secret>`
 
 **Response** (200):
+
 ```json
 {
   "message": "AMC expiry check completed",
@@ -383,6 +410,7 @@ Check for asset maintenance due and send alerts.
 **Headers**: `Authorization: Bearer <cron-secret>`
 
 **Response** (200):
+
 ```json
 {
   "success": true,
@@ -404,15 +432,15 @@ All endpoints follow consistent error format:
 
 ### Common Status Codes
 
-| Code | Meaning |
-|------|---------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request (validation error) |
-| 401 | Unauthorized (missing/invalid token) |
-| 403 | Forbidden (insufficient permissions) |
-| 404 | Not Found |
-| 500 | Internal Server Error |
+| Code | Meaning                              |
+| ---- | ------------------------------------ |
+| 200  | Success                              |
+| 201  | Created                              |
+| 400  | Bad Request (validation error)       |
+| 401  | Unauthorized (missing/invalid token) |
+| 403  | Forbidden (insufficient permissions) |
+| 404  | Not Found                            |
+| 500  | Internal Server Error                |
 
 ---
 
