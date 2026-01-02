@@ -72,7 +72,7 @@ git commit -m "chore: configure github actions secrets"
 git push origin main
 ```
 
-### Step 6: Monitor Workflows
+### Step 4: Monitor Workflows
 
 1. Go to **Actions** tab in your repository
 2. Select the workflow to see detailed logs
@@ -116,13 +116,13 @@ node tests/test-login.js
 
 ## Workflow Triggers
 
-| Event              | Workflow                  | Result                        |
-| ------------------ | ------------------------- | ----------------------------- |
-| Push to any branch | `test.yml`                | Run tests, lint, build        |
-| Pull Request       | `test.yml` + `deploy.yml` | Run tests + deploy preview    |
-| Push to `main`     | `test.yml` + `deploy.yml` | Run tests + deploy production |
+| Event              | Workflow   | Result                 |
+| ------------------ | ---------- | ---------------------- |
+| Push to any branch | `test.yml` | Run tests, lint, build |
+| Pull Request       | `test.yml` | Run tests              |
+| Push to `main`     | `test.yml` | Run tests              |
 
-## Deployment Flow
+## CI/CD Flow
 
 ### Pull Request Workflow
 
@@ -131,16 +131,14 @@ Create PR
     ↓
 Automated tests run
     ↓
-If passing → Deploy preview to Vercel
+If passing → PR ready for review
     ↓
 Review code
     ↓
 Merge PR
-    ↓
-Deploy to production
 ```
 
-### Production Deployment
+### Main Branch Workflow
 
 ```
 Push to main branch
@@ -149,9 +147,7 @@ Run all validations
     ↓
 Build application
     ↓
-Deploy to Vercel production
-    ↓
-✅ Live!
+✅ Build successful!
 ```
 
 ## Security Scanning
@@ -201,15 +197,13 @@ Checks for known vulnerabilities in dependencies.
 
 ## Verification Checklist
 
-- [ ] All 11 secrets added to GitHub Actions
+- [ ] All 8 secrets added to GitHub Actions
 - [ ] Gmail app password regenerated
 - [ ] Supabase credentials regenerated
 - [ ] JWT secret regenerated
 - [ ] Code pushed to GitHub
 - [ ] Actions tab shows workflows running
 - [ ] All tests passing (green checkmarks)
-- [ ] Preview deployment working on PR
-- [ ] Production deployment working on main
 
 ## Troubleshooting
 
@@ -230,19 +224,11 @@ node tests/test-login.js
 2. Verify workflow files exist in `.github/workflows/`
 3. Check Actions tab for error messages
 
-### Deployment Failed?
-
-1. Go to GitHub Actions logs
-2. Review error message in job output
-3. Check Vercel deployment dashboard
-4. Verify Vercel secrets are correct
-
 ### Secrets Not Working?
 
 1. Reload GitHub page after adding secrets
 2. Verify secret names match exactly (case-sensitive)
 3. Check values don't have trailing spaces
-4. For Vercel: Verify token hasn't expired
 
 ### Email Tests Skipped?
 
@@ -294,7 +280,6 @@ test-something:
 ## Resources
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Vercel Deployment Docs](https://vercel.com/docs)
 - [Node.js Testing Best Practices](https://nodejs.org/en/docs/guides/testing/)
 - [Supabase API Documentation](https://supabase.com/docs/reference)
 
