@@ -63,8 +63,8 @@ SMTP_PASS=your16charapppassword
 ```bash
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=vksagar82@gmail.com
-SMTP_PASS=tpxvlttctqsnitmj
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your16charapppassword
 ```
 
 ---
