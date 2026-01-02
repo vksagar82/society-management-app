@@ -1,0 +1,28 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm ci",
+  "framework": "nextjs",
+  "nodeVersion": "20.x",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@next_public_supabase_anon_key",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
+    "TWILIO_ACCOUNT_SID": "@twilio_account_sid",
+    "TWILIO_AUTH_TOKEN": "@twilio_auth_token",
+    "TELEGRAM_BOT_TOKEN": "@telegram_bot_token",
+    "JWT_SECRET": "@jwt_secret"
+  },
+  "envPrefix": "NEXT_PUBLIC_",
+  "outputDirectory": ".next",
+  "crons": [
+    {
+      "path": "/api/crons/check-amc-expiry",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/crons/check-asset-maintenance",
+      "schedule": "0 10 * * *"
+    }
+  ]
+}
