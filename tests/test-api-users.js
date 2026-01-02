@@ -79,15 +79,21 @@ function generateToken(userId) {
 
     console.log(`   Status: ${response.status} ${response.statusText}`);
 
-    const data = await response.json();
+    const text = await response.text();
 
-    if (response.ok) {
-      console.log(`\n✅ Success! Found ${data.length} users:`);
-      data.forEach((u) => {
-        console.log(`   - ${u.email} (${u.role})`);
-      });
-    } else {
-      console.log(`\n❌ Error:`, data);
+    try {
+      const data = JSON.parse(text);
+      if (response.ok) {
+        console.log(`\n✅ Success! Found ${data.length} users:`);
+        data.forEach((u) => {
+          console.log(`   - ${u.email} (${u.role})`);
+        });
+      } else {
+        console.log(`\n❌ Error:`, data);
+      }
+    } catch (e) {
+      console.log(`\n❌ Invalid JSON response:`, text.substring(0, 200));
+      console.log(`\nFull response: ${text}`);
     }
   } catch (error) {
     console.log(`\n❌ Fetch failed:`, error.message);
