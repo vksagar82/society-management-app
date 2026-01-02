@@ -69,18 +69,30 @@ function generateToken(userId) {
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   }/api/users`;
 
-  // Add Vercel bypass token if available
-  if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
-    apiUrl += `?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${process.env.VERCEL_AUTOMATION_BYPASS_SECRET}`;
+  // Add Vercel bypass token if available (both query param and header)
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (bypass) {
+    apiUrl += `?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${bypass}`;
   }
 
   console.log(`   URL: ${apiUrl}`);
 
   try {
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    if (bypass) {
+      // Send header too; some protected deployments require both header and query token
+      headers["x-vercel-protection-bypass"] = bypass;
+      // Also send bypass cookie in case protection checks cookies only
+      headers[
+        "Cookie"
+      ] = `__vercel_protection_bypass=${bypass}; x-vercel-protection-bypass=${bypass}`;
+    }
+
     const response = await fetch(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
 
     console.log(`   Status: ${response.status} ${response.statusText}`);
