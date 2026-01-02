@@ -120,9 +120,9 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
   test-email:
-    name: Email Configuration Tests
+    name: Email Configuration Tests (Against Vercel Deployment)
     runs-on: ubuntu-latest
-    needs: lint-and-build
+    needs: deploy-vercel
 
     steps:
       - name: Checkout code
@@ -140,6 +140,7 @@ jobs:
       - name: Run email tests
         run: node tests/test-email.js
         env:
+          NEXT_PUBLIC_APP_URL: ${{ needs.deploy-vercel.outputs.deployment-url }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
