@@ -41,6 +41,7 @@ jobs:
     needs: lint-and-build
     outputs:
       deployment-url: ${{ steps.deploy.outputs.url }}
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
 
     steps:
       - name: Checkout code
@@ -61,9 +62,12 @@ jobs:
       - name: Deploy to Vercel Preview
         id: deploy
         run: |
-          DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
-          echo "Deployed preview to: $DEPLOYMENT_URL"
+          DEPLOYMENT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --json)
+          URL=$(echo $DEPLOYMENT | jq -r '.url')
+          ID=$(echo $DEPLOYMENT | jq -r '.deploymentId')
+          echo "url=https://$URL" >> $GITHUB_OUTPUT
+          echo "deployment-id=$ID" >> $GITHUB_OUTPUT
+          echo "Deployed preview to: https://$URL"
 
   test-database:
     name: Database Tests (Against Preview)
@@ -243,10 +247,14 @@ jobs:
         if: steps.check-tests.outputs.TESTS_FAILED == 'false'
         run: npm install --global vercel@latest
 
+      - name: Pull Vercel Environment
+        if: steps.check-tests.outputs.TESTS_FAILED == 'false'
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
       - name: Promote to Production
         if: steps.check-tests.outputs.TESTS_FAILED == 'false'
         run: |
-          vercel promote ${{ needs.deploy-preview.outputs.deployment-url }} --token=${{ secrets.VERCEL_TOKEN }} --yes
+          vercel promote ${{ needs.deploy-preview.outputs.deployment-id }} --token=${{ secrets.VERCEL_TOKEN }} --yes
           echo "✅ Promoted to production!"
 
       - name: Comment on failure
