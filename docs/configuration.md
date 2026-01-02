@@ -1,8 +1,3 @@
----
-layout: default
-title: Configuration
----
-
 # Configuration Guide
 
 Complete environment variable setup and configuration options.

@@ -1,8 +1,3 @@
----
-layout: default
-title: API Reference
----
-
 # API Reference
 
 Complete documentation for all API endpoints.

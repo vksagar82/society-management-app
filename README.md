@@ -1,282 +1,207 @@
-# Society Management App
+# Society Management System
 
-A comprehensive web application for managing housing societies with authentication, AMC tracking, asset management, and automated email notifications.
+<div align="center">
 
-## 📚 Complete Documentation
+[![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/)
 
-👉 **[View Full Documentation](docs/)** - GitHub Pages site with comprehensive guides
+**A comprehensive web application for managing residential societies with role-based access control, automated notifications, and real-time tracking.**
 
-Quick links:
+[📚 Documentation](https://vksagar82.github.io/society-management-app/) • [🚀 Quick Start](#-quick-start) • [✨ Features](#-features) • [🛠️ Tech Stack](#-tech-stack)
 
-- 🚀 [Quick Start](docs/quick-start.md) - Get running in 5 minutes
-- 🔐 [Authentication](docs/authentication.md) - User roles, JWT, security
-- 📡 [API Reference](docs/api-reference.md) - Complete API documentation
-- ⚙️ [Configuration](docs/configuration.md) - Environment variables
-- 🌐 [Deployment](docs/deployment.md) - Production deployment guide
-- 📧 [Email Setup](docs/email-setup.md) - Gmail SMTP configuration
+</div>
 
-## 🚀 Features
+---
 
-### Core Functionality
+## 📚 Documentation
 
-- **User Authentication**: Role-based access control (Admin, Manager, Member)
-- **Dashboard**: Real-time overview of all society metrics
-- **Issue Tracking**: Report, assign, and track maintenance issues
-- **AMC Management**: Track annual maintenance contracts with automatic expiry alerts
-- **Asset Management**: Comprehensive asset inventory with maintenance schedules
-- **Email Notifications**: Automated alerts via Gmail SMTP
+> **Complete documentation is available on GitHub Pages:**
+>
+> ### **[https://vksagar82.github.io/society-management-app/](https://vksagar82.github.io/society-management-app/)**
 
-### Technical Stack
+The documentation includes:
 
-- **Frontend**: Next.js 14+, React, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: JWT with SHA256 password hashing
-- **Email**: Nodemailer with Gmail SMTP
-- **Deployment**: Vercel
+- **Quick Start Guide** - Get running in 5 minutes
+- **Authentication & Authorization** - User roles, JWT, and security
+- **API Reference** - Complete endpoint documentation
+- **Configuration Guide** - Environment setup
+- **Deployment Guide** - Production deployment to Vercel
+- **Email Setup** - Gmail SMTP integration
 
-## 📋 Quick Start
+---
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🔐 Authentication & Security
+
+- Role-based access control (Admin/Manager/Member)
+- JWT-based authentication
+- SHA256 password hashing
+- Secure session management
+
+### 📊 Society Management
+
+- Real-time dashboard with metrics
+- Multi-society support
+- User management with permissions
+- Activity tracking and audit logs
+
+</td>
+<td width="50%">
+
+### 📋 Operations
+
+- AMC contract tracking with expiry alerts
+- Asset inventory management
+- Issue/complaint tracking system
+- Automated maintenance scheduling
+
+### 📧 Notifications
+
+- Email alerts via Gmail SMTP
+- Automatic expiry reminders
+- Issue status updates
+- Custom notification templates
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer              | Technology                                   |
+| ------------------ | -------------------------------------------- |
+| **Frontend**       | Next.js 14+, React, TypeScript, Tailwind CSS |
+| **Backend**        | Next.js API Routes (Server-side)             |
+| **Database**       | Supabase (PostgreSQL)                        |
+| **Authentication** | JWT with SHA256                              |
+| **Email**          | Nodemailer + Gmail SMTP                      |
+| **Deployment**     | Vercel                                       |
+| **Testing**        | Jest, Node.js Scripts                        |
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- Supabase account
-- Gmail account (for notifications)
+- Node.js 18 or higher
+- Supabase account ([Sign up free](https://supabase.com/))
+- Gmail account for notifications
 
 ### Installation
 
 ```bash
-# Clone repository
-git clone <your-repo-url>
+# 1. Clone the repository
+git clone https://github.com/vksagar82/society-management-app.git
 cd society-management-app
 
-# Install dependencies
+# 2. Install dependencies
 npm install
 
-# Setup environment variables
+# 3. Configure environment variables
 cp .env.local.example .env.local
 # Edit .env.local with your credentials
 
-# Run database migrations in Supabase
-# Execute: database/schema.sql
-# Execute: database/AUTH_MIGRATIONS.sql
+# 4. Setup database (Run in Supabase SQL Editor)
+# - Execute: database/schema.sql
+# - Execute: database/AUTH_MIGRATIONS.sql
 
-# Create test society and users
+# 5. Create test data
 node setup-society.js
 
-# Start development server
+# 6. Start development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
 
-**Default Test Accounts**:
+### Default Test Accounts
 
-- Admin: `admin@test.com` / `admin123`
-- Manager: `manager@test.com` / `manager123`
-- Member: `member@test.com` / `member123`
+| Role    | Email            | Password   |
+| ------- | ---------------- | ---------- |
+| Admin   | admin@test.com   | admin123   |
+| Manager | manager@test.com | manager123 |
+| Member  | member@test.com  | member123  |
 
-## 🛠️ Configuration
+⚠️ **Change these credentials in production!**
 
-### 1. Install Dependencies
+---
 
-```bash
-npm install
-```
+## 📖 Full Documentation
 
-### 2. Set up Environment Variables
+For complete setup instructions, API documentation, and deployment guides, visit:
 
-Copy `.env.local.example` to `.env.local` and fill in your credentials:
+### **[📚 GitHub Pages Documentation](https://vksagar82.github.io/society-management-app/)**
 
-```bash
-cp .env.local.example .env.local
-```
+---
 
-**Required environment variables:**
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-# Twilio WhatsApp
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_WHATSAPP_NUMBER=whatsapp:+1234567890
-WHATSAPP_RECEIVER_ID=whatsapp:+target_phone_number
-
-# Telegram
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-TELEGRAM_CHAT_ID=your_telegram_chat_id
-
-# Other
-JWT_SECRET=your_jwt_secret_key
-CRON_SECRET=your_cron_secret_key
-NODE_ENV=development
-```
-
-### 3. Set up Supabase Database
-
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
-2. Go to SQL Editor and create a new query
-3. Copy and run the SQL from `database/schema.sql`
-4. This creates all necessary tables with proper relationships and indexes
-
-### 4. Configure Twilio (WhatsApp)
-
-1. Sign up at [Twilio](https://www.twilio.com/)
-2. Get Account SID and Auth Token
-3. Activate WhatsApp Sandbox
-4. Get your WhatsApp-enabled number
-5. Add credentials to `.env.local`
-
-### 5. Configure Telegram Bot
-
-1. Open Telegram and search for [@BotFather](https://t.me/botfather)
-2. Create a new bot with `/newbot`
-3. Get the bot token
-4. Send a message to your bot and get your chat ID
-5. Add to `.env.local`
-
-## 🚀 Development
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## 📦 Build & Production
-
-```bash
-npm run build
-npm start
-```
-
-## 📁 Project Structure
+## 📦 Project Structure
 
 ```
-src/
-├── app/
-│   ├── api/              # REST API routes
-│   │   ├── amcs/        # AMC CRUD endpoints
-│   │   ├── issues/      # Issue CRUD endpoints
-│   │   ├── assets/      # Asset CRUD endpoints
-│   │   ├── alerts/      # Notification endpoints
-│   │   └── crons/       # Scheduled background tasks
-│   ├── dashboard/       # Analytics dashboard
-│   ├── issues/          # Issue reporting UI
-│   ├── amcs/            # AMC management UI
-│   ├── assets/          # Asset tracking UI
-│   ├── layout.tsx       # Root layout with navigation
-│   └── page.tsx         # Home page redirector
-├── components/          # Reusable React components
-│   ├── Badge.tsx        # Status/Priority badges
-│   └── Form.tsx         # Generic form component
-├── lib/
-│   ├── supabase/       # Supabase client factory
-│   └── notifications/  # WhatsApp/Telegram services
-└── types/              # TypeScript interfaces
-
-database/
-└── schema.sql          # PostgreSQL schema with 12 tables
+society-management-app/
+├── src/
+│   ├── app/              # Next.js app router pages
+│   │   ├── api/          # API routes
+│   │   ├── auth/         # Authentication pages
+│   │   ├── dashboard/    # Dashboard
+│   │   ├── amcs/         # AMC management
+│   │   ├── assets/       # Asset tracking
+│   │   └── issues/       # Issue reporting
+│   ├── components/       # Reusable components
+│   └── lib/              # Utilities and services
+│       ├── auth/         # Auth context & utils
+│       ├── supabase/     # Database client
+│       └── notifications/ # Email service
+├── database/             # SQL schema and migrations
+├── docs/                 # GitHub Pages documentation
+└── public/               # Static assets
 ```
 
-## 📊 API Endpoints
+---
 
-### AMCs (Annual Maintenance Contracts)
+## 🤝 Contributing
 
-```
-GET  /api/amcs?society_id={id}          # List all AMCs
-POST /api/amcs                          # Create new AMC
-```
+Contributions are welcome! Please follow these steps:
 
-### Issues
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-```
-GET  /api/issues?society_id={id}&status={status}  # List issues
-POST /api/issues                                  # Report new issue
-```
+---
 
-### Assets
+## 📄 License
 
-```
-GET  /api/assets?society_id={id}&status={status}  # List assets
-POST /api/assets                                  # Add new asset
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Alerts
+---
 
-```
-GET  /api/alerts?society_id={id}        # List alerts
-POST /api/alerts                        # Create & send alert
-```
+## 🙏 Acknowledgments
 
-## 🔄 Automated Tasks (Cron Jobs)
+- Built with [Next.js](https://nextjs.org/)
+- Database by [Supabase](https://supabase.com/)
+- Deployed on [Vercel](https://vercel.com/)
+- Email via [Nodemailer](https://nodemailer.com/)
 
-Configured in `vercel.json` and run on Vercel servers:
+---
 
-### Daily at 9 AM UTC - AMC Expiry Check
+<div align="center">
 
-- Identifies AMCs expiring within 30 days
-- Sends WhatsApp/Telegram alerts to society admins
-- Creates alert records in database
+**[⬆ Back to Top](#society-management-system)**
 
-### Daily at 10 AM UTC - Asset Maintenance Check
+Made with ❤️ for better society management
 
-- Checks for upcoming scheduled maintenance
-- Alerts facility managers
-- Maintains maintenance history
-
-## 🔐 Security & Best Practices
-
-- ✅ Environment variables for all secrets
-- ✅ Row Level Security (RLS) in Supabase
-- ✅ Zod validation on all API inputs
-- ✅ TypeScript for type safety
-- ✅ API route handlers with error handling
-- ✅ HTTPS for all external communications
-
-## 🎨 User Interface
-
-### Dashboard (`/dashboard`)
-
-- Real-time statistics cards
-- Quick action buttons
-- System health status
-
-### Issues (`/issues`)
-
-- Create/report new issues
-- Filter by status (open, in_progress, resolved)
-- Priority level indicators
-- Assignment tracking
-
-### AMCs (`/amcs`)
-
-- Add maintenance contracts
-- Track expiry dates (visual countdown)
-- Vendor contact information
-- Annual cost tracking
-
-### Assets (`/assets`)
-
-- Asset inventory management
-- Category filtering
-- Warranty tracking
-- Maintenance scheduling
-
-## 📦 Key Dependencies
-
-```json
-{
-  "next": "^15.0",
-  "react": "^19.0",
-  "@supabase/supabase-js": "^2.0",
-  "axios": "^1.6",
-  "zod": "^3.0",
-  "react-hook-form": "^7.0",
+</div>
   "tailwindcss": "^3.0"
 }
 ```

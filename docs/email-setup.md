@@ -1,8 +1,3 @@
----
-layout: default
-title: Email Setup
----
-
 # Email Setup Guide
 
 Configure Gmail SMTP for automated email notifications.

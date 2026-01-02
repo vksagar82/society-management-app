@@ -1,33 +1,22 @@
 title: Society Management System
 description: Complete documentation for the Society Management Application
-theme: jekyll-theme-cayman
-baseurl: ""
-url: ""
-
-# Navigation
-navigation:
-  - title: Home
-    url: /
-  - title: Quick Start
-    url: /quick-start
-  - title: Authentication
-    url: /authentication
-  - title: API Reference
-    url: /api-reference
-  - title: Configuration
-    url: /configuration
-  - title: Deployment
-    url: /deployment
-  - title: Email Setup
-    url: /email-setup
-
-# Enable GitHub Pages features
+remote_theme: pages-themes/cayman@v0.2.0
 plugins:
-  - jekyll-relative-links
-  - jekyll-seo-tag
+  - jekyll-remote-theme
 
 # Markdown settings
 markdown: kramdown
 kramdown:
   input: GFM
   syntax_highlighter: rouge
+
+# Enable automatic title generation
+titles_from_headings:
+  enabled: true
+  strip_title: false
+  collections: true
+
+# Relative links configuration
+relative_links:
+  enabled: true
+  collections: false

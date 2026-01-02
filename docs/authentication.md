@@ -1,8 +1,3 @@
----
-layout: default
-title: Authentication
----
-
 # Authentication & Authorization
 
 Complete guide to the authentication system, user roles, and permissions.

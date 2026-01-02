@@ -1,8 +1,3 @@
----
-layout: default
-title: Quick Start
----
-
 # Quick Start Guide
 
 Get your Society Management System up and running in minutes.

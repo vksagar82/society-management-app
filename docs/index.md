@@ -1,8 +1,3 @@
----
-layout: default
-title: Home
----
-
 # Society Management System
 
 A comprehensive web application for managing housing societies, built with Next.js, TypeScript, and Supabase.

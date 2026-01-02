@@ -1,8 +1,3 @@
----
-layout: default
-title: Deployment
----
-
 # Deployment Guide
 
 Deploy your Society Management System to production.
