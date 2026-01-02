@@ -2,10 +2,11 @@
 
 <div align="center">
 
+![Build Status](https://github.com/vksagar82/society-management-app/actions/workflows/test.yml/badge.svg)
+
 [![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green?style=for-the-badge&logo=supabase)](https://supabase.com/)
-[![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/)
 
 **A comprehensive web application for managing residential societies with role-based access control, automated notifications, and real-time tracking.**
 
