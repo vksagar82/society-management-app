@@ -27,6 +27,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     fetchAssets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const fetchAssets = async () => {
@@ -52,7 +53,7 @@ export default function AssetsPage() {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: formData.get("name"),
         category: formData.get("category"),
         description: formData.get("description"),

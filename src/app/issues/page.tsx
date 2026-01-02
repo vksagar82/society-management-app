@@ -25,6 +25,7 @@ export default function IssuesPage() {
 
   useEffect(() => {
     fetchIssues();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const fetchIssues = async () => {
@@ -50,7 +51,7 @@ export default function IssuesPage() {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title: formData.get("title"),
         description: formData.get("description"),
         category: formData.get("category"),

@@ -44,17 +44,17 @@ export default function Dashboard() {
         const amcs = await amcsRes.json();
 
         const openIssues = issues.filter(
-          (i: any) => i.status === "open"
+          (i: { status: string }) => i.status === "open"
         ).length;
         const expiringAMCs = amcs.filter(
-          (a: any) => a.status !== "expired"
+          (a: { status: string }) => a.status !== "expired"
         ).length;
 
         setStats({
           totalIssues: issues.length,
           openIssues,
           totalAssets: assets.length,
-          activeAMCs: amcs.filter((a: any) => a.status === "active").length,
+          activeAMCs: amcs.filter((a: { status: string }) => a.status === "active").length,
           expiringAMCs,
         });
       } catch (error) {
@@ -65,6 +65,7 @@ export default function Dashboard() {
     };
 
     fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {

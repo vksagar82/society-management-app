@@ -35,6 +35,7 @@ export default function AMCsPage() {
 
   useEffect(() => {
     fetchAMCs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAMCs = async () => {
@@ -64,7 +65,7 @@ export default function AMCsPage() {
     }
 
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         vendor_name: formData.get("vendor_name"),
         service_type: formData.get("service_type"),
         contract_start_date: formData.get("contract_start_date"),

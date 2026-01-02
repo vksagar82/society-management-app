@@ -36,6 +36,7 @@ export default function UsersPage() {
     if (requireAdmin(user)) {
       fetchUsers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchUsers = async () => {

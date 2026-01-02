@@ -14,7 +14,7 @@ interface FormField {
 
 interface GenericFormProps {
   fields: FormField[];
-  onSubmit: (data: Record<string, any>) => Promise<void>;
+  onSubmit: (data: Record<string, unknown>) => Promise<void>;
   submitButtonText?: string;
   isLoading?: boolean;
 }
