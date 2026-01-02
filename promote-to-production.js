@@ -5,7 +5,7 @@
  * Use this when GitHub Actions promotion fails or to manually control production releases
  */
 
-import https from "https";
+const https = require("https");
 
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID;

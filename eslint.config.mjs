@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "tests/**",
     "utils/**",
     "fix-passwords.js",
+    "promote-to-production.js",
   ]),
   {
     rules: {
