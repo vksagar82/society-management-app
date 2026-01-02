@@ -137,24 +137,14 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Pull Vercel env (preview)
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Write SMTP secrets to .env.local
         run: |
-          if [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "Missing VERCEL_ORG_ID or VERCEL_PROJECT_ID secrets; skipping env pull"
-            exit 1
-          fi
-          vercel env pull .env.local \
-            --environment=preview \
-            --token="$VERCEL_TOKEN" \
-            --org "$VERCEL_ORG_ID" \
-            --project "$VERCEL_PROJECT_ID"
+          cat > .env.local <<'EOF'
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          EOF
 
       - name: Install dependencies
         run: npm ci
