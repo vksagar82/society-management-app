@@ -41,6 +41,7 @@ jobs:
     needs: lint-and-build
     outputs:
       deployment-url: ${{ steps.deploy.outputs.url }}
+      deployment-id: ${{ steps.deploy.outputs.id }}
 
     steps:
       - name: Checkout code
@@ -63,8 +64,10 @@ jobs:
         run: |
           DEPLOYMENT_OUTPUT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           DEPLOYMENT_URL=$(echo "$DEPLOYMENT_OUTPUT" | grep -oP 'https://[^\s]+' | tail -1)
+          DEPLOYMENT_ID=$(echo "$DEPLOYMENT_OUTPUT" | grep -oP '(?<=\[)[a-zA-Z0-9]+(?=\])' | tail -1)
           echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
-          echo "Deployed preview to: $DEPLOYMENT_URL"
+          echo "id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "Deployed preview to: $DEPLOYMENT_URL (ID: $DEPLOYMENT_ID)"
 
   test-database:
     name: Database Tests (Against Preview)
@@ -254,5 +257,5 @@ jobs:
       - name: Promote to Production
         if: steps.check-tests.outputs.TESTS_FAILED == 'false'
         run: |
-          vercel promote ${{ needs.deploy-preview.outputs.deployment-url }} --token=${{ secrets.VERCEL_TOKEN }} --yes
+          vercel promote ${{ needs.deploy-preview.outputs.deployment-id }} --token=${{ secrets.VERCEL_TOKEN }} --yes
           echo "✅ Promoted to production!"
