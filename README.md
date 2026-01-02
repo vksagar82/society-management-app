@@ -1,38 +1,80 @@
 # Society Management App
 
-A professional, full-featured society management application built with Next.js, TypeScript, Tailwind CSS, and Supabase. This application provides complete management solutions for residential societies including AMC tracking, issue reporting, asset tracking, and real-time alerts via WhatsApp and Telegram.
+A comprehensive web application for managing housing societies with authentication, AMC tracking, asset management, and automated email notifications.
+
+## 📚 Complete Documentation
+
+👉 **[View Full Documentation](docs/)** - GitHub Pages site with comprehensive guides
+
+Quick links:
+- 🚀 [Quick Start](docs/quick-start.md) - Get running in 5 minutes
+- 🔐 [Authentication](docs/authentication.md) - User roles, JWT, security
+- 📡 [API Reference](docs/api-reference.md) - Complete API documentation
+- ⚙️ [Configuration](docs/configuration.md) - Environment variables
+- 🌐 [Deployment](docs/deployment.md) - Production deployment guide
+- 📧 [Email Setup](docs/email-setup.md) - Gmail SMTP configuration
 
 ## 🚀 Features
 
 ### Core Functionality
 
+- **User Authentication**: Role-based access control (Admin, Manager, Member)
 - **Dashboard**: Real-time overview of all society metrics
-- **Issue Tracking**: Report, assign, and track maintenance issues and complaints
-- **AMC Management**: Track annual maintenance contracts with expiry alerts
-- **Asset Management**: Maintain comprehensive asset inventory with maintenance schedules
-- **Smart Notifications**: Automated alerts via WhatsApp and Telegram
+- **Issue Tracking**: Report, assign, and track maintenance issues
+- **AMC Management**: Track annual maintenance contracts with automatic expiry alerts
+- **Asset Management**: Comprehensive asset inventory with maintenance schedules
+- **Email Notifications**: Automated alerts via Gmail SMTP
 
-### Technical Features
+### Technical Stack
 
-- Built with Next.js 15 (App Router)
-- Full TypeScript support
-- PostgreSQL database via Supabase
-- Real-time notifications
-- Automated cron jobs for reminders
-- Blob storage for images
-- Professional UI with Tailwind CSS
-- Vercel-ready deployment
+- **Frontend**: Next.js 14+, React, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: JWT with SHA256 password hashing
+- **Email**: Nodemailer with Gmail SMTP
+- **Deployment**: Vercel
 
-## 📋 Prerequisites
+## 📋 Quick Start
+
+### Prerequisites
 
 - Node.js 18+
-- npm or yarn
 - Supabase account
-- Twilio account (for WhatsApp)
-- Telegram Bot Token
-- Vercel account (for deployment)
+- Gmail account (for notifications)
 
-## 🛠️ Installation & Configuration
+### Installation
+
+```bash
+# Clone repository
+git clone <your-repo-url>
+cd society-management-app
+
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your credentials
+
+# Run database migrations in Supabase
+# Execute: database/schema.sql
+# Execute: database/AUTH_MIGRATIONS.sql
+
+# Create test society and users
+node setup-society.js
+
+# Start development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+**Default Test Accounts**:
+- Admin: `admin@test.com` / `admin123`
+- Manager: `manager@test.com` / `manager123`
+- Member: `member@test.com` / `member123`
+
+## 🛠️ Configuration
 
 ### 1. Install Dependencies
 
