@@ -123,10 +123,10 @@ export default function AssetsPage() {
                     name="category"
                     className="w-full px-3 py-2 border rounded-lg"
                   >
-                    <option>Elevator</option>
-                    <option>CCTV</option>
-                    <option>Generator</option>
-                    <option>Water Pump</option>
+                    <option value="">Select Category</option>
+                    <option>Electrical</option>
+                    <option>Plumbing</option>
+                    <option>Structural</option>
                     <option>Other</option>
                   </select>
                 </div>

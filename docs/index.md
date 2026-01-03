@@ -43,6 +43,16 @@ A comprehensive web application for managing housing societies, built with Next.
   </div>
 
   <div class="doc-card">
+    <h3>� <a href="responsive-guide">Responsive Design Guide</a></h3>
+    <p>Mobile-first design & sidebar navigation</p>
+  </div>
+
+  <div class="doc-card">
+    <h3>🎨 <a href="responsive-design">Architecture Reference</a></h3>
+    <p>Detailed responsive design architecture</p>
+  </div>
+
+  <div class="doc-card">
     <h3>🔐 <a href="authentication">Authentication</a></h3>
     <p>User roles, permissions, and security</p>
   </div>
@@ -65,6 +75,11 @@ A comprehensive web application for managing housing societies, built with Next.
   <div class="doc-card">
     <h3>📧 <a href="email-setup">Email Setup</a></h3>
     <p>Configure Gmail SMTP notifications</p>
+  </div>
+
+  <div class="doc-card">
+    <h3>🔄 <a href="ci-cd-setup">CI/CD Setup</a></h3>
+    <p>GitHub Actions and automated workflows</p>
   </div>
 </div>
 

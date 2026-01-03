@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/Badge";
 import { useAuth } from "@/lib/auth/context";
+import { TrashIcon, PencilIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface AMC {
   id: string;
@@ -16,6 +17,8 @@ interface AMC {
   contact_phone: string;
   status: string;
   renewal_reminder_days: number;
+  email?: string;
+  notes?: string;
 }
 
 interface Contact {
@@ -24,77 +27,197 @@ interface Contact {
   email: string;
 }
 
+interface FlashMessage {
+  type: "success" | "error";
+  message: string;
+}
+
 export default function AMCsPage() {
   const { user } = useAuth();
   const [amcs, setAmcs] = useState<AMC[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([
     { name: "", phone: "", email: "" },
   ]);
+  const [flashMessage, setFlashMessage] = useState<FlashMessage | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    vendor_name: "",
+    service_type: "",
+    contract_start_date: "",
+    contract_end_date: "",
+    annual_cost: "",
+    currency: "INR",
+    renewal_reminder_days: "30",
+    notes: "",
+  });
 
   useEffect(() => {
     fetchAMCs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (flashMessage) {
+      const timer = setTimeout(() => setFlashMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [flashMessage]);
+
   const fetchAMCs = async () => {
     try {
       const societyParam = user?.society_id
         ? `?society_id=${user.society_id}`
         : "";
-      const res = await fetch(`/api/amcs${societyParam}`);
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`/api/amcs${societyParam}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await res.json();
       setAmcs(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch AMCs:", error);
-      setAmcs([]);
+      setFlashMessage({
+        type: "error",
+        message: "Failed to load AMCs",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const resetForm = () => {
+    setFormData({
+      vendor_name: "",
+      service_type: "",
+      contract_start_date: "",
+      contract_end_date: "",
+      annual_cost: "",
+      currency: "INR",
+      renewal_reminder_days: "30",
+      notes: "",
+    });
+    setContacts([{ name: "", phone: "", email: "" }]);
+    setEditingId(null);
+  };
 
-    // Validate at least one contact
-    if (contacts.length === 0 || !contacts[0].name || !contacts[0].phone) {
-      alert("At least one contact with name and phone is required");
+  const startEdit = (amc: AMC) => {
+    setFormData({
+      vendor_name: amc.vendor_name,
+      service_type: amc.service_type,
+      contract_start_date: amc.contract_start_date,
+      contract_end_date: amc.contract_end_date,
+      annual_cost: amc.annual_cost?.toString() || "",
+      currency: amc.currency || "INR",
+      renewal_reminder_days: amc.renewal_reminder_days?.toString() || "30",
+      notes: amc.notes || "",
+    });
+    setContacts([
+      {
+        name: amc.contact_person || "",
+        phone: amc.contact_phone || "",
+        email: amc.email || "",
+      },
+    ]);
+    setEditingId(amc.id);
+    setShowForm(true);
+  };
+
+  const handleDeleteAMC = async (amcId: string) => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`/api/amcs?id=${amcId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete AMC");
+      }
+
+      setAmcs(amcs.filter((a) => a.id !== amcId));
+      setDeleteConfirm(null);
+      setFlashMessage({
+        type: "success",
+        message: "AMC deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting AMC:", error);
+      setFlashMessage({
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Failed to delete AMC",
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user?.society_id) {
+      setFlashMessage({
+        type: "error",
+        message: "User society not found",
+      });
       return;
     }
 
-    try {
-      const payload: Record<string, unknown> = {
-        vendor_name: formData.get("vendor_name"),
-        service_type: formData.get("service_type"),
-        contract_start_date: formData.get("contract_start_date"),
-        contract_end_date: formData.get("contract_end_date"),
-        annual_cost: parseFloat(formData.get("annual_cost") as string),
-        currency: formData.get("currency"),
-        contact_person: contacts[0].name,
-        contact_phone: contacts[0].phone,
-        email: contacts[0].email,
-        additional_contacts: contacts.length > 1 ? contacts.slice(1) : [],
-      };
+    const submitData = {
+      ...formData,
+      society_id: user.society_id,
+      annual_cost: formData.annual_cost ? parseFloat(formData.annual_cost) : 0,
+      renewal_reminder_days: parseInt(formData.renewal_reminder_days),
+      contact_person: contacts[0]?.name || "",
+      contact_phone: contacts[0]?.phone || "",
+      email: contacts[0]?.email || "",
+    };
 
-      if (user?.society_id) {
-        payload.society_id = user.society_id;
-      }
+    try {
+      const method = editingId ? "PUT" : "POST";
+      const body = editingId ? { ...submitData, id: editingId } : submitData;
+      const token = localStorage.getItem("auth_token");
 
       const res = await fetch("/api/amcs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
       });
 
-      if (res.ok) {
-        setShowForm(false);
-        setContacts([{ name: "", phone: "", email: "" }]);
-        fetchAMCs();
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to save AMC");
       }
+
+      const savedAmc = await res.json();
+
+      if (editingId) {
+        setAmcs(amcs.map((a) => (a.id === editingId ? savedAmc : a)));
+        setFlashMessage({
+          type: "success",
+          message: "AMC updated successfully",
+        });
+      } else {
+        setAmcs([...amcs, savedAmc]);
+        setFlashMessage({
+          type: "success",
+          message: "AMC added successfully",
+        });
+      }
+
+      resetForm();
+      setShowForm(false);
     } catch (error) {
-      console.error("Failed to create AMC:", error);
+      console.error("Error saving AMC:", error);
+      setFlashMessage({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to save AMC",
+      });
     }
   };
 
@@ -129,6 +252,20 @@ export default function AMCsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Flash Messages */}
+      {flashMessage && (
+        <div className="fixed top-4 right-4 z-50">
+          <div
+            className={`rounded-lg shadow-lg px-6 py-4 text-white flex items-center gap-3 ${
+              flashMessage.type === "success" ? "bg-green-500" : "bg-red-500"
+            }`}
+          >
+            <div>{flashMessage.type === "success" ? "✓" : "✕"}</div>
+            <p>{flashMessage.message}</p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -138,7 +275,10 @@ export default function AMCsPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              resetForm();
+              setShowForm(!showForm);
+            }}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
             + Add AMC
@@ -147,106 +287,171 @@ export default function AMCsPage() {
 
         {showForm && (
           <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-2xl font-bold mb-6">Add New AMC</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-2xl font-bold mb-6">
+              {editingId ? "Edit AMC" : "Add New AMC"}
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vendor Name
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vendor Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    name="vendor_name"
+                    value={formData.vendor_name}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        vendor_name: e.target.value,
+                      })
+                    }
                     required
-                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Enter vendor name"
+                    className="w-full px-4 py-2 border rounded-lg"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Service Type
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Service Type <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    name="service_type"
+                    value={formData.service_type}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        service_type: e.target.value,
+                      })
+                    }
                     required
-                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="e.g., Plumbing, Electrical"
+                    className="w-full px-4 py-2 border rounded-lg"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
-                    name="contract_start_date"
+                    value={formData.contract_start_date}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        contract_start_date: e.target.value,
+                      })
+                    }
                     required
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-4 py-2 border rounded-lg"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Date
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
-                    name="contract_end_date"
+                    value={formData.contract_end_date}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        contract_end_date: e.target.value,
+                      })
+                    }
                     required
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-4 py-2 border rounded-lg"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Annual Cost
                   </label>
                   <input
                     type="number"
-                    name="annual_cost"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.annual_cost}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        annual_cost: e.target.value,
+                      })
+                    }
+                    placeholder="0.00"
+                    className="w-full px-4 py-2 border rounded-lg"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Currency
                   </label>
                   <select
-                    name="currency"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.currency}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        currency: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border rounded-lg"
                   >
-                    <option>INR</option>
-                    <option>USD</option>
-                    <option>EUR</option>
+                    <option value="INR">INR</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Renewal Reminder (Days)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.renewal_reminder_days}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        renewal_reminder_days: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        notes: e.target.value,
+                      })
+                    }
+                    placeholder="Additional notes"
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
                 </div>
               </div>
 
-              <div className="border-t pt-4 mt-4">
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Contacts <span className="text-red-500">*</span>
-                  </h3>
+                  <h4 className="font-medium text-gray-900">
+                    Contact Details <span className="text-red-500">*</span>
+                  </h4>
                   <button
                     type="button"
                     onClick={addContact}
-                    className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1"
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                   >
-                    <span className="text-xl">+</span> Add Contact
+                    + Add Contact
                   </button>
                 </div>
 
                 {contacts.map((contact, index) => (
-                  <div
-                    key={index}
-                    className="mb-4 p-4 bg-gray-50 rounded-lg relative"
-                  >
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-sm font-medium text-gray-700">
-                        Contact {index + 1}{" "}
+                  <div key={index} className="mb-4 p-3 bg-white rounded border">
+                    <div className="flex justify-between mb-2">
+                      <h4 className="font-medium text-gray-900">
+                        Contact {index + 1}
                         {index === 0 && <span className="text-red-500">*</span>}
                       </h4>
                       {contacts.length > 1 && (
@@ -299,7 +504,10 @@ export default function AMCsPage() {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Email
+                          Email{" "}
+                          {index === 0 && (
+                            <span className="text-red-500">*</span>
+                          )}
                         </label>
                         <input
                           type="email"
@@ -307,7 +515,8 @@ export default function AMCsPage() {
                           onChange={(e) =>
                             updateContact(index, "email", e.target.value)
                           }
-                          placeholder="email@example.com"
+                          required={index === 0}
+                          placeholder="contact@example.com"
                           className="w-full px-3 py-2 border rounded-lg text-sm"
                         />
                       </div>
@@ -321,11 +530,14 @@ export default function AMCsPage() {
                   type="submit"
                   className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700"
                 >
-                  Add AMC
+                  {editingId ? "Update AMC" : "Add AMC"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    resetForm();
+                    setShowForm(false);
+                  }}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400"
                 >
                   Cancel
@@ -355,8 +567,41 @@ export default function AMCsPage() {
                       </h3>
                       <p className="text-gray-600 mt-1">{amc.service_type}</p>
                     </div>
-                    <div className="ml-4">
+                    <div className="flex items-center gap-2">
                       <StatusBadge status={amc.status} />
+                      <button
+                        onClick={() => startEdit(amc)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        title="Edit AMC"
+                      >
+                        <PencilIcon className="w-5 h-5" />
+                      </button>
+                      {deleteConfirm === amc.id ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDeleteAMC(amc.id)}
+                            className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                            title="Confirm delete"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(null)}
+                            className="p-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition"
+                            title="Cancel"
+                          >
+                            <XMarkIcon className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirm(amc.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="Delete AMC"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 

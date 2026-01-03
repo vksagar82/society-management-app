@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { verifyPassword, generateToken } from "@/lib/auth/utils";
+import { logOperation } from "@/lib/audit/loggingHelper";
 
 export async function POST(req: NextRequest) {
   try {
@@ -50,6 +51,23 @@ export async function POST(req: NextRequest) {
       .from("users")
       .update({ last_login: new Date().toISOString() })
       .eq("id", user.id);
+
+    // Log login activity
+    if (user.society_id) {
+      await logOperation({
+        request: req,
+        action: "VIEW",
+        entityType: "auth_login",
+        entityId: user.id,
+        societyId: user.society_id,
+        userId: user.id,
+        newValues: {
+          email: user.email,
+          login_time: new Date().toISOString(),
+        },
+        description: `User login: ${email}`,
+      });
+    }
 
     // Generate token
     const token = generateToken(user.id);

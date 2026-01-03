@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { verifyToken } from "@/lib/auth/utils";
+import { logOperation } from "@/lib/audit/loggingHelper";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     // Check if requester is admin
     const { data: requester, error: requesterError } = await supabase
       .from("users")
-      .select("role")
+      .select("role, society_id")
       .eq("id", decoded.userId)
       .single();
 
@@ -52,6 +53,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
+    // Get old user data before update
+    const { data: oldUserData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
     // Update user role
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
@@ -66,6 +74,19 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Log the role update
+    await logOperation({
+      request: req,
+      action: "UPDATE",
+      entityType: "user",
+      entityId: userId,
+      societyId: requester.society_id,
+      userId: decoded.userId,
+      oldValues: { role: oldUserData?.role },
+      newValues: { role: newRole },
+      description: `User role updated: ${oldUserData?.role} → ${newRole}`,
+    });
 
     return NextResponse.json({
       message: "User role updated successfully",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { hashPassword, generateToken } from "@/lib/auth/utils";
+import { logOperation } from "@/lib/audit/loggingHelper";
 
 export async function POST(req: NextRequest) {
   try {
@@ -63,6 +64,24 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Log user signup
+    await logOperation({
+      request: req,
+      action: "CREATE",
+      entityType: "user",
+      entityId: newUser.id,
+      societyId: societyId,
+      userId: newUser.id,
+      newValues: {
+        email: newUser.email,
+        full_name: newUser.full_name,
+        phone: newUser.phone,
+        role: newUser.role,
+        status: "active",
+      },
+      description: `New user signup: ${email}`,
+    });
 
     // Generate token
     const token = generateToken(newUser.id);

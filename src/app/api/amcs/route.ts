@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { z } from "zod";
 import { sendAMCExpiryAlert } from "@/lib/notifications/notificationService";
+import { logOperation } from "@/lib/audit/loggingHelper";
+import { verifyToken } from "@/lib/auth/utils";
+
+// Validate bearer token from Authorization header and return the user
+async function getAuthenticatedUser(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return {
+      response: NextResponse.json(
+        { error: "Missing or invalid authorization header" },
+        { status: 401 }
+      ),
+    };
+  }
+
+  const token = authHeader.slice(7);
+  const decoded = verifyToken(token);
+
+  if (!decoded) {
+    return {
+      response: NextResponse.json(
+        { error: "Invalid or expired token" },
+        { status: 401 }
+      ),
+    };
+  }
+
+  const supabase = createServerClient();
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", decoded.userId)
+    .single();
+
+  if (error || !user) {
+    return {
+      response: NextResponse.json({ error: "User not found" }, { status: 404 }),
+    };
+  }
+
+  return { user };
+}
 
 const amcSchema = z.object({
   society_id: z.string().uuid().optional(),
@@ -52,6 +96,15 @@ export async function POST(req: NextRequest) {
     const validatedData = amcSchema.parse(body);
 
     const supabase = createServerClient();
+    const { user, response } = await getAuthenticatedUser(req);
+    if (!user) return response!;
+
+    // Get user's society
+    const { data: userData } = await supabase
+      .from("users")
+      .select("society_id")
+      .eq("id", user.id)
+      .single();
 
     const { data, error } = await supabase
       .from("amcs")
@@ -60,6 +113,20 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    // Log AMC creation
+    if (userData?.society_id) {
+      await logOperation({
+        request: req,
+        action: "CREATE",
+        entityType: "amc",
+        entityId: data.id,
+        societyId: userData.society_id,
+        userId: user.id,
+        newValues: data,
+        description: `AMC created: ${validatedData.vendor_name}`,
+      });
+    }
 
     // Check if AMC is already expired or expiring soon
     const endDate = new Date(validatedData.contract_end_date);
@@ -124,6 +191,138 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(
       { error: "Failed to create AMC" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, ...updateData } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "AMC ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServerClient();
+    const { user, response } = await getAuthenticatedUser(req);
+    if (!user) return response!;
+
+    // Get user's society
+    const { data: userData } = await supabase
+      .from("users")
+      .select("society_id")
+      .eq("id", user.id)
+      .single();
+
+    // Get old AMC data
+    const { data: oldAmc } = await supabase
+      .from("amcs")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    // Update AMC
+    const { data: updatedAmc, error } = await supabase
+      .from("amcs")
+      .update({ ...updateData, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log AMC update
+    if (userData?.society_id) {
+      await logOperation({
+        request: req,
+        action: "UPDATE",
+        entityType: "amc",
+        entityId: id,
+        societyId: userData.society_id,
+        userId: user.id,
+        oldValues: oldAmc,
+        newValues: updatedAmc,
+        description: `AMC updated: ${oldAmc?.vendor_name}`,
+      });
+    }
+
+    return NextResponse.json(updatedAmc);
+  } catch (error) {
+    console.error("Error updating AMC:", error);
+    return NextResponse.json(
+      { error: "Failed to update AMC" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "AMC ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServerClient();
+    const { user, response } = await getAuthenticatedUser(req);
+    if (!user) return response!;
+
+    // Get user's society and role
+    const { data: userData } = await supabase
+      .from("users")
+      .select("society_id, role")
+      .eq("id", user.id)
+      .single();
+
+    // Only admins can delete
+    if (userData?.role !== "admin") {
+      return NextResponse.json(
+        { error: "Only admins can delete AMCs" },
+        { status: 403 }
+      );
+    }
+
+    // Get AMC data before deletion
+    const { data: amcData } = await supabase
+      .from("amcs")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    // Delete AMC
+    const { error } = await supabase.from("amcs").delete().eq("id", id);
+
+    if (error) throw error;
+
+    // Log AMC deletion
+    if (userData?.society_id && amcData) {
+      await logOperation({
+        request: req,
+        action: "DELETE",
+        entityType: "amc",
+        entityId: id,
+        societyId: userData.society_id,
+        userId: user.id,
+        oldValues: amcData,
+        description: `AMC deleted: ${amcData.vendor_name}`,
+      });
+    }
+
+    return NextResponse.json({ message: "AMC deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting AMC:", error);
+    return NextResponse.json(
+      { error: "Failed to delete AMC" },
       { status: 500 }
     );
   }
