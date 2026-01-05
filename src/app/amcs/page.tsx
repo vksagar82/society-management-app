@@ -19,6 +19,14 @@ interface AMC {
   renewal_reminder_days: number;
   email?: string;
   notes?: string;
+  assets?: AssetSummary[];
+}
+
+interface AssetSummary {
+  id: string;
+  name: string;
+  asset_code?: string;
+  location?: string;
 }
 
 interface Contact {
@@ -36,6 +44,7 @@ export default function AMCsPage() {
   const { user } = useAuth();
   const [amcs, setAmcs] = useState<AMC[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assetsLoading, setAssetsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([
@@ -43,6 +52,8 @@ export default function AMCsPage() {
   ]);
   const [flashMessage, setFlashMessage] = useState<FlashMessage | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [assetOptions, setAssetOptions] = useState<AssetSummary[]>([]);
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     vendor_name: "",
     service_type: "",
@@ -56,8 +67,9 @@ export default function AMCsPage() {
 
   useEffect(() => {
     fetchAMCs();
+    fetchAssetsList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.society_id]);
 
   useEffect(() => {
     if (flashMessage) {
@@ -88,6 +100,36 @@ export default function AMCsPage() {
     }
   };
 
+  const fetchAssetsList = async () => {
+    if (!user?.society_id) return;
+    setAssetsLoading(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`/api/assets?society_id=${user.society_id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setAssetOptions(
+          data.map((asset: any) => ({
+            id: asset.id,
+            name: asset.name,
+            asset_code: asset.asset_code,
+            location: asset.location,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load assets for AMC:", error);
+      setFlashMessage({
+        type: "error",
+        message: "Failed to load assets for AMC",
+      });
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       vendor_name: "",
@@ -101,6 +143,7 @@ export default function AMCsPage() {
     });
     setContacts([{ name: "", phone: "", email: "" }]);
     setEditingId(null);
+    setSelectedAssets([]);
   };
 
   const startEdit = (amc: AMC) => {
@@ -132,6 +175,7 @@ export default function AMCsPage() {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
+      setSelectedAssets((amc.assets || []).map((a) => a.id));
 
       if (!res.ok) {
         const error = await res.json();
@@ -165,6 +209,14 @@ export default function AMCsPage() {
       return;
     }
 
+    if (selectedAssets.length === 0) {
+      setFlashMessage({
+        type: "error",
+        message: "Select at least one asset for this AMC",
+      });
+      return;
+    }
+
     const submitData = {
       ...formData,
       society_id: user.society_id,
@@ -173,6 +225,7 @@ export default function AMCsPage() {
       contact_person: contacts[0]?.name || "",
       contact_phone: contacts[0]?.phone || "",
       email: contacts[0]?.email || "",
+      asset_ids: selectedAssets,
     };
 
     try {
@@ -196,14 +249,22 @@ export default function AMCsPage() {
 
       const savedAmc = await res.json();
 
+      const linkedAssets = assetOptions.filter((a) =>
+        selectedAssets.includes(a.id)
+      );
+
       if (editingId) {
-        setAmcs(amcs.map((a) => (a.id === editingId ? savedAmc : a)));
+        setAmcs(
+          amcs.map((a) =>
+            a.id === editingId ? { ...savedAmc, assets: linkedAssets } : a
+          )
+        );
         setFlashMessage({
           type: "success",
           message: "AMC updated successfully",
         });
       } else {
-        setAmcs([...amcs, savedAmc]);
+        setAmcs([...amcs, { ...savedAmc, assets: linkedAssets }]);
         setFlashMessage({
           type: "success",
           message: "AMC added successfully",
@@ -433,6 +494,67 @@ export default function AMCsPage() {
                 </div>
               </div>
 
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-gray-900">
+                    Linked Assets <span className="text-red-500">*</span>
+                  </h4>
+                  <span className="text-xs text-gray-500">
+                    Select assets that this AMC covers
+                  </span>
+                </div>
+                {assetsLoading ? (
+                  <div className="text-sm text-gray-600">Loading assets...</div>
+                ) : assetOptions.length === 0 ? (
+                  <div className="text-sm text-gray-600">
+                    No assets available. Please add assets first.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-52 overflow-y-auto">
+                    {assetOptions.map((asset) => {
+                      const checked = selectedAssets.includes(asset.id);
+                      return (
+                        <label
+                          key={asset.id}
+                          className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                            checked
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedAssets([
+                                  ...selectedAssets,
+                                  asset.id,
+                                ]);
+                              } else {
+                                setSelectedAssets(
+                                  selectedAssets.filter((id) => id !== asset.id)
+                                );
+                              }
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {asset.name}
+                            </p>
+                            <p className="text-xs text-gray-600 truncate">
+                              {asset.asset_code || "No code"}
+                              {asset.location ? ` • ${asset.location}` : ""}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-medium text-gray-900">
@@ -636,6 +758,23 @@ export default function AMCsPage() {
                       </p>
                     </div>
                   </div>
+
+                  {amc.assets && amc.assets.length > 0 && (
+                    <div className="mb-4 text-sm text-gray-700">
+                      <p className="font-semibold text-gray-900 mb-2">Assets</p>
+                      <div className="flex flex-wrap gap-2">
+                        {amc.assets.map((asset) => (
+                          <span
+                            key={asset.id}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium"
+                          >
+                            {asset.name}
+                            {asset.asset_code ? ` (${asset.asset_code})` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex gap-4 text-sm text-gray-600">
                     <div>👤 {amc.contact_person}</div>

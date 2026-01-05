@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { isAdmin } from "@/lib/auth/permissions";
 import {
@@ -17,6 +17,7 @@ import {
   XMarkIcon,
   UserCircleIcon,
   ArrowUpIcon,
+  PowerIcon,
 } from "@heroicons/react/24/outline";
 
 interface NavItem {
@@ -62,8 +63,9 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -255,7 +257,7 @@ export function Sidebar() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2">
+          <nav className="flex-1 flex flex-col overflow-y-auto py-6 px-3 space-y-2">
             {visibleItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -302,10 +304,53 @@ export function Sidebar() {
                 </Link>
               );
             })}
+
+            <div className="mt-auto pt-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  await logout();
+                  router.push("/auth/login");
+                }}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 group relative transform hover:scale-102 text-slate-300 hover:bg-gradient-to-r hover:from-red-700/60 hover:to-rose-600/60 hover:text-white hover:shadow-lg ${
+                  isMobile
+                    ? isOpen
+                      ? ""
+                      : "justify-center"
+                    : isPinned
+                    ? ""
+                    : "justify-center"
+                }`}
+                title={
+                  (isMobile && !isOpen) || (!isMobile && !isPinned)
+                    ? "Logout"
+                    : ""
+                }
+              >
+                <PowerIcon className="w-5 h-5 flex-shrink-0" />
+                {isMobile ? (
+                  isOpen ? (
+                    <span className="text-sm font-semibold tracking-wide">
+                      Logout
+                    </span>
+                  ) : null
+                ) : isPinned ? (
+                  <span className="text-sm font-semibold tracking-wide">
+                    Logout
+                  </span>
+                ) : null}
+                {(isMobile && !isOpen) || (!isMobile && !isPinned) ? (
+                  <div className="absolute left-full ml-3 hidden group-hover:block bg-gradient-to-r from-red-700 to-rose-600 text-white text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap z-50 shadow-xl">
+                    Logout
+                    <div className="absolute top-1/2 right-full -translate-y-1/2 border-8 border-transparent border-r-red-700" />
+                  </div>
+                ) : null}
+              </button>
+            </div>
           </nav>
 
           {/* Footer - User Info */}
-          <div className="border-t border-slate-700/50 p-4 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-900 backdrop-blur-sm">
+          <div className="border-t border-slate-700/50 p-4 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-900 backdrop-blur-sm space-y-3">
             <Link
               href="/profile"
               className={`flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-lg group transform hover:scale-102 ${

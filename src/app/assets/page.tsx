@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { StatusBadge } from "@/components/Badge";
 import { useAuth } from "@/lib/auth/context";
 
 interface Asset {
   id: string;
   name: string;
-  category: string;
+  category?: string | null;
   description: string;
   purchase_date: string;
   warranty_expiry_date: string;
@@ -20,6 +21,7 @@ interface Asset {
 
 export default function AssetsPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -30,6 +32,11 @@ export default function AssetsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
+  useEffect(() => {
+    const add = searchParams.get("add");
+    setShowForm(add === "1");
+  }, [searchParams]);
+
   const fetchAssets = async () => {
     try {
       const params = new URLSearchParams();
@@ -37,7 +44,13 @@ export default function AssetsPage() {
       if (filter) params.append("status", filter);
 
       const url = params.toString() ? `/api/assets?${params}` : "/api/assets";
-      const res = await fetch(url);
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("auth_token")
+          : null;
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await res.json();
       setAssets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -55,7 +68,6 @@ export default function AssetsPage() {
     try {
       const payload: Record<string, unknown> = {
         name: formData.get("name"),
-        category: formData.get("category"),
         description: formData.get("description"),
         purchase_date: formData.get("purchase_date"),
         warranty_expiry_date: formData.get("warranty_expiry_date"),
@@ -66,9 +78,17 @@ export default function AssetsPage() {
       if (user?.society_id) payload.society_id = user.society_id;
       if (user?.id) payload.created_by = user.id;
 
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("auth_token")
+          : null;
+
       const res = await fetch("/api/assets", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -114,21 +134,6 @@ export default function AssetsPage() {
                     required
                     className="w-full px-3 py-2 border rounded-lg"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select
-                    name="category"
-                    className="w-full px-3 py-2 border rounded-lg"
-                  >
-                    <option value="">Select Category</option>
-                    <option>Electrical</option>
-                    <option>Plumbing</option>
-                    <option>Structural</option>
-                    <option>Other</option>
-                  </select>
                 </div>
               </div>
 
@@ -270,7 +275,7 @@ export default function AssetsPage() {
                       {asset.name}
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      {asset.category}
+                      {asset.category || "Uncategorized"}
                     </p>
                   </div>
                   <StatusBadge status={asset.status} />

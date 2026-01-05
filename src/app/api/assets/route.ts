@@ -6,12 +6,11 @@ import { logOperation } from "@/lib/audit/loggingHelper";
 const assetSchema = z.object({
   society_id: z.string().uuid().optional(),
   name: z.string().min(1),
-  category: z.string().optional(),
+  category_id: z.string().uuid().optional().nullable(),
   description: z.string().optional(),
   purchase_date: z.string().optional(),
   purchase_cost: z.number().optional(),
   warranty_expiry_date: z.string().optional(),
-  amc_id: z.string().uuid().optional().nullable(),
   location: z.string().optional(),
   asset_code: z.string().optional(),
   status: z
@@ -28,21 +27,14 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = createServerClient();
     const societyId = req.nextUrl.searchParams.get("society_id");
-    const category = req.nextUrl.searchParams.get("category");
     const status = req.nextUrl.searchParams.get("status");
 
-    let query = supabase.from("assets").select(`
-        *,
-        amc:amcs(vendor_name, service_type),
-        created_by_user:users!created_by(full_name, email)
-      `);
+    let query = supabase
+      .from("assets")
+      .select(`*, created_by_user:users!created_by(full_name, email)`);
 
     if (societyId) {
       query = query.eq("society_id", societyId);
-    }
-
-    if (category) {
-      query = query.eq("category", category);
     }
 
     if (status) {

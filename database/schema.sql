@@ -10,10 +10,7 @@ CREATE TABLE users (
   full_name VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   avatar_url TEXT,
-  role VARCHAR(50) DEFAULT 'member', -- 'admin', 'manager', 'member'
-  flat_no VARCHAR(50),
-  wing VARCHAR(50),
-  society_id UUID,
+  global_role VARCHAR(50) DEFAULT 'member', -- 'developer', 'admin', 'manager', 'member'
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -36,22 +33,52 @@ CREATE TABLE societies (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- User-Society mapping (many-to-many) - One user can be part of multiple societies
+CREATE TABLE user_societies (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
+  role VARCHAR(50) DEFAULT 'member', -- 'admin', 'manager', 'member' (role within this specific society)
+  flat_no VARCHAR(50),
+  wing VARCHAR(50),
+  is_primary BOOLEAN DEFAULT false, -- Mark primary society for user
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_user_society UNIQUE (user_id, society_id)
+);
+
 -- AMC (Annual Maintenance Contract) table
 CREATE TABLE amcs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
   vendor_name VARCHAR(255) NOT NULL,
+  vendor_code VARCHAR(100), -- Unique identifier for vendor
   service_type VARCHAR(255) NOT NULL, -- 'Plumbing', 'Electrical', 'Pest Control', etc.
+  work_order_number VARCHAR(255), -- Tracking work order from vendor
+  invoice_number VARCHAR(255), -- Invoice tracking
+  po_number VARCHAR(255), -- Purchase order number
   contract_start_date DATE NOT NULL,
   contract_end_date DATE NOT NULL,
   annual_cost DECIMAL(12, 2),
   currency VARCHAR(10) DEFAULT 'INR',
+  payment_terms TEXT, -- Payment terms and conditions
   document_url TEXT,
   contact_person VARCHAR(255),
   contact_phone VARCHAR(20),
   email VARCHAR(255),
+  vendor_address TEXT,
+  gst_number VARCHAR(50), -- GST/Tax ID
+  
+  -- Maintenance scheduling (for service due calculations)
+  maintenance_frequency VARCHAR(50), -- 'monthly', 'quarterly', 'semi-annual', 'annual', 'custom'
+  maintenance_interval_months INTEGER, -- Custom interval in months (e.g., 4 for every 4 months)
+  last_service_date DATE,
+  next_service_date DATE,
+  service_reminder_days INTEGER DEFAULT 7, -- Days before service due to send reminder
+  
   renewal_reminder_days INTEGER DEFAULT 30,
-  status VARCHAR(50) DEFAULT 'active', -- 'active', 'expired', 'pending_renewal'
+  status VARCHAR(50) DEFAULT 'active', -- 'active', 'expired', 'pending_renewal', 'cancelled'
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -91,12 +118,24 @@ CREATE TABLE issue_comments (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Asset categories table
+CREATE TABLE asset_categories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_asset_categories_society_name UNIQUE (society_id, name)
+);
+
 -- Assets table
 CREATE TABLE assets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
-  category VARCHAR(100), -- 'Elevator', 'CCTV', 'Generator', 'Water Pump', etc.
+  category_id UUID REFERENCES asset_categories(id) ON DELETE SET NULL,
   description TEXT,
   purchase_date DATE,
   purchase_cost DECIMAL(12, 2),
@@ -112,6 +151,38 @@ CREATE TABLE assets (
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(id)
+);
+
+-- AMC to Assets mapping (many-to-many) - One AMC can have multiple assets
+CREATE TABLE amc_assets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  amc_id UUID NOT NULL REFERENCES amcs(id) ON DELETE CASCADE,
+  asset_id UUID NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_amc_asset UNIQUE (amc_id, asset_id)
+);
+
+-- AMC Service History - Track each maintenance service performed
+CREATE TABLE amc_service_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  amc_id UUID NOT NULL REFERENCES amcs(id) ON DELETE CASCADE,
+  service_date DATE NOT NULL,
+  service_type VARCHAR(100), -- 'scheduled', 'emergency', 'breakdown'
+  technician_name VARCHAR(255),
+  work_performed TEXT,
+  issues_found TEXT,
+  parts_replaced JSONB, -- Array of parts replaced
+  service_cost DECIMAL(12, 2),
+  invoice_number VARCHAR(255),
+  service_report_url TEXT, -- Link to service report/document
+  assets_serviced JSONB, -- Array of asset IDs serviced in this visit
+  next_service_date DATE,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  feedback TEXT,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by UUID REFERENCES users(id)
 );
 
@@ -177,43 +248,70 @@ CREATE TABLE dashboard_stats (
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Audit logs
+-- Audit logs - Comprehensive change tracking (deletable only by developer role)
 CREATE TABLE audit_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  society_id UUID NOT NULL REFERENCES societies(id),
-  action VARCHAR(255) NOT NULL,
-  entity_type VARCHAR(100),
+  society_id UUID REFERENCES societies(id),
+  action VARCHAR(255) NOT NULL, -- 'CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', etc.
+  entity_type VARCHAR(100), -- 'user', 'asset', 'amc', 'issue', etc.
   entity_id UUID,
   user_id UUID REFERENCES users(id),
-  old_values JSONB,
-  new_values JSONB,
+  user_role VARCHAR(50), -- Role at time of action
+  old_values JSONB, -- Previous state before change
+  new_values JSONB, -- New state after change
+  changed_fields JSONB, -- Array of field names that changed
   ip_address VARCHAR(45),
   user_agent TEXT,
+  request_id VARCHAR(100), -- For tracing requests
+  session_id VARCHAR(255), -- Session tracking
+  success BOOLEAN DEFAULT true,
+  error_message TEXT,
+  metadata JSONB, -- Additional context (e.g., reason for change)
+  is_deleted BOOLEAN DEFAULT false, -- Soft delete marker
+  deleted_at TIMESTAMP,
+  deleted_by UUID REFERENCES users(id), -- Only developers can delete
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_users_society_id ON users(society_id);
+CREATE INDEX idx_user_societies_user_id ON user_societies(user_id);
+CREATE INDEX idx_user_societies_society_id ON user_societies(society_id);
+CREATE INDEX idx_user_societies_is_primary ON user_societies(is_primary);
+CREATE INDEX idx_users_global_role ON users(global_role);
 CREATE INDEX idx_amcs_society_id ON amcs(society_id);
 CREATE INDEX idx_amcs_status ON amcs(status);
+CREATE INDEX idx_amcs_vendor_name ON amcs(vendor_name);
+CREATE INDEX idx_amcs_next_service_date ON amcs(next_service_date);
+CREATE INDEX idx_amcs_work_order_number ON amcs(work_order_number);
+CREATE INDEX idx_amc_service_history_amc_id ON amc_service_history(amc_id);
+CREATE INDEX idx_amc_service_history_service_date ON amc_service_history(service_date);
 CREATE INDEX idx_issues_society_id ON issues(society_id);
 CREATE INDEX idx_issues_status ON issues(status);
 CREATE INDEX idx_issues_priority ON issues(priority);
 CREATE INDEX idx_assets_society_id ON assets(society_id);
 CREATE INDEX idx_assets_status ON assets(status);
+CREATE INDEX idx_assets_category_id ON assets(category_id);
+CREATE INDEX idx_amc_assets_amc_id ON amc_assets(amc_id);
+CREATE INDEX idx_amc_assets_asset_id ON amc_assets(asset_id);
+CREATE INDEX idx_asset_categories_society_id ON asset_categories(society_id);
 CREATE INDEX idx_alerts_society_id ON alerts(society_id);
 CREATE INDEX idx_alerts_delivery_status ON alerts(delivery_status);
 CREATE INDEX idx_audit_logs_society_id ON audit_logs(society_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
-
--- Add user foreign key to societies
-ALTER TABLE users ADD CONSTRAINT fk_users_society FOREIGN KEY (society_id) REFERENCES societies(id) ON DELETE SET NULL;
+CREATE INDEX idx_audit_logs_entity_type ON audit_logs(entity_type);
+CREATE INDEX idx_audit_logs_entity_id ON audit_logs(entity_id);
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_is_deleted ON audit_logs(is_deleted);
 
 -- Enable RLS (Row Level Security) policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_societies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE societies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE amcs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE amc_service_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE issues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE asset_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE amc_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;

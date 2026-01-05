@@ -60,6 +60,9 @@ const amcSchema = z.object({
   email: z.string().email().optional(),
   renewal_reminder_days: z.number().default(30),
   notes: z.string().optional(),
+  asset_ids: z
+    .array(z.string().uuid())
+    .min(1, "At least one asset is required"),
 });
 
 export async function GET(req: NextRequest) {
@@ -80,7 +83,34 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json(data);
+    const amcList = data || [];
+
+    if (amcList.length === 0) {
+      return NextResponse.json(amcList);
+    }
+
+    const amcIds = amcList.map((amc) => amc.id);
+    const { data: amcAssets, error: amcAssetsError } = await supabase
+      .from("amc_assets")
+      .select("amc_id, asset:assets(id, name, asset_code, location)")
+      .in("amc_id", amcIds);
+
+    if (amcAssetsError) throw amcAssetsError;
+
+    const assetsByAmc = new Map<string, any[]>();
+    (amcAssets || []).forEach((row) => {
+      if (!row.amc_id || !row.asset) return;
+      const list = assetsByAmc.get(row.amc_id) || [];
+      list.push(row.asset);
+      assetsByAmc.set(row.amc_id, list);
+    });
+
+    const withAssets = amcList.map((amc) => ({
+      ...amc,
+      assets: assetsByAmc.get(amc.id) || [],
+    }));
+
+    return NextResponse.json(withAssets);
   } catch (error) {
     console.error("Error fetching AMCs:", error);
     return NextResponse.json(
@@ -94,6 +124,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const validatedData = amcSchema.parse(body);
+    const { asset_ids, ...amcData } = validatedData;
 
     const supabase = createServerClient();
     const { user, response } = await getAuthenticatedUser(req);
@@ -106,13 +137,58 @@ export async function POST(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
+    const societyId = userData?.society_id || amcData.society_id;
+
+    if (!societyId) {
+      return NextResponse.json(
+        { error: "No society found for user" },
+        { status: 400 }
+      );
+    }
+
+    const { data: assetsForAmc, error: assetsError } = await supabase
+      .from("assets")
+      .select("id, society_id")
+      .in("id", asset_ids);
+
+    if (assetsError) throw assetsError;
+
+    if (!assetsForAmc || assetsForAmc.length !== asset_ids.length) {
+      return NextResponse.json(
+        { error: "One or more assets not found" },
+        { status: 400 }
+      );
+    }
+
+    const invalidAsset = assetsForAmc.find(
+      (asset) => asset.society_id !== societyId
+    );
+
+    if (invalidAsset) {
+      return NextResponse.json(
+        { error: "All assets must belong to the same society" },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabase
       .from("amcs")
-      .insert([validatedData])
+      .insert([{ ...amcData, society_id: societyId }])
       .select()
       .single();
 
     if (error) throw error;
+
+    const amcAssetRows = asset_ids.map((assetId) => ({
+      amc_id: data.id,
+      asset_id: assetId,
+    }));
+
+    const { error: linkError } = await supabase
+      .from("amc_assets")
+      .insert(amcAssetRows);
+
+    if (linkError) throw linkError;
 
     // Log AMC creation
     if (userData?.society_id) {
@@ -121,9 +197,9 @@ export async function POST(req: NextRequest) {
         action: "CREATE",
         entityType: "amc",
         entityId: data.id,
-        societyId: userData.society_id,
+        societyId,
         userId: user.id,
-        newValues: data,
+        newValues: { ...data, asset_ids },
         description: `AMC created: ${validatedData.vendor_name}`,
       });
     }
@@ -136,11 +212,11 @@ export async function POST(req: NextRequest) {
     );
 
     // If expired or expiring within 30 days, send alert to admins
-    if (daysUntilExpiry <= 30 && validatedData.society_id) {
+    if (daysUntilExpiry <= 30 && societyId) {
       const { data: admins } = await supabase
         .from("users")
         .select("email")
-        .eq("society_id", validatedData.society_id)
+        .eq("society_id", societyId)
         .eq("role", "admin")
         .eq("is_active", true);
 
@@ -164,7 +240,7 @@ export async function POST(req: NextRequest) {
       try {
         await supabase.from("alerts").insert([
           {
-            society_id: validatedData.society_id,
+            society_id: societyId,
             title: `AMC Expiry Alert - ${validatedData.vendor_name}`,
             message: `The AMC for ${validatedData.service_type} from ${
               validatedData.vendor_name
@@ -199,14 +275,12 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, ...updateData } = body;
+    const updateSchema = amcSchema.extend({
+      id: z.string().uuid(),
+    });
 
-    if (!id) {
-      return NextResponse.json(
-        { error: "AMC ID is required" },
-        { status: 400 }
-      );
-    }
+    const parsed = updateSchema.parse(body);
+    const { id, asset_ids, ...updateData } = parsed;
 
     const supabase = createServerClient();
     const { user, response } = await getAuthenticatedUser(req);
@@ -219,6 +293,15 @@ export async function PUT(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
+    const societyId = userData?.society_id || updateData.society_id;
+
+    if (!societyId) {
+      return NextResponse.json(
+        { error: "No society found for user" },
+        { status: 400 }
+      );
+    }
+
     // Get old AMC data
     const { data: oldAmc } = await supabase
       .from("amcs")
@@ -226,15 +309,63 @@ export async function PUT(req: NextRequest) {
       .eq("id", id)
       .single();
 
+    const { data: assetsForAmc, error: assetsError } = await supabase
+      .from("assets")
+      .select("id, society_id")
+      .in("id", asset_ids);
+
+    if (assetsError) throw assetsError;
+
+    if (!assetsForAmc || assetsForAmc.length !== asset_ids.length) {
+      return NextResponse.json(
+        { error: "One or more assets not found" },
+        { status: 400 }
+      );
+    }
+
+    const invalidAsset = assetsForAmc.find(
+      (asset) => asset.society_id !== societyId
+    );
+
+    if (invalidAsset) {
+      return NextResponse.json(
+        { error: "All assets must belong to the same society" },
+        { status: 400 }
+      );
+    }
+
     // Update AMC
     const { data: updatedAmc, error } = await supabase
       .from("amcs")
-      .update({ ...updateData, updated_at: new Date().toISOString() })
+      .update({
+        ...updateData,
+        society_id: societyId,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id)
       .select()
       .single();
 
     if (error) throw error;
+
+    // Replace asset links
+    const { error: deleteLinksError } = await supabase
+      .from("amc_assets")
+      .delete()
+      .eq("amc_id", id);
+
+    if (deleteLinksError) throw deleteLinksError;
+
+    const amcAssetRows = asset_ids.map((assetId) => ({
+      amc_id: id,
+      asset_id: assetId,
+    }));
+
+    const { error: linkError } = await supabase
+      .from("amc_assets")
+      .insert(amcAssetRows);
+
+    if (linkError) throw linkError;
 
     // Log AMC update
     if (userData?.society_id) {
@@ -243,10 +374,10 @@ export async function PUT(req: NextRequest) {
         action: "UPDATE",
         entityType: "amc",
         entityId: id,
-        societyId: userData.society_id,
+        societyId,
         userId: user.id,
         oldValues: oldAmc,
-        newValues: updatedAmc,
+        newValues: { ...updatedAmc, asset_ids },
         description: `AMC updated: ${oldAmc?.vendor_name}`,
       });
     }

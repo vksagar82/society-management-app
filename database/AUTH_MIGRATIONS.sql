@@ -28,6 +28,7 @@ ORDER BY ordinal_position;
 -- ============================================
 
 -- Generate SHA256 hashes in PostgreSQL:
+-- Password: developer123 → Hash: 6c3a08576d07c25dba1331bdcd66769adb023ecca3dd7f65bb804cf076d78a54
 -- Password: admin123 → Hash: 240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9
 -- Password: manager123 → Hash: 866485796cfa8d7c0cf7111640205b83076433547577511d81f8030ae99ecea5
 -- Password: member123 → Hash: 5600376e863d2f57a053518f324ad3840b0bc2348b573af281a7b7cbe7a228c6
@@ -36,8 +37,22 @@ ORDER BY ordinal_position;
 -- const crypto = require('crypto');
 -- crypto.createHash('sha256').update('password').digest('hex')
 
+-- Create Developer Test User
+INSERT INTO users (email, phone, full_name, password_hash, global_role, is_active, created_at, updated_at)
+VALUES (
+  'developer@test.com',
+  '+1234567889',
+  'Developer Test User',
+  '6c3a08576d07c25dba1331bdcd66769adb023ecca3dd7f65bb804cf076d78a54',
+  'developer',
+  true,
+  NOW(),
+  NOW()
+)
+ON CONFLICT (email) DO UPDATE SET global_role = 'developer';
+
 -- Create Admin Test User
-INSERT INTO users (email, phone, full_name, password_hash, role, is_active, created_at, updated_at)
+INSERT INTO users (email, phone, full_name, password_hash, global_role, is_active, created_at, updated_at)
 VALUES (
   'admin@test.com',
   '+1234567890',
@@ -48,10 +63,10 @@ VALUES (
   NOW(),
   NOW()
 )
-ON CONFLICT (email) DO UPDATE SET role = 'admin';
+ON CONFLICT (email) DO UPDATE SET global_role = 'admin';
 
 -- Create Manager Test User
-INSERT INTO users (email, phone, full_name, password_hash, role, is_active, created_at, updated_at)
+INSERT INTO users (email, phone, full_name, password_hash, global_role, is_active, created_at, updated_at)
 VALUES (
   'manager@test.com',
   '+1234567891',
@@ -62,10 +77,10 @@ VALUES (
   NOW(),
   NOW()
 )
-ON CONFLICT (email) DO UPDATE SET role = 'manager';
+ON CONFLICT (email) DO UPDATE SET global_role = 'manager';
 
 -- Create Member Test User
-INSERT INTO users (email, phone, full_name, password_hash, role, is_active, created_at, updated_at)
+INSERT INTO users (email, phone, full_name, password_hash, global_role, is_active, created_at, updated_at)
 VALUES (
   'member@test.com',
   '+1234567892',
@@ -76,28 +91,31 @@ VALUES (
   NOW(),
   NOW()
 )
-ON CONFLICT (email) DO UPDATE SET role = 'member';
+ON CONFLICT (email) DO UPDATE SET global_role = 'member';
 
 -- ============================================
 -- 4. VERIFY TEST ACCOUNTS CREATED
 -- ============================================
 
-SELECT id, email, full_name, role, is_active FROM users 
-WHERE email IN ('admin@test.com', 'manager@test.com', 'member@test.com')
+SELECT id, email, full_name, global_role, is_active FROM users 
+WHERE email IN ('developer@test.com', 'admin@test.com', 'manager@test.com', 'member@test.com')
 ORDER BY email;
 
 -- ============================================
 -- 5. UPDATE EXISTING USER ROLES (OPTIONAL)
 -- ============================================
 
+-- Make a specific user a developer
+-- UPDATE users SET global_role = 'developer' WHERE email = 'your-email@example.com';
+
 -- Make a specific user an admin
--- UPDATE users SET role = 'admin' WHERE email = 'your-email@example.com';
+-- UPDATE users SET global_role = 'admin' WHERE email = 'your-email@example.com';
 
 -- Make a specific user a manager
--- UPDATE users SET role = 'manager' WHERE email = 'your-email@example.com';
+-- UPDATE users SET global_role = 'manager' WHERE email = 'your-email@example.com';
 
 -- Make a specific user a member
--- UPDATE users SET role = 'member' WHERE email = 'your-email@example.com';
+-- UPDATE users SET global_role = 'member' WHERE email = 'your-email@example.com';
 
 -- ============================================
 -- 6. VIEW ALL USERS WITH ROLES
@@ -108,7 +126,7 @@ SELECT
   email,
   phone,
   full_name,
-  role,
+  global_role,
   is_active,
   last_login,
   created_at
@@ -120,14 +138,14 @@ ORDER BY created_at DESC;
 -- ============================================
 
 SELECT 
-  role,
+  global_role,
   COUNT(*) as count
 FROM users
-GROUP BY role
+GROUP BY global_role
 ORDER BY count DESC;
 
 -- ============================================
--- 8. FIND ACTIVE ADMINS
+-- 8. FIND ACTIVE DEVELOPERS
 -- ============================================
 
 SELECT 
@@ -136,17 +154,30 @@ SELECT
   full_name,
   created_at
 FROM users
-WHERE role = 'admin' AND is_active = true
+WHERE global_role = 'developer' AND is_active = true
 ORDER BY created_at DESC;
 
 -- ============================================
--- 9. DEACTIVATE A USER (PREVENT LOGIN)
+-- 9. FIND ACTIVE ADMINS
+-- ============================================
+
+SELECT 
+  id,
+  email,
+  full_name,
+  created_at
+FROM users
+WHERE global_role = 'admin' AND is_active = true
+ORDER BY created_at DESC;
+
+-- ============================================
+-- 10. DEACTIVATE A USER (PREVENT LOGIN)
 -- ============================================
 
 -- UPDATE users SET is_active = false WHERE email = 'user@example.com';
 
 -- ============================================
--- 10. VIEW LAST LOGIN HISTORY
+-- 11. VIEW LAST LOGIN HISTORY
 -- ============================================
 
 SELECT 
@@ -164,18 +195,22 @@ WHERE is_active = true
 ORDER BY last_login DESC NULLS LAST;
 
 -- ============================================
--- 11. RESET USER PASSWORD
+-- 12. RESET USER PASSWORD
 -- ============================================
 
 -- To reset a user's password, generate a new hash and update:
 -- UPDATE users SET password_hash = 'new-hash-here' WHERE email = 'user@example.com';
+
+-- Example: Reset developer test password to 'developer123'
+-- UPDATE users SET password_hash = '6c3a08576d07c25dba1331bdcd66769adb023ecca3dd7f65bb804cf076d78a54' 
+-- WHERE email = 'developer@test.com';
 
 -- Example: Reset admin test password to 'admin123'
 -- UPDATE users SET password_hash = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9' 
 -- WHERE email = 'admin@test.com';
 
 -- ============================================
--- 12. CREATE AUDIT LOG TABLE (OPTIONAL FOR FUTURE)
+-- 13. CREATE AUDIT LOG TABLE (OPTIONAL FOR FUTURE)
 -- ============================================
 
 -- CREATE TABLE IF NOT EXISTS audit_logs (
@@ -191,27 +226,27 @@ ORDER BY last_login DESC NULLS LAST;
 -- );
 
 -- ============================================
--- 13. CREATE ADMIN FUNCTION (OPTIONAL)
+-- 14. CREATE ADMIN FUNCTION (OPTIONAL)
 -- ============================================
 
 -- CREATE OR REPLACE FUNCTION promote_to_admin(user_email VARCHAR)
--- RETURNS TABLE(id UUID, email VARCHAR, role VARCHAR) AS $$
+-- RETURNS TABLE(id UUID, email VARCHAR, global_role VARCHAR) AS $$
 -- BEGIN
---   UPDATE users SET role = 'admin' WHERE email = user_email;
---   RETURN QUERY SELECT users.id, users.email, users.role FROM users WHERE users.email = user_email;
+--   UPDATE users SET global_role = 'admin' WHERE email = user_email;
+--   RETURN QUERY SELECT users.id, users.email, users.global_role FROM users WHERE users.email = user_email;
 -- END;
 -- $$ LANGUAGE plpgsql;
 
 -- Usage: SELECT promote_to_admin('user@example.com');
 
 -- ============================================
--- 14. CLEANUP: DELETE TEST DATA (IF NEEDED)
+-- 15. CLEANUP: DELETE TEST DATA (IF NEEDED)
 -- ============================================
 
--- DELETE FROM users WHERE email IN ('admin@test.com', 'manager@test.com', 'member@test.com');
+-- DELETE FROM users WHERE email IN ('developer@test.com', 'admin@test.com', 'manager@test.com', 'member@test.com');
 
 -- ============================================
--- 15. VERIFY FINAL SCHEMA
+-- 16. VERIFY FINAL SCHEMA
 -- ============================================
 
 -- This query shows the final users table structure

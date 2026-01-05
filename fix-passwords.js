@@ -15,6 +15,7 @@ const testUsers = [
   { email: "admin@test.com", password: "admin123" },
   { email: "manager@test.com", password: "manager123" },
   { email: "member@test.com", password: "member123" },
+  { email: "developer@test.com", password: "developer123" },
 ];
 
 (async () => {

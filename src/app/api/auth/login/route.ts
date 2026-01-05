@@ -52,14 +52,27 @@ export async function POST(req: NextRequest) {
       .update({ last_login: new Date().toISOString() })
       .eq("id", user.id);
 
+    // Get user's primary society info
+    let primarySociety = null;
+    const { data: userSociety } = await supabase
+      .from("user_societies")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_primary", true)
+      .single();
+
+    if (userSociety) {
+      primarySociety = userSociety;
+    }
+
     // Log login activity
-    if (user.society_id) {
+    if (primarySociety?.society_id) {
       await logOperation({
         request: req,
         action: "VIEW",
         entityType: "auth_login",
         entityId: user.id,
-        societyId: user.society_id,
+        societyId: primarySociety.society_id,
         userId: user.id,
         newValues: {
           email: user.email,
@@ -80,10 +93,11 @@ export async function POST(req: NextRequest) {
         email: user.email,
         full_name: user.full_name,
         phone: user.phone,
-        role: user.role,
-        society_id: user.society_id,
-        flat_no: user.flat_no,
-        wing: user.wing,
+        global_role: user.global_role,
+        society_id: primarySociety?.society_id || null,
+        role: primarySociety?.role || null,
+        flat_no: primarySociety?.flat_no || null,
+        wing: primarySociety?.wing || null,
         avatar_url: user.avatar_url,
         is_active: user.is_active,
       },
