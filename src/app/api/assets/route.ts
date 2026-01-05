@@ -70,11 +70,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's society
+    // Get user's primary society from user_societies
     const { data: userData } = await supabase
-      .from("users")
+      .from("user_societies")
       .select("society_id")
-      .eq("id", authData.user.id)
+      .eq("user_id", authData.user.id)
+      .eq("is_primary", true)
       .single();
 
     const { data, error } = await supabase

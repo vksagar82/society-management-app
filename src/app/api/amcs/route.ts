@@ -34,8 +34,14 @@ async function getAuthenticatedUser(req: NextRequest) {
 
   const { data: user, error } = await supabase
     .from("users")
-    .select("*")
+    .select(
+      `
+      *,
+      user_societies!inner(society_id, role, is_primary)
+    `
+    )
     .eq("id", decoded.userId)
+    .eq("user_societies.is_primary", true)
     .single();
 
   if (error || !user) {
@@ -43,6 +49,11 @@ async function getAuthenticatedUser(req: NextRequest) {
       response: NextResponse.json({ error: "User not found" }, { status: 404 }),
     };
   }
+
+  // Attach primary society info to user object for backward compatibility
+  const primarySociety = user.user_societies?.[0];
+  user.society_id = primarySociety?.society_id;
+  user.role = primarySociety?.role;
 
   return { user };
 }

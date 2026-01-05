@@ -45,9 +45,10 @@ export async function GET(req: NextRequest) {
     const supabase = createServerClient();
 
     const { data: userData } = await supabase
-      .from("users")
+      .from("user_societies")
       .select("society_id")
-      .eq("id", requesterId)
+      .eq("user_id", requesterId)
+      .eq("is_primary", true)
       .single();
 
     if (!userData?.society_id) {
@@ -86,11 +87,25 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServerClient();
 
-    const { data: userData } = await supabase
+    // Get user's global role and primary society
+    const { data: user } = await supabase
       .from("users")
-      .select("society_id, role")
+      .select(
+        `
+        global_role,
+        user_societies!inner(society_id, role, is_primary)
+      `
+      )
       .eq("id", requesterId)
+      .eq("user_societies.is_primary", true)
       .single();
+
+    const primarySociety = user?.user_societies?.[0];
+    const userData = {
+      society_id: primarySociety?.society_id,
+      role: primarySociety?.role,
+      global_role: user?.global_role,
+    };
 
     if (!userData?.society_id) {
       return NextResponse.json(
@@ -99,9 +114,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (userData.role !== "admin") {
+    const canManage =
+      userData.global_role === "developer" ||
+      userData.global_role === "admin" ||
+      userData.role === "admin";
+    if (!canManage) {
       return NextResponse.json(
-        { error: "Only admins can manage categories" },
+        { error: "Only admins and developers can manage categories" },
         { status: 403 }
       );
     }
@@ -163,11 +182,25 @@ export async function DELETE(req: NextRequest) {
 
     const supabase = createServerClient();
 
-    const { data: userData } = await supabase
+    // Get user's global role and primary society
+    const { data: user } = await supabase
       .from("users")
-      .select("society_id, role")
+      .select(
+        `
+        global_role,
+        user_societies!inner(society_id, role, is_primary)
+      `
+      )
       .eq("id", requesterId)
+      .eq("user_societies.is_primary", true)
       .single();
+
+    const primarySociety = user?.user_societies?.[0];
+    const userData = {
+      society_id: primarySociety?.society_id,
+      role: primarySociety?.role,
+      global_role: user?.global_role,
+    };
 
     if (!userData?.society_id) {
       return NextResponse.json(
@@ -176,9 +209,13 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    if (userData.role !== "admin") {
+    const canDelete =
+      userData.global_role === "developer" ||
+      userData.global_role === "admin" ||
+      userData.role === "admin";
+    if (!canDelete) {
       return NextResponse.json(
-        { error: "Only admins can delete categories" },
+        { error: "Only admins and developers can delete categories" },
         { status: 403 }
       );
     }

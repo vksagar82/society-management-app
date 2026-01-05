@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/Badge";
 import { useAuth } from "@/lib/auth/context";
+import { useSelectedSociety } from "@/lib/auth/useSelectedSociety";
+import { useSelectedSocietyName } from "@/lib/auth/useSelectedSocietyName";
 import { TrashIcon, PencilIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface AMC {
@@ -42,6 +44,8 @@ interface FlashMessage {
 
 export default function AMCsPage() {
   const { user } = useAuth();
+  const societyId = useSelectedSociety();
+  const societyName = useSelectedSocietyName();
   const [amcs, setAmcs] = useState<AMC[]>([]);
   const [loading, setLoading] = useState(true);
   const [assetsLoading, setAssetsLoading] = useState(false);
@@ -80,9 +84,7 @@ export default function AMCsPage() {
 
   const fetchAMCs = async () => {
     try {
-      const societyParam = user?.society_id
-        ? `?society_id=${user.society_id}`
-        : "";
+      const societyParam = societyId ? `?society_id=${societyId}` : "";
       const token = localStorage.getItem("auth_token");
       const res = await fetch(`/api/amcs${societyParam}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -330,7 +332,9 @@ export default function AMCsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">AMC Management</h1>
+            <h1 className="text-4xl font-bold text-gray-900">
+              AMC Management {societyName && `- ${societyName}`}
+            </h1>
             <p className="mt-2 text-gray-600">
               Track and manage annual maintenance contracts
             </p>

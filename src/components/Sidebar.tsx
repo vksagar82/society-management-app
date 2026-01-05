@@ -5,14 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { isAdmin } from "@/lib/auth/permissions";
+import { SocietySelector } from "@/components/SocietySelector";
 import {
   HomeIcon,
   ExclamationTriangleIcon,
   DocumentTextIcon,
   CubeIcon,
   UsersIcon,
+  ClockIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
   Bars3Icon,
   XMarkIcon,
   UserCircleIcon,
@@ -25,6 +28,7 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   adminOnly?: boolean;
+  developerOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -49,9 +53,42 @@ const NAV_ITEMS: NavItem[] = [
     icon: CubeIcon,
   },
   {
+    href: "/societies",
+    label: "Societies",
+    icon: HomeIcon,
+    developerOnly: true,
+  },
+  {
+    href: "/developer",
+    label: "Developer Panel",
+    icon: CubeIcon,
+    developerOnly: true,
+  },
+];
+
+const ADMIN_ITEMS: NavItem[] = [
+  {
+    href: "/admin",
+    label: "Dashboard",
+    icon: HomeIcon,
+    adminOnly: true,
+  },
+  {
     href: "/users",
-    label: "Users",
+    label: "User Management",
     icon: UsersIcon,
+    adminOnly: true,
+  },
+  {
+    href: "/admin/pending-approvals",
+    label: "Pending Approvals",
+    icon: ClockIcon,
+    adminOnly: true,
+  },
+  {
+    href: "/admin/api-scopes",
+    label: "API Scopes",
+    icon: CubeIcon,
     adminOnly: true,
   },
   {
@@ -63,7 +100,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, selectedSocietyId } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -71,6 +108,10 @@ export function Sidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [hideOnScroll, setHideOnScroll] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [currentSocietyName, setCurrentSocietyName] = useState<string | null>(
+    null
+  );
+  const [adminExpanded, setAdminExpanded] = useState(true);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -90,6 +131,37 @@ export function Sidebar() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Fetch current society name
+  useEffect(() => {
+    const fetchSocietyName = async () => {
+      if (selectedSocietyId) {
+        try {
+          const token = localStorage.getItem("auth_token");
+          const response = await fetch(`/api/societies`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (response.ok) {
+            const societies = await response.json();
+            const selectedSociety = societies.find(
+              (s: any) => s.id === selectedSocietyId
+            );
+            if (selectedSociety) {
+              setCurrentSocietyName(selectedSociety.name);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch society name:", error);
+        }
+      }
+    };
+
+    if (selectedSocietyId && !loading) {
+      fetchSocietyName();
+    }
+  }, [selectedSocietyId, loading]);
 
   // Auto-close sidebar on navigation (mobile only, unless pinned)
   useEffect(() => {
@@ -149,9 +221,23 @@ export function Sidebar() {
     return pathname === href || pathname?.startsWith(href + "/");
   };
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.adminOnly || isAdmin(user)
-  );
+  // Get user's global role (fallback to role for backwards compatibility)
+  const userRole = user?.global_role || user?.role;
+
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    // Developers see everything - no restrictions
+    if (userRole === "developer") return true;
+
+    // Admins see admin items but not developer-only items
+    if (userRole === "admin") {
+      if (item.developerOnly) return false;
+      return true;
+    }
+
+    // Other roles only see non-restricted items
+    if (item.adminOnly || item.developerOnly) return false;
+    return true;
+  });
 
   if (loading || !user) {
     return null;
@@ -206,24 +292,52 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 left-0 min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white transition-all duration-300 ease-in-out z-40 ${getSidebarWidth()} overflow-hidden border-r border-slate-700/50 shadow-2xl ${
+        className={`fixed md:sticky top-0 left-0 min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white transition-all duration-300 ease-in-out z-40 ${getSidebarWidth()} border-r border-slate-700/50 shadow-2xl ${
           hideOnScroll && !isMobile
             ? "md:-translate-x-full md:opacity-0"
             : "md:translate-x-0 md:opacity-100"
         }`}
+        style={{ overflow: "visible" }}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-6 border-b border-slate-700/50 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 backdrop-blur-sm">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 hover:opacity-80 transition-all duration-300 transform hover:scale-105"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg ring-2 ring-blue-400/50">
-                {user.full_name?.charAt(0).toUpperCase() || "U"}
-              </div>
-              {isMobile ? (
-                isOpen ? (
+          <div className="flex flex-col border-b border-slate-700/50 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 backdrop-blur-sm">
+            {/* Current Society Indicator (for developers) */}
+            {userRole === "developer" &&
+              currentSocietyName &&
+              (isMobile ? isOpen : isPinned) && (
+                <div className="px-6 pt-4 pb-2">
+                  <div className="bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-lg px-3 py-2">
+                    <p className="text-xs text-emerald-300 font-semibold uppercase tracking-wider mb-1">
+                      Current Society
+                    </p>
+                    <p className="text-sm text-white font-bold truncate">
+                      {currentSocietyName}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+            <div className="flex items-center justify-between px-6 py-4">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-3 hover:opacity-80 transition-all duration-300 transform hover:scale-105"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg ring-2 ring-blue-400/50">
+                  {user.full_name?.charAt(0).toUpperCase() || "U"}
+                </div>
+                {isMobile ? (
+                  isOpen ? (
+                    <div className="hidden md:block">
+                      <p className="text-sm font-bold text-white tracking-wide">
+                        {user.full_name}
+                      </p>
+                      <p className="text-xs text-blue-400 font-medium">
+                        {user.email}
+                      </p>
+                    </div>
+                  ) : null
+                ) : isPinned ? (
                   <div className="hidden md:block">
                     <p className="text-sm font-bold text-white tracking-wide">
                       {user.full_name}
@@ -232,32 +346,30 @@ export function Sidebar() {
                       {user.email}
                     </p>
                   </div>
-                ) : null
-              ) : isPinned ? (
-                <div className="hidden md:block">
-                  <p className="text-sm font-bold text-white tracking-wide">
-                    {user.full_name}
-                  </p>
-                  <p className="text-xs text-blue-400 font-medium">
-                    {user.email}
-                  </p>
-                </div>
-              ) : null}
-            </Link>
+                ) : null}
+              </Link>
 
-            {/* Close button (mobile only) */}
-            {isOpen && isMobile && (
-              <button
-                onClick={() => setIsOpen(false)}
-                className="md:hidden p-2 hover:bg-slate-700/70 rounded-lg transition-all duration-300 ml-auto hover:scale-110"
-              >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-            )}
+              {/* Close button (mobile only) */}
+              {isOpen && isMobile && (
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="md:hidden p-2 hover:bg-slate-700/70 rounded-lg transition-all duration-300 ml-auto hover:scale-110"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           </div>
 
+          {/* Society Selector */}
+          {(isMobile ? isOpen : isPinned) && (
+            <div className="px-3 py-3 border-b border-slate-700/50">
+              <SocietySelector />
+            </div>
+          )}
+
           {/* Navigation */}
-          <nav className="flex-1 flex flex-col overflow-y-auto py-6 px-3 space-y-2">
+          <nav className="flex-1 flex flex-col overflow-y-auto py-6 px-3 space-y-2 overflow-x-visible">
             {visibleItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -304,6 +416,55 @@ export function Sidebar() {
                 </Link>
               );
             })}
+
+            {/* Admin Section */}
+            {(userRole === "admin" || userRole === "developer") && (
+              <div>
+                <button
+                  onClick={() => setAdminExpanded(!adminExpanded)}
+                  type="button"
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white"
+                >
+                  <UsersIcon className="w-5 h-5 flex-shrink-0" />
+                  {((isMobile && isOpen) || (!isMobile && isPinned)) && (
+                    <>
+                      <span className="text-sm font-semibold tracking-wide flex-1 text-left">
+                        Admin {currentSocietyName && `- ${currentSocietyName}`}
+                      </span>
+                      <ChevronRightIcon
+                        className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${
+                          adminExpanded ? "rotate-90" : ""
+                        }`}
+                      />
+                    </>
+                  )}
+                </button>
+                {/* Dropdown menu within sidebar */}
+                {adminExpanded && (
+                  <div className="pl-4 mt-2 space-y-1">
+                    {ADMIN_ITEMS.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                            isActive(item.href)
+                              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                              : "text-slate-300 hover:bg-slate-600/50 hover:text-white"
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          <span className="text-sm font-medium">
+                            {item.label}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="mt-auto pt-4">
               <button

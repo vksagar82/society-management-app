@@ -5,11 +5,22 @@ import { logOperation } from "@/lib/audit/loggingHelper";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, fullName, phone, societyId } = await req.json();
+    const { email, password, fullName, phone, societyIds } = await req.json();
 
-    if (!email || !password || !fullName || !phone || !societyId) {
+    if (
+      !email ||
+      !password ||
+      !fullName ||
+      !phone ||
+      !societyIds ||
+      !Array.isArray(societyIds) ||
+      societyIds.length === 0
+    ) {
       return NextResponse.json(
-        { error: "All fields are required" },
+        {
+          error:
+            "All fields are required and at least one society must be selected",
+        },
         { status: 400 }
       );
     }
@@ -40,7 +51,7 @@ export async function POST(req: NextRequest) {
     // Hash password
     const passwordHash = hashPassword(password);
 
-    // Create new user with 'member' role by default
+    // Create new user with 'member' global_role by default
     const { data: newUser, error } = await supabase
       .from("users")
       .insert([
@@ -49,8 +60,7 @@ export async function POST(req: NextRequest) {
           password_hash: passwordHash,
           full_name: fullName,
           phone,
-          society_id: societyId,
-          role: "member",
+          global_role: "member",
           is_active: true,
         },
       ])
@@ -65,22 +75,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Add user to all selected societies with pending approval status
+    const societyMappings = societyIds.map(
+      (societyId: string, index: number) => ({
+        user_id: newUser.id,
+        society_id: societyId,
+        role: "member",
+        is_primary: index === 0, // First society is primary
+        approval_status: "pending",
+      })
+    );
+
+    const { error: societyError } = await supabase
+      .from("user_societies")
+      .insert(societyMappings);
+
+    if (societyError) {
+      console.error("Society mapping error:", societyError);
+      // Delete the user if society mapping fails
+      await supabase.from("users").delete().eq("id", newUser.id);
+      return NextResponse.json(
+        { error: "Failed to add user to societies" },
+        { status: 500 }
+      );
+    }
+
     // Log user signup
     await logOperation({
       request: req,
       action: "CREATE",
       entityType: "user",
       entityId: newUser.id,
-      societyId: societyId,
+      societyId: societyIds[0],
       userId: newUser.id,
       newValues: {
         email: newUser.email,
         full_name: newUser.full_name,
         phone: newUser.phone,
-        role: newUser.role,
-        status: "active",
+        global_role: newUser.global_role,
+        societies: societyIds.length,
+        status: "pending_approval",
       },
-      description: `New user signup: ${email}`,
+      description: `New user signup: ${email} - Pending approval for ${societyIds.length} society(ies)`,
     });
 
     // Generate token
@@ -94,12 +130,10 @@ export async function POST(req: NextRequest) {
           email: newUser.email,
           full_name: newUser.full_name,
           phone: newUser.phone,
-          role: newUser.role,
-          society_id: newUser.society_id,
-          flat_no: newUser.flat_no,
-          wing: newUser.wing,
+          global_role: newUser.global_role,
           avatar_url: newUser.avatar_url,
           is_active: newUser.is_active,
+          pending_approval: true,
         },
       },
       { status: 201 }

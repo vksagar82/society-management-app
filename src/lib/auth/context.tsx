@@ -8,6 +8,7 @@ export interface User {
   full_name: string;
   phone: string;
   role: "admin" | "manager" | "member";
+  global_role?: "developer" | "admin" | "manager" | "member";
   society_id: string;
   flat_no?: string;
   wing?: string;
@@ -19,6 +20,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
+  selectedSocietyId: string | null;
+  setSelectedSociety: (societyId: string) => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   signup: (
@@ -40,6 +43,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSocietyId, setSelectedSocietyIdState] = useState<
+    string | null
+  >(null);
+
+  // Load selected society from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("selected_society_id");
+    if (saved) {
+      setSelectedSocietyIdState(saved);
+    }
+  }, []);
 
   // Check if user is already logged in on mount
   useEffect(() => {
@@ -61,6 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+
+        // Auto-select society for non-developers
+        if (userData.global_role !== "developer" && userData.society_id) {
+          setSelectedSocietyIdState(userData.society_id);
+          localStorage.setItem("selected_society_id", userData.society_id);
+        }
       } else {
         localStorage.removeItem("auth_token");
       }
@@ -70,6 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const setSelectedSociety = (societyId: string) => {
+    setSelectedSocietyIdState(societyId);
+    localStorage.setItem("selected_society_id", societyId);
   };
 
   const login = async (email: string, password: string) => {
@@ -171,7 +196,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, error, login, logout, signup, updateUserRole }}
+      value={{
+        user,
+        loading,
+        error,
+        selectedSocietyId,
+        setSelectedSociety,
+        login,
+        logout,
+        signup,
+        updateUserRole,
+      }}
     >
       {children}
     </AuthContext.Provider>

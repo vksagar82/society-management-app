@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { requireAdmin } from "@/lib/auth/permissions";
+import { useSelectedSociety } from "@/lib/auth/useSelectedSociety";
 
 interface User {
   id: string;
@@ -17,6 +18,7 @@ interface User {
 
 export default function UsersPage() {
   const { user, loading: authLoading } = useAuth();
+  const selectedSocietyId = useSelectedSociety();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,19 +35,24 @@ export default function UsersPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (requireAdmin(user)) {
+    if (requireAdmin(user) && selectedSocietyId) {
       fetchUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, selectedSocietyId]);
 
   const fetchUsers = async () => {
+    if (!selectedSocietyId) {
+      setError("Please select a society first");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setError("");
       const token = localStorage.getItem("auth_token");
-      const url = user?.society_id
-        ? `/api/users?society_id=${user.society_id}`
-        : "/api/users";
+      const url = `/api/users?society_id=${selectedSocietyId}`;
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -98,6 +105,24 @@ export default function UsersPage() {
 
   if (!requireAdmin(user)) {
     return null;
+  }
+
+  if (!selectedSocietyId) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="mt-2 text-gray-600">
+            Manage user roles and permissions
+          </p>
+        </div>
+        <div className="rounded-md bg-yellow-50 p-4">
+          <p className="text-sm font-medium text-yellow-800">
+            Please select a society from the dropdown to view and manage users.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

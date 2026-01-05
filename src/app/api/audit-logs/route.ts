@@ -39,30 +39,48 @@ export async function GET(req: NextRequest) {
     // Use service client for database queries
     const supabase = createServerClient();
 
-    // Get user's society
-    const { data: userData, error: userError } = await supabase
+    // Get user's global role and society
+    const { data: user, error: userError } = await supabase
       .from("users")
-      .select("society_id, role")
+      .select(
+        `
+        global_role,
+        user_societies!inner(society_id, role, is_primary)
+      `
+      )
       .eq("id", requesterId)
+      .eq("user_societies.is_primary", true)
       .single();
 
     if (userError) {
       console.error("Error fetching user data:", userError);
     }
 
-    if (!userData || !userData.society_id) {
+    const primarySociety = user?.user_societies?.[0];
+    const societyId = primarySociety?.society_id;
+
+    if (!user || !societyId) {
       console.error("No society found for user:", requesterId);
       return NextResponse.json({ error: "No society found" }, { status: 404 });
     }
 
-    // Only admins can view audit logs
-    if (userData.role !== "admin") {
-      console.warn("Non-admin user trying to access audit logs:", requesterId);
+    // Only admins and developers can view audit logs
+    const isAuthorized =
+      user.global_role === "developer" ||
+      user.global_role === "admin" ||
+      primarySociety?.role === "admin";
+    if (!isAuthorized) {
+      console.warn(
+        "Unauthorized user trying to access audit logs:",
+        requesterId
+      );
       return NextResponse.json(
-        { error: "Only admins can view audit logs" },
+        { error: "Only admins and developers can view audit logs" },
         { status: 403 }
       );
     }
+
+    const userData = { society_id: societyId };
 
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;

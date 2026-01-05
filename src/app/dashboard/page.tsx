@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { StatCard } from "@/components/Badge";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { useAuth } from "@/lib/auth/context";
+import { useSelectedSociety } from "@/lib/auth/useSelectedSociety";
+import { useSelectedSocietyName } from "@/lib/auth/useSelectedSocietyName";
 import {
   LineChart,
   BarChart,
@@ -24,6 +26,8 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const societyId = useSelectedSociety();
+  const societyName = useSelectedSocietyName();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
     totalIssues: 0,
@@ -37,63 +41,83 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const societyParam = user?.society_id
-          ? `?society_id=${user.society_id}`
-          : "";
+    if (societyId) {
+      fetchStats();
+    }
+  }, [societyId]);
 
-        const [issuesRes, assetsRes, amcsRes] = await Promise.all([
-          fetch(`/api/issues${societyParam}`),
-          fetch(`/api/assets${societyParam}`),
-          fetch(`/api/amcs${societyParam}`),
-        ]);
+  const fetchStats = async () => {
+    if (!societyId) return;
 
-        const issues = await issuesRes.json();
-        const assets = await assetsRes.json();
-        const amcs = await amcsRes.json();
+    try {
+      const societyParam = `?society_id=${societyId}`;
 
-        const openIssues = issues.filter(
-          (i: { status: string }) => i.status === "open"
-        ).length;
-        const resolvedIssues = issues.filter(
-          (i: { status: string }) =>
-            i.status === "resolved" || i.status === "closed"
-        ).length;
+      const [issuesRes, assetsRes, amcsRes] = await Promise.all([
+        fetch(`/api/issues${societyParam}`),
+        fetch(`/api/assets${societyParam}`),
+        fetch(`/api/amcs${societyParam}`),
+      ]);
 
-        // Properly count AMCs based on expiry date
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time to start of day
+      const issues = await issuesRes.json();
+      const assets = await assetsRes.json();
+      const amcs = await amcsRes.json();
 
-        const activeAMCs = amcs.filter((a: { contract_end_date: string }) => {
-          const endDate = new Date(a.contract_end_date);
-          endDate.setHours(0, 0, 0, 0); // Reset time to start of day
-          return endDate > today;
-        }).length;
+      const openIssues = issues.filter(
+        (i: { status: string }) => i.status === "open"
+      ).length;
+      const resolvedIssues = issues.filter(
+        (i: { status: string }) =>
+          i.status === "resolved" || i.status === "closed"
+      ).length;
 
-        const expiredAMCs = amcs.filter((a: { contract_end_date: string }) => {
-          const endDate = new Date(a.contract_end_date);
-          endDate.setHours(0, 0, 0, 0); // Reset time to start of day
-          return endDate <= today;
-        }).length;
+      // Properly count AMCs based on expiry date
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day
 
-        setStats({
-          totalIssues: issues.length,
-          openIssues,
-          resolvedIssues,
-          totalAssets: assets.length,
-          activeAMCs,
-          expiringAMCs: expiredAMCs,
-        });
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const activeAMCs = amcs.filter((a: { contract_end_date: string }) => {
+        const endDate = new Date(a.contract_end_date);
+        endDate.setHours(0, 0, 0, 0); // Reset time to start of day
+        return endDate > today;
+      }).length;
 
-    fetchStats();
-  }, [user?.society_id]);
+      const expiredAMCs = amcs.filter((a: { contract_end_date: string }) => {
+        const endDate = new Date(a.contract_end_date);
+        endDate.setHours(0, 0, 0, 0); // Reset time to start of day
+        return endDate <= today;
+      }).length;
+
+      setStats({
+        totalIssues: issues.length,
+        openIssues,
+        resolvedIssues,
+        totalAssets: assets.length,
+        activeAMCs,
+        expiringAMCs: expiredAMCs,
+      });
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show message if no society selected
+  if (!societyId) {
+    return (
+      <ProtectedLayout>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">
+              No Society Selected
+            </h2>
+            <p className="text-slate-600">
+              Please select a society from the sidebar to view the dashboard.
+            </p>
+          </div>
+        </div>
+      </ProtectedLayout>
+    );
+  }
 
   // Generate trend data based on actual stats
   const issuesTrendData = [
@@ -170,7 +194,7 @@ export default function Dashboard() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Dashboard
+              Dashboard {societyName && `- ${societyName}`}
             </h1>
             <p className="mt-2 text-gray-600">
               Welcome back,{" "}

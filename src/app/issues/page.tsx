@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { StatusBadge, PriorityBadge } from "@/components/Badge";
 import { useAuth } from "@/lib/auth/context";
+import { useSelectedSociety } from "@/lib/auth/useSelectedSociety";
+import { useSelectedSocietyName } from "@/lib/auth/useSelectedSocietyName";
 
 interface Issue {
   id: string;
@@ -18,20 +20,24 @@ interface Issue {
 
 export default function IssuesPage() {
   const { user } = useAuth();
+  const societyId = useSelectedSociety();
+  const societyName = useSelectedSocietyName();
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    fetchIssues();
+    if (societyId) {
+      fetchIssues();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, societyId]);
 
   const fetchIssues = async () => {
     try {
       const params = new URLSearchParams();
-      if (user?.society_id) params.append("society_id", user.society_id);
+      if (societyId) params.append("society_id", societyId);
       if (filter) params.append("status", filter);
 
       const url = params.toString() ? `/api/issues?${params}` : "/api/issues";
@@ -83,7 +89,7 @@ export default function IssuesPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">
-              Issues & Complaints
+              Issues & Complaints {societyName && `- ${societyName}`}
             </h1>
             <p className="mt-2 text-gray-600">
               Report and track maintenance issues

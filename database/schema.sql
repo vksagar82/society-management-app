@@ -13,6 +13,8 @@ CREATE TABLE users (
   global_role VARCHAR(50) DEFAULT 'member', -- 'developer', 'admin', 'manager', 'member'
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMP,
+  reset_token VARCHAR(255),
+  reset_token_expiry TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -39,6 +41,10 @@ CREATE TABLE user_societies (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
   role VARCHAR(50) DEFAULT 'member', -- 'admin', 'manager', 'member' (role within this specific society)
+  approval_status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+  approved_by UUID REFERENCES users(id),
+  approved_at TIMESTAMP,
+  rejection_reason TEXT,
   flat_no VARCHAR(50),
   wing VARCHAR(50),
   is_primary BOOLEAN DEFAULT false, -- Mark primary society for user
@@ -273,35 +279,56 @@ CREATE TABLE audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- API Scopes - Define permissions for each role
+CREATE TABLE role_scopes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  society_id UUID REFERENCES societies(id) ON DELETE CASCADE,
+  role VARCHAR(50) NOT NULL, -- 'developer', 'admin', 'manager', 'member'
+  scope_name VARCHAR(100) NOT NULL, -- 'users.view', 'users.edit', 'assets.view', etc.
+  scope_description TEXT,
+  is_enabled BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(id),
+  CONSTRAINT uq_role_scope UNIQUE (society_id, role, scope_name)
+);
+
 -- Create indexes for better performance
-CREATE INDEX idx_user_societies_user_id ON user_societies(user_id);
-CREATE INDEX idx_user_societies_society_id ON user_societies(society_id);
-CREATE INDEX idx_user_societies_is_primary ON user_societies(is_primary);
-CREATE INDEX idx_users_global_role ON users(global_role);
-CREATE INDEX idx_amcs_society_id ON amcs(society_id);
-CREATE INDEX idx_amcs_status ON amcs(status);
-CREATE INDEX idx_amcs_vendor_name ON amcs(vendor_name);
-CREATE INDEX idx_amcs_next_service_date ON amcs(next_service_date);
-CREATE INDEX idx_amcs_work_order_number ON amcs(work_order_number);
-CREATE INDEX idx_amc_service_history_amc_id ON amc_service_history(amc_id);
-CREATE INDEX idx_amc_service_history_service_date ON amc_service_history(service_date);
-CREATE INDEX idx_issues_society_id ON issues(society_id);
-CREATE INDEX idx_issues_status ON issues(status);
-CREATE INDEX idx_issues_priority ON issues(priority);
-CREATE INDEX idx_assets_society_id ON assets(society_id);
-CREATE INDEX idx_assets_status ON assets(status);
-CREATE INDEX idx_assets_category_id ON assets(category_id);
-CREATE INDEX idx_amc_assets_amc_id ON amc_assets(amc_id);
-CREATE INDEX idx_amc_assets_asset_id ON amc_assets(asset_id);
-CREATE INDEX idx_asset_categories_society_id ON asset_categories(society_id);
-CREATE INDEX idx_alerts_society_id ON alerts(society_id);
-CREATE INDEX idx_alerts_delivery_status ON alerts(delivery_status);
-CREATE INDEX idx_audit_logs_society_id ON audit_logs(society_id);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
-CREATE INDEX idx_audit_logs_entity_type ON audit_logs(entity_type);
-CREATE INDEX idx_audit_logs_entity_id ON audit_logs(entity_id);
-CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_is_deleted ON audit_logs(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_user_societies_user_id ON user_societies(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_societies_society_id ON user_societies(society_id);
+CREATE INDEX IF NOT EXISTS idx_user_societies_is_primary ON user_societies(is_primary);
+CREATE INDEX IF NOT EXISTS idx_users_global_role ON users(global_role);
+CREATE INDEX IF NOT EXISTS idx_amcs_society_id ON amcs(society_id);
+CREATE INDEX IF NOT EXISTS idx_amcs_status ON amcs(status);
+CREATE INDEX IF NOT EXISTS idx_amcs_vendor_name ON amcs(vendor_name);
+CREATE INDEX IF NOT EXISTS idx_amcs_next_service_date ON amcs(next_service_date);
+CREATE INDEX IF NOT EXISTS idx_amcs_work_order_number ON amcs(work_order_number);
+CREATE INDEX IF NOT EXISTS idx_amc_service_history_amc_id ON amc_service_history(amc_id);
+CREATE INDEX IF NOT EXISTS idx_amc_service_history_service_date ON amc_service_history(service_date);
+CREATE INDEX IF NOT EXISTS idx_issues_society_id ON issues(society_id);
+CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status);
+CREATE INDEX IF NOT EXISTS idx_issues_priority ON issues(priority);
+CREATE INDEX IF NOT EXISTS idx_assets_society_id ON assets(society_id);
+CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status);
+CREATE INDEX IF NOT EXISTS idx_assets_category_id ON assets(category_id);
+CREATE INDEX IF NOT EXISTS idx_amc_assets_amc_id ON amc_assets(amc_id);
+CREATE INDEX IF NOT EXISTS idx_amc_assets_asset_id ON amc_assets(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_categories_society_id ON asset_categories(society_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_society_id ON alerts(society_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_delivery_status ON alerts(delivery_status);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_society_id ON audit_logs(society_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON audit_logs(entity_type);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_id ON audit_logs(entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_is_deleted ON audit_logs(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_role_scopes_society_id ON role_scopes(society_id);
+CREATE INDEX IF NOT EXISTS idx_role_scopes_role ON role_scopes(role);
+CREATE INDEX IF NOT EXISTS idx_role_scopes_scope_name ON role_scopes(scope_name);
+CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token);
+CREATE INDEX IF NOT EXISTS idx_user_societies_approval_status ON user_societies(approval_status);
+CREATE INDEX IF NOT EXISTS idx_user_societies_society_approval ON user_societies(society_id, approval_status);
+
 
 -- Enable RLS (Row Level Security) policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -315,3 +342,19 @@ ALTER TABLE asset_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE amc_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE role_scopes ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255),
+ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP;
+
+ALTER TABLE user_societies 
+ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved',
+ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id),
+ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+UPDATE user_societies 
+SET approval_status = 'approved', 
+    approved_at = created_at 
+WHERE approval_status IS NULL OR approval_status = 'pending';

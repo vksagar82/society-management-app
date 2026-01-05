@@ -65,11 +65,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's society
+    // Get user's primary society from user_societies
     const { data: userData } = await supabase
-      .from("users")
+      .from("user_societies")
       .select("society_id")
-      .eq("id", authData.user.id)
+      .eq("user_id", authData.user.id)
+      .eq("is_primary", true)
       .single();
 
     const { data, error } = await supabase
@@ -127,11 +128,12 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's society
+    // Get user's primary society from user_societies
     const { data: userData } = await supabase
-      .from("users")
+      .from("user_societies")
       .select("society_id")
-      .eq("id", authData.user.id)
+      .eq("user_id", authData.user.id)
+      .eq("is_primary", true)
       .single();
 
     // Get old issue data
@@ -196,17 +198,34 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's society and role
-    const { data: userData } = await supabase
+    // Get user's global role and primary society
+    const { data: user } = await supabase
       .from("users")
-      .select("society_id, role")
+      .select(
+        `
+        global_role,
+        user_societies!inner(society_id, role, is_primary)
+      `
+      )
       .eq("id", authData.user.id)
+      .eq("user_societies.is_primary", true)
       .single();
 
-    // Only admins can delete
-    if (userData?.role !== "admin") {
+    const primarySociety = user?.user_societies?.[0];
+    const userData = {
+      society_id: primarySociety?.society_id,
+      role: primarySociety?.role,
+      global_role: user?.global_role,
+    };
+
+    // Only admins and developers can delete
+    const canDelete =
+      userData.global_role === "developer" ||
+      userData.global_role === "admin" ||
+      userData.role === "admin";
+    if (!canDelete) {
       return NextResponse.json(
-        { error: "Only admins can delete issues" },
+        { error: "Only admins and developers can delete issues" },
         { status: 403 }
       );
     }

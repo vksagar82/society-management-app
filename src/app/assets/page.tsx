@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StatusBadge } from "@/components/Badge";
 import { useAuth } from "@/lib/auth/context";
+import { useSelectedSociety } from "@/lib/auth/useSelectedSociety";
+import { useSelectedSocietyName } from "@/lib/auth/useSelectedSocietyName";
 
 interface Asset {
   id: string;
@@ -21,6 +23,8 @@ interface Asset {
 
 export default function AssetsPage() {
   const { user } = useAuth();
+  const societyId = useSelectedSociety();
+  const societyName = useSelectedSocietyName();
   const searchParams = useSearchParams();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +44,7 @@ export default function AssetsPage() {
   const fetchAssets = async () => {
     try {
       const params = new URLSearchParams();
-      if (user?.society_id) params.append("society_id", user.society_id);
+      if (societyId) params.append("society_id", societyId);
       if (filter) params.append("status", filter);
 
       const url = params.toString() ? `/api/assets?${params}` : "/api/assets";
@@ -106,7 +110,9 @@ export default function AssetsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">Asset Tracking</h1>
+            <h1 className="text-4xl font-bold text-gray-900">
+              Asset Tracking {societyName && `- ${societyName}`}
+            </h1>
             <p className="mt-2 text-gray-600">
               Manage and track all society assets
             </p>

@@ -26,21 +26,26 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Check if requester is admin
+    // Check if requester is admin or developer
     const { data: requester, error: requesterError } = await supabase
       .from("users")
-      .select("role, society_id")
+      .select("global_role")
       .eq("id", decoded.userId)
       .single();
 
-    if (requesterError || !requester || requester.role !== "admin") {
+    if (
+      requesterError ||
+      !requester ||
+      (requester.global_role !== "admin" &&
+        requester.global_role !== "developer")
+    ) {
       return NextResponse.json(
-        { error: "Only admins can update user roles" },
+        { error: "Only admins and developers can update user roles" },
         { status: 403 }
       );
     }
 
-    const { userId, newRole } = await req.json();
+    const { userId, newRole, societyId, isGlobalRole } = await req.json();
 
     if (!userId || !newRole) {
       return NextResponse.json(
@@ -49,24 +54,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!["admin", "manager", "member"].includes(newRole)) {
+    if (!["developer", "admin", "manager", "member"].includes(newRole)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
-    // Get old user data before update
-    const { data: oldUserData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", userId)
-      .single();
+    let oldUserData, updatedUser, updateError;
 
-    // Update user role
-    const { data: updatedUser, error: updateError } = await supabase
-      .from("users")
-      .update({ role: newRole, updated_at: new Date().toISOString() })
-      .eq("id", userId)
-      .select()
-      .single();
+    if (isGlobalRole) {
+      // Update global role (only developers can do this)
+      if (requester.global_role !== "developer") {
+        return NextResponse.json(
+          { error: "Only developers can update global roles" },
+          { status: 403 }
+        );
+      }
+
+      ({ data: oldUserData } = await supabase
+        .from("users")
+        .select("global_role")
+        .eq("id", userId)
+        .single());
+
+      ({ data: updatedUser, error: updateError } = await supabase
+        .from("users")
+        .update({ global_role: newRole, updated_at: new Date().toISOString() })
+        .eq("id", userId)
+        .select()
+        .single());
+    } else {
+      // Update society-specific role
+      if (!societyId) {
+        return NextResponse.json(
+          { error: "societyId is required for society role updates" },
+          { status: 400 }
+        );
+      }
+
+      ({ data: oldUserData } = await supabase
+        .from("user_societies")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("society_id", societyId)
+        .single());
+
+      ({ data: updatedUser, error: updateError } = await supabase
+        .from("user_societies")
+        .update({ role: newRole, updated_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("society_id", societyId)
+        .select()
+        .single());
+    }
 
     if (updateError) {
       return NextResponse.json(
@@ -79,23 +117,20 @@ export async function POST(req: NextRequest) {
     await logOperation({
       request: req,
       action: "UPDATE",
-      entityType: "user",
+      entityType: isGlobalRole ? "user_global_role" : "user_society_role",
       entityId: userId,
-      societyId: requester.society_id,
+      societyId: societyId || null,
       userId: decoded.userId,
-      oldValues: { role: oldUserData?.role },
+      oldValues: { role: oldUserData?.role || oldUserData?.global_role },
       newValues: { role: newRole },
-      description: `User role updated: ${oldUserData?.role} → ${newRole}`,
+      description: `User ${isGlobalRole ? "global" : "society"} role updated: ${
+        oldUserData?.role || oldUserData?.global_role
+      } → ${newRole}`,
     });
 
     return NextResponse.json({
       message: "User role updated successfully",
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        full_name: updatedUser.full_name,
-        role: updatedUser.role,
-      },
+      user: updatedUser,
     });
   } catch (error) {
     console.error("Update role error:", error);
