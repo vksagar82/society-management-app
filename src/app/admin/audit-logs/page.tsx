@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { useSelectedSociety } from "@/lib/auth/useSelectedSociety";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -34,11 +35,13 @@ interface AuditLog {
 export default function AuditLogsPage() {
   const router = useRouter();
   const supabase = createBrowserClient();
+  const societyId = useSelectedSociety();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [entityType, setEntityType] = useState("");
@@ -51,7 +54,7 @@ export default function AuditLogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, [page, pageSize, entityType, action]);
+  }, [page, pageSize, entityType, action, societyId]);
 
   async function fetchLogs() {
     try {
@@ -59,6 +62,8 @@ export default function AuditLogsPage() {
       const params = new URLSearchParams();
       params.append("limit", pageSize.toString());
       params.append("offset", ((page - 1) * pageSize).toString());
+
+      if (societyId) params.append("society_id", societyId);
 
       if (entityType) params.append("entityType", entityType);
       if (action) params.append("action", action);
@@ -80,21 +85,26 @@ export default function AuditLogsPage() {
         let errorMessage = `Failed to fetch logs: ${response.status}`;
         try {
           const errorData = await response.json();
-          console.error("API Error Response:", errorData);
           errorMessage = errorData.error || errorData.details || errorMessage;
         } catch (parseError) {
-          console.error("Failed to parse error response:", parseError);
           const text = await response.text();
-          console.error("Raw response:", text);
+          errorMessage = `${errorMessage} - ${text || "Unknown error"}`;
         }
-        throw new Error(errorMessage);
+        setError(errorMessage);
+        return;
       }
 
       const data = await response.json();
       setLogs(data.logs || []);
       setTotalCount(data.count || 0);
+      setError(null);
     } catch (error) {
       console.error("Error fetching audit logs:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while loading audit logs"
+      );
     } finally {
       setLoading(false);
     }
@@ -278,6 +288,12 @@ export default function AuditLogsPage() {
                 </button>
               </div>
             </div>
+
+            {error && (
+              <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
             {showFilters && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">

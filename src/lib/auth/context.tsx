@@ -82,7 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("selected_society_id", userData.society_id);
         }
       } else {
-        localStorage.removeItem("auth_token");
+        // Clear invalid/stale tokens so we don't loop on a broken session
+        if (response.status === 401 || response.status === 404) {
+          localStorage.removeItem("auth_token");
+          setUser(null);
+        }
+        console.warn("Auth check failed", response.status);
       }
     } catch (err) {
       console.error("Error checking user:", err);

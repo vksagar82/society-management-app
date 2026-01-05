@@ -30,18 +30,30 @@ export async function GET(req: NextRequest) {
       .select(
         `
         *,
-        user_societies!inner(society_id, role, flat_no, wing, is_primary, approval_status)
+        user_societies:user_societies!user_societies_user_id_fkey(society_id, role, flat_no, wing, is_primary, approval_status)
       `
       )
       .eq("id", decoded.userId)
-      .eq("user_societies.is_primary", true)
       .single();
 
-    if (error || !user) {
+    if (error) {
+      console.error("/api/auth/me user fetch error", error);
+      return NextResponse.json(
+        { error: "Failed to fetch user", details: error.message },
+        { status: 500 }
+      );
+    }
+
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const primarySociety = user.user_societies?.[0];
+    const primarySociety =
+      user.user_societies?.find(
+        (s: { is_primary?: boolean }) => s.is_primary
+      ) ||
+      user.user_societies?.[0] ||
+      null;
 
     // Check if user has any approved societies
     const { data: approvedSocieties } = await supabase

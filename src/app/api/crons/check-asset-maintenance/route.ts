@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { sendAssetMaintenanceAlert } from "@/lib/notifications/notificationService";
+import { logOperation } from "@/lib/audit/loggingHelper";
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,22 +58,41 @@ export async function GET(req: NextRequest) {
       }
 
       // Create alert record
-      await supabase.from("alerts").insert([
-        {
-          society_id: asset.society_id,
-          title: `Asset Maintenance Scheduled - ${asset.name}`,
-          message: `Maintenance scheduled for ${asset.name} on ${new Date(
-            asset.next_maintenance_date
-          ).toLocaleDateString()}. Location: ${asset.location}`,
-          alert_type: "asset_maintenance",
-          severity: "info",
-          related_entity_type: "asset",
-          related_entity_id: asset.id,
-          channels: ["email"],
-          delivery_status: "sent",
-          sent_at: new Date().toISOString(),
-        },
-      ]);
+      const sentAt = new Date().toISOString();
+      const { data: alertRows } = await supabase
+        .from("alerts")
+        .insert([
+          {
+            society_id: asset.society_id,
+            title: `Asset Maintenance Scheduled - ${asset.name}`,
+            message: `Maintenance scheduled for ${asset.name} on ${new Date(
+              asset.next_maintenance_date
+            ).toLocaleDateString()}. Location: ${asset.location}`,
+            alert_type: "asset_maintenance",
+            severity: "info",
+            related_entity_type: "asset",
+            related_entity_id: asset.id,
+            channels: ["email"],
+            delivery_status: "sent",
+            sent_at: sentAt,
+          },
+        ])
+        .select();
+
+      const alertRecord = alertRows?.[0];
+
+      if (alertRecord) {
+        await logOperation({
+          request: req,
+          action: "CREATE",
+          entityType: "alert",
+          entityId: alertRecord.id,
+          societyId: asset.society_id,
+          userId: null,
+          newValues: alertRecord,
+          description: `Asset maintenance alert generated for ${asset.name}`,
+        });
+      }
     }
 
     return NextResponse.json({

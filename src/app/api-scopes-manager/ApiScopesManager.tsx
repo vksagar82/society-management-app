@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   AVAILABLE_SCOPES,
+  DEFAULT_ROLE_SCOPES,
   getScopesGroupedByCategory,
   RoleType,
 } from "@/lib/auth/scopes";
@@ -20,6 +21,8 @@ interface RoleScope {
 
 export default function ApiScopesManager() {
   const [scopes, setScopes] = useState<RoleScope[]>([]);
+  const [defaultScopes, setDefaultScopes] =
+    useState<Record<RoleType, string[]>>(DEFAULT_ROLE_SCOPES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<RoleType>("admin");
@@ -35,7 +38,8 @@ export default function ApiScopesManager() {
   const fetchScopes = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("authToken");
+      // Align with auth context token key used across the app
+      const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/scopes", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -48,6 +52,9 @@ export default function ApiScopesManager() {
 
       const data = await response.json();
       setScopes(data.scopes || []);
+      if (data.defaultScopes) {
+        setDefaultScopes(data.defaultScopes as Record<RoleType, string[]>);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -58,7 +65,8 @@ export default function ApiScopesManager() {
   const toggleScope = async (scopeName: string, currentState: boolean) => {
     try {
       setSaving(true);
-      const token = localStorage.getItem("authToken");
+      // Align with auth context token key used across the app
+      const token = localStorage.getItem("auth_token");
 
       // Find existing scope
       const existingScope = scopes.find(
@@ -120,7 +128,9 @@ export default function ApiScopesManager() {
     const scope = scopes.find(
       (s) => s.scope_name === scopeName && s.role === selectedRole
     );
-    return scope ? scope.is_enabled : false;
+    if (scope) return scope.is_enabled;
+    // Fallback to default scopes when no explicit record exists
+    return defaultScopes[selectedRole]?.includes(scopeName) || false;
   };
 
   if (loading) {

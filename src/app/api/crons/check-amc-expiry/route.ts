@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { sendAMCExpiryAlert } from "@/lib/notifications/notificationService";
+import { logOperation } from "@/lib/audit/loggingHelper";
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,24 +58,43 @@ export async function GET(req: NextRequest) {
       }
 
       // Create alert record
-      await supabase.from("alerts").insert([
-        {
-          society_id: amc.society_id,
-          title: `AMC Expiry Alert - ${amc.vendor_name}`,
-          message: `The AMC for ${amc.service_type} from ${
-            amc.vendor_name
-          } is expiring on ${new Date(
-            amc.contract_end_date
-          ).toLocaleDateString()}`,
-          alert_type: "amc_expiry",
-          severity: "warning",
-          related_entity_type: "amc",
-          related_entity_id: amc.id,
-          channels: ["email"],
-          delivery_status: "sent",
-          sent_at: new Date().toISOString(),
-        },
-      ]);
+      const sentAt = new Date().toISOString();
+      const { data: alertRows } = await supabase
+        .from("alerts")
+        .insert([
+          {
+            society_id: amc.society_id,
+            title: `AMC Expiry Alert - ${amc.vendor_name}`,
+            message: `The AMC for ${amc.service_type} from ${
+              amc.vendor_name
+            } is expiring on ${new Date(
+              amc.contract_end_date
+            ).toLocaleDateString()}`,
+            alert_type: "amc_expiry",
+            severity: "warning",
+            related_entity_type: "amc",
+            related_entity_id: amc.id,
+            channels: ["email"],
+            delivery_status: "sent",
+            sent_at: sentAt,
+          },
+        ])
+        .select();
+
+      const alertRecord = alertRows?.[0];
+
+      if (alertRecord) {
+        await logOperation({
+          request: req,
+          action: "CREATE",
+          entityType: "alert",
+          entityId: alertRecord.id,
+          societyId: amc.society_id,
+          userId: null,
+          newValues: alertRecord,
+          description: `AMC expiry alert generated for ${amc.vendor_name}`,
+        });
+      }
     }
 
     return NextResponse.json({

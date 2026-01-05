@@ -5,6 +5,8 @@ import {
   formatAlertMessage,
 } from "@/lib/notifications/notificationService";
 import { z } from "zod";
+import { verifyToken } from "@/lib/auth/utils";
+import { logOperation } from "@/lib/audit/loggingHelper";
 
 const alertSchema = z.object({
   society_id: z.string().uuid(),
@@ -54,6 +56,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const validatedData = alertSchema.parse(body);
+
+    const authHeader = req.headers.get("authorization");
+    const requesterId =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? verifyToken(authHeader.slice(7))?.userId || null
+        : null;
 
     const supabase = createServerClient();
 
@@ -109,10 +117,22 @@ export async function POST(req: NextRequest) {
     }
 
     // Update alert delivery status
+    const sentAt = new Date().toISOString();
     await supabase
       .from("alerts")
-      .update({ delivery_status: "sent", sent_at: new Date().toISOString() })
+      .update({ delivery_status: "sent", sent_at: sentAt })
       .eq("id", alertData.id);
+
+    await logOperation({
+      request: req,
+      action: "CREATE",
+      entityType: "alert",
+      entityId: alertData.id,
+      societyId: validatedData.society_id,
+      userId: requesterId,
+      newValues: { ...alertData, delivery_status: "sent", sent_at: sentAt },
+      description: `Alert created: ${validatedData.title}`,
+    });
 
     return NextResponse.json(alertData, { status: 201 });
   } catch (error) {

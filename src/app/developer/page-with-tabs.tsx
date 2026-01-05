@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ApiScopesManager from "@/app/api-scopes-manager/ApiScopesManager";
+import { useSelectedSociety } from "@/lib/auth/useSelectedSociety";
 
 type TabType = "dashboard" | "users" | "scopes" | "audit" | "system";
 
@@ -68,6 +69,73 @@ export default function DeveloperDashboard() {
 }
 
 function DashboardTab() {
+  const societyId = useSelectedSociety();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeSocieties: 0,
+    apiCallsToday: 0,
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const token =
+          typeof window !== "undefined"
+            ? localStorage.getItem("auth_token")
+            : null;
+        const headers = token
+          ? { Authorization: `Bearer ${token}` }
+          : undefined;
+
+        const params = new URLSearchParams();
+        if (societyId) params.append("society_id", societyId);
+        params.append("limit", "1");
+        params.append("offset", "0");
+
+        const [usersRes, societiesRes, auditRes] = await Promise.all([
+          fetch(`/api/users${societyId ? `?society_id=${societyId}` : ""}`, {
+            headers,
+          }),
+          fetch(`/api/societies`, { headers }),
+          fetch(`/api/audit-logs?${params.toString()}`, { headers }),
+        ]);
+
+        if (!usersRes.ok) throw new Error("Failed to load users count");
+        if (!societiesRes.ok) throw new Error("Failed to load societies");
+        if (!auditRes.ok) throw new Error("Failed to load audit logs");
+
+        const [usersData, societiesData, auditData] = await Promise.all([
+          usersRes.json(),
+          societiesRes.json(),
+          auditRes.json(),
+        ]);
+
+        setStats({
+          totalUsers: Array.isArray(usersData) ? usersData.length : 0,
+          activeSocieties: Array.isArray(societiesData)
+            ? societiesData.length
+            : 0,
+          apiCallsToday:
+            typeof auditData?.count === "number" ? auditData.count : 0,
+        });
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load developer metrics"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [societyId]);
+
   return (
     <div>
       <div className="mb-8">
@@ -84,21 +152,27 @@ function DashboardTab() {
           <div className="text-gray-500 text-sm font-medium mb-2">
             Total Users
           </div>
-          <div className="text-3xl font-bold text-gray-900">Loading...</div>
+          <div className="text-3xl font-bold text-gray-900">
+            {loading ? "Loading..." : stats.totalUsers}
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-gray-500 text-sm font-medium mb-2">
             Active Societies
           </div>
-          <div className="text-3xl font-bold text-gray-900">Loading...</div>
+          <div className="text-3xl font-bold text-gray-900">
+            {loading ? "Loading..." : stats.activeSocieties}
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-gray-500 text-sm font-medium mb-2">
             API Calls Today
           </div>
-          <div className="text-3xl font-bold text-gray-900">Loading...</div>
+          <div className="text-3xl font-bold text-gray-900">
+            {loading ? "Loading..." : stats.apiCallsToday}
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -115,7 +189,11 @@ function DashboardTab() {
             Recent System Events
           </h2>
           <div className="space-y-3">
-            <p className="text-gray-600 text-sm">No events to display</p>
+            {error ? (
+              <p className="text-red-600 text-sm">{error}</p>
+            ) : (
+              <p className="text-gray-600 text-sm">No events to display</p>
+            )}
           </div>
         </div>
 
@@ -237,6 +315,71 @@ function AuditTab() {
 }
 
 function SystemTab() {
+  const societyId = useSelectedSociety();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [systemStatus, setSystemStatus] = useState({
+    dbStatus: "unknown",
+    cacheStatus: "unknown",
+    lastBackup: "",
+    cacheEntries: 0,
+  });
+
+  useEffect(() => {
+    const loadStatus = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const token =
+          typeof window !== "undefined"
+            ? localStorage.getItem("auth_token")
+            : null;
+        const headers = token
+          ? { Authorization: `Bearer ${token}` }
+          : undefined;
+
+        const params = new URLSearchParams();
+        if (societyId) params.append("society_id", societyId);
+
+        const res = await fetch(`/api/system/status?${params.toString()}`, {
+          headers,
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to load system status");
+        }
+
+        const data = await res.json();
+        setSystemStatus({
+          dbStatus: data.dbStatus || "unknown",
+          cacheStatus: data.cacheStatus || "unknown",
+          lastBackup: data.lastBackup || "",
+          cacheEntries:
+            typeof data.cacheEntries === "number" ? data.cacheEntries : 0,
+        });
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Unable to load system status"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStatus();
+  }, [societyId]);
+
+  const formatDateTime = (value: string) => {
+    if (!value) return "No activity yet";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "Unavailable" : date.toLocaleString();
+  };
+
+  const statusColor = (status: string) =>
+    status.toLowerCase() === "connected" || status.toLowerCase() === "active"
+      ? "text-green-600"
+      : "text-gray-900";
+
   return (
     <div>
       <div className="mb-8">
@@ -254,11 +397,19 @@ function SystemTab() {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Status</span>
-              <span className="text-green-600 font-medium">Connected</span>
+              <span
+                className={`${statusColor(systemStatus.dbStatus)} font-medium`}
+              >
+                {loading ? "Loading..." : systemStatus.dbStatus || "Unknown"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Last Backup</span>
-              <span className="text-gray-900">Loading...</span>
+              <span className="text-gray-900">
+                {loading
+                  ? "Loading..."
+                  : formatDateTime(systemStatus.lastBackup)}
+              </span>
             </div>
           </div>
         </div>
@@ -268,15 +419,27 @@ function SystemTab() {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Status</span>
-              <span className="text-green-600 font-medium">Active</span>
+              <span
+                className={`${statusColor(
+                  systemStatus.cacheStatus
+                )} font-medium`}
+              >
+                {loading ? "Loading..." : systemStatus.cacheStatus || "Unknown"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Size</span>
-              <span className="text-gray-900">Loading...</span>
+              <span className="text-gray-900">
+                {loading
+                  ? "Loading..."
+                  : `${systemStatus.cacheEntries} entries`}
+              </span>
             </div>
           </div>
         </div>
       </div>
+
+      {error && <div className="mt-4 text-sm text-red-600">{error}</div>}
     </div>
   );
 }

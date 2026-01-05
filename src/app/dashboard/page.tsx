@@ -52,10 +52,15 @@ export default function Dashboard() {
     try {
       const societyParam = `?society_id=${societyId}`;
 
+      const token = localStorage.getItem("auth_token");
+      const authHeaders = token
+        ? { Authorization: `Bearer ${token}` }
+        : undefined;
+
       const [issuesRes, assetsRes, amcsRes] = await Promise.all([
-        fetch(`/api/issues${societyParam}`),
-        fetch(`/api/assets${societyParam}`),
-        fetch(`/api/amcs${societyParam}`),
+        fetch(`/api/issues${societyParam}`, { headers: authHeaders }),
+        fetch(`/api/assets${societyParam}`, { headers: authHeaders }),
+        fetch(`/api/amcs${societyParam}`, { headers: authHeaders }),
       ]);
 
       const issues = await issuesRes.json();

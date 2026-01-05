@@ -2,7 +2,7 @@ import { createServerClient } from "@/lib/supabase/client";
 
 export interface AuditLogParams {
   societyId: string;
-  userId: string;
+  userId: string | null;
   action: "CREATE" | "UPDATE" | "DELETE" | "VIEW" | "EXPORT";
   entityType: string;
   entityId?: string;

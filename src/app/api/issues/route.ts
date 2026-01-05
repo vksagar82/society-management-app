@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { z } from "zod";
 import { logOperation } from "@/lib/audit/loggingHelper";
+import { verifyToken } from "@/lib/auth/utils";
+
+type EffectiveRole = "developer" | "admin" | "manager" | "member";
+
+async function getRequestUser(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+
+  const token = authHeader.slice(7);
+  const decoded = verifyToken(token);
+  if (!decoded) return null;
+
+  const supabase = createServerClient();
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id, global_role, role")
+    .eq("id", decoded.userId)
+    .single();
+
+  const { data: primarySociety } = await supabase
+    .from("user_societies")
+    .select("society_id, role")
+    .eq("user_id", decoded.userId)
+    .eq("is_primary", true)
+    .single();
+
+  const effectiveRole =
+    (user?.global_role as EffectiveRole | null) ||
+    (user?.role as EffectiveRole | null) ||
+    (primarySociety?.role as EffectiveRole | null) ||
+    "member";
+
+  return {
+    supabase,
+    userId: decoded.userId,
+    effectiveRole,
+    societyId: primarySociety?.society_id || null,
+  };
+}
 
 const issueSchema = z.object({
   society_id: z.string().uuid().optional(),
@@ -18,7 +58,12 @@ const issueSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const auth = await getRequestUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { supabase, userId, effectiveRole } = auth;
     const societyId = req.nextUrl.searchParams.get("society_id");
     const status = req.nextUrl.searchParams.get("status");
 
@@ -34,6 +79,11 @@ export async function GET(req: NextRequest) {
 
     if (status) {
       query = query.eq("status", status);
+    }
+
+    // Members can only see their own reported issues
+    if (effectiveRole === "member") {
+      query = query.eq("reported_by", userId);
     }
 
     const { data, error } = await query.order("created_at", {
@@ -54,42 +104,38 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const validatedData = issueSchema.parse(body);
-
-    const supabase = createServerClient();
-
-    // Get current user
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) {
+    const auth = await getRequestUser(req);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's primary society from user_societies
-    const { data: userData } = await supabase
-      .from("user_societies")
-      .select("society_id")
-      .eq("user_id", authData.user.id)
-      .eq("is_primary", true)
-      .single();
+    const { supabase, userId, societyId } = auth;
+    const body = await req.json();
+    const validatedData = issueSchema.parse(body);
 
     const { data, error } = await supabase
       .from("issues")
-      .insert([validatedData])
+      .insert([
+        {
+          ...validatedData,
+          // Ensure ownership is stamped server-side
+          reported_by: validatedData.reported_by || userId,
+          society_id: validatedData.society_id || societyId,
+        },
+      ])
       .select()
       .single();
 
     if (error) throw error;
 
-    // Log issue creation
-    if (userData?.society_id) {
+    if (societyId) {
       await logOperation({
         request: req,
         action: "CREATE",
         entityType: "issue",
         entityId: data.id,
-        societyId: userData.society_id,
-        userId: authData.user.id,
+        societyId,
+        userId,
         newValues: data,
         description: `Issue created: ${validatedData.title}`,
       });
@@ -110,6 +156,12 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const auth = await getRequestUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { supabase, userId, effectiveRole, societyId } = auth;
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -120,30 +172,30 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
-
-    // Get current user
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get user's primary society from user_societies
-    const { data: userData } = await supabase
-      .from("user_societies")
-      .select("society_id")
-      .eq("user_id", authData.user.id)
-      .eq("is_primary", true)
-      .single();
-
-    // Get old issue data
     const { data: oldIssue } = await supabase
       .from("issues")
       .select("*")
       .eq("id", id)
       .single();
 
-    // Update issue
+    if (!oldIssue) {
+      return NextResponse.json({ error: "Issue not found" }, { status: 404 });
+    }
+
+    const isOwner = oldIssue.reported_by === userId;
+    const canEdit =
+      effectiveRole === "developer" ||
+      effectiveRole === "admin" ||
+      effectiveRole === "manager" ||
+      isOwner;
+
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: "Not authorized to update this issue" },
+        { status: 403 }
+      );
+    }
+
     const { data: updatedIssue, error } = await supabase
       .from("issues")
       .update({ ...updateData, updated_at: new Date().toISOString() })
@@ -153,15 +205,14 @@ export async function PUT(req: NextRequest) {
 
     if (error) throw error;
 
-    // Log issue update
-    if (userData?.society_id) {
+    if (societyId) {
       await logOperation({
         request: req,
         action: "UPDATE",
         entityType: "issue",
         entityId: id,
-        societyId: userData.society_id,
-        userId: authData.user.id,
+        societyId,
+        userId,
         oldValues: oldIssue,
         newValues: updatedIssue,
         description: `Issue updated: ${oldIssue?.title}`,
@@ -180,6 +231,12 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await getRequestUser(req);
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { supabase, userId, effectiveRole, societyId } = auth;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -190,67 +247,42 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
-
-    // Get current user
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get user's global role and primary society
-    const { data: user } = await supabase
-      .from("users")
-      .select(
-        `
-        global_role,
-        user_societies!inner(society_id, role, is_primary)
-      `
-      )
-      .eq("id", authData.user.id)
-      .eq("user_societies.is_primary", true)
-      .single();
-
-    const primarySociety = user?.user_societies?.[0];
-    const userData = {
-      society_id: primarySociety?.society_id,
-      role: primarySociety?.role,
-      global_role: user?.global_role,
-    };
-
-    // Only admins and developers can delete
-    const canDelete =
-      userData.global_role === "developer" ||
-      userData.global_role === "admin" ||
-      userData.role === "admin";
-    if (!canDelete) {
-      return NextResponse.json(
-        { error: "Only admins and developers can delete issues" },
-        { status: 403 }
-      );
-    }
-
-    // Get issue data before deletion
     const { data: issueData } = await supabase
       .from("issues")
       .select("*")
       .eq("id", id)
       .single();
 
-    // Delete issue
+    if (!issueData) {
+      return NextResponse.json({ error: "Issue not found" }, { status: 404 });
+    }
+
+    const isOwner = issueData.reported_by === userId;
+    const canDelete =
+      effectiveRole === "developer" ||
+      effectiveRole === "admin" ||
+      effectiveRole === "manager" ||
+      isOwner;
+
+    if (!canDelete) {
+      return NextResponse.json(
+        { error: "Not authorized to delete this issue" },
+        { status: 403 }
+      );
+    }
+
     const { error } = await supabase.from("issues").delete().eq("id", id);
 
     if (error) throw error;
 
-    // Log issue deletion
-    if (userData?.society_id && issueData) {
+    if (societyId && issueData) {
       await logOperation({
         request: req,
         action: "DELETE",
         entityType: "issue",
         entityId: id,
-        societyId: userData.society_id,
-        userId: authData.user.id,
+        societyId,
+        userId,
         oldValues: issueData,
         description: `Issue deleted: ${issueData.title}`,
       });

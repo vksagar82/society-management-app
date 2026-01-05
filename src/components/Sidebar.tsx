@@ -90,6 +90,8 @@ const ADMIN_ITEMS: NavItem[] = [
     label: "API Scopes",
     icon: CubeIcon,
     adminOnly: true,
+    // Hide from admins; developers still see via developer role access
+    developerOnly: true,
   },
   {
     href: "/admin/audit-logs",
@@ -239,7 +241,12 @@ export function Sidebar() {
     return true;
   });
 
-  if (loading || !user) {
+  // Preserve layout during auth bootstrap so space doesn't vanish on refresh
+  if (loading) {
+    return <div className="hidden md:block w-64 shrink-0" />;
+  }
+
+  if (!user) {
     return null;
   }
 

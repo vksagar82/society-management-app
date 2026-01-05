@@ -11,7 +11,7 @@ export async function logOperation(params: {
   entityType: string;
   entityId?: string;
   societyId: string;
-  userId: string;
+  userId: string | null;
   oldValues?: Record<string, any>;
   newValues?: Record<string, any>;
   description?: string; // For logging purposes only, not stored

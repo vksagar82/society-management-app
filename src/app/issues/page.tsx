@@ -41,7 +41,10 @@ export default function IssuesPage() {
       if (filter) params.append("status", filter);
 
       const url = params.toString() ? `/api/issues?${params}` : "/api/issues";
-      const res = await fetch(url);
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await res.json();
       setIssues(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -68,9 +71,13 @@ export default function IssuesPage() {
       if (user?.society_id) payload.society_id = user.society_id;
       if (user?.id) payload.reported_by = user.id;
 
+      const token = localStorage.getItem("auth_token");
       const res = await fetch("/api/issues", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 

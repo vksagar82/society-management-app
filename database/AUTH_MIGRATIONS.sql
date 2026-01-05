@@ -93,6 +93,105 @@ VALUES (
 )
 ON CONFLICT (email) DO UPDATE SET global_role = 'member';
 
+-- ============================
+-- 3b. SEED SOCIETIES (FIXED IDS)
+-- ============================
+
+-- Ensure two demo societies exist with stable IDs for mapping
+INSERT INTO societies (id, name, address, city, state, pincode, contact_person, contact_email, contact_phone, created_at, updated_at)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Greens Apex', '123 Greenway', 'Mumbai', 'Maharashtra', '400001', 'Apex Admin', 'apex@example.com', '+910000000001', NOW(), NOW()),
+  ('22222222-2222-2222-2222-222222222222', 'Greens Rosewood', '456 Rosewood Lane', 'Pune', 'Maharashtra', '411001', 'Rosewood Admin', 'rosewood@example.com', '+910000000002', NOW(), NOW())
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  address = EXCLUDED.address,
+  city = EXCLUDED.city,
+  state = EXCLUDED.state,
+  pincode = EXCLUDED.pincode,
+  contact_person = EXCLUDED.contact_person,
+  contact_email = EXCLUDED.contact_email,
+  contact_phone = EXCLUDED.contact_phone,
+  updated_at = NOW();
+
+-- ============================
+-- 3c. CREATE PER-SOCIETY TEST USERS
+-- ============================
+
+-- Admins per society
+INSERT INTO users (email, phone, full_name, password_hash, global_role, is_active, created_at, updated_at)
+VALUES
+  ('admin1@test.com', '+1234567893', 'Admin Apex', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'admin', true, NOW(), NOW()),
+  ('admin2@test.com', '+1234567894', 'Admin Rosewood', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'admin', true, NOW(), NOW())
+ON CONFLICT (email) DO UPDATE SET global_role = 'admin';
+
+-- Managers per society
+INSERT INTO users (email, phone, full_name, password_hash, global_role, is_active, created_at, updated_at)
+VALUES
+  ('manager1@test.com', '+1234567895', 'Manager Apex', '866485796cfa8d7c0cf7111640205b83076433547577511d81f8030ae99ecea5', 'manager', true, NOW(), NOW()),
+  ('manager2@test.com', '+1234567896', 'Manager Rosewood', '866485796cfa8d7c0cf7111640205b83076433547577511d81f8030ae99ecea5', 'manager', true, NOW(), NOW())
+ON CONFLICT (email) DO UPDATE SET global_role = 'manager';
+
+-- Members per society
+INSERT INTO users (email, phone, full_name, password_hash, global_role, is_active, created_at, updated_at)
+VALUES
+  ('member1@test.com', '+1234567897', 'Member Apex', '5600376e863d2f57a053518f324ad3840b0bc2348b573af281a7b7cbe7a228c6', 'member', true, NOW(), NOW()),
+  ('member2@test.com', '+1234567898', 'Member Rosewood', '5600376e863d2f57a053518f324ad3840b0bc2348b573af281a7b7cbe7a228c6', 'member', true, NOW(), NOW())
+ON CONFLICT (email) DO UPDATE SET global_role = 'member';
+
+-- ============================
+-- 3d. MAP USERS TO SOCIETIES
+-- ============================
+
+-- Helper CTEs to resolve IDs
+WITH soc AS (
+  SELECT id, name FROM societies WHERE id IN ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')
+), base_users AS (
+  SELECT id, email, global_role FROM users WHERE email IN ('admin@test.com', 'manager@test.com', 'member@test.com')
+), per_society AS (
+  SELECT id, email, global_role FROM users WHERE email IN (
+    'admin1@test.com','admin2@test.com',
+    'manager1@test.com','manager2@test.com',
+    'member1@test.com','member2@test.com'
+  )
+)
+-- Base test users: give access to both societies
+INSERT INTO user_societies (user_id, society_id, role, approval_status, is_primary, approved_at, created_at, updated_at)
+SELECT
+  u.id,
+  s.id,
+  CASE u.global_role WHEN 'admin' THEN 'admin' WHEN 'manager' THEN 'manager' ELSE 'member' END,
+  'approved',
+  CASE WHEN s.name = 'Greens Apex' THEN true ELSE false END,
+  NOW(), NOW(), NOW()
+FROM base_users u
+JOIN soc s ON TRUE
+ON CONFLICT (user_id, society_id) DO UPDATE SET
+  role = EXCLUDED.role,
+  approval_status = 'approved',
+  is_primary = EXCLUDED.is_primary,
+  approved_at = NOW(),
+  updated_at = NOW();
+
+-- Per-society users: map each to its specific society
+INSERT INTO user_societies (user_id, society_id, role, approval_status, is_primary, approved_at, created_at, updated_at)
+SELECT
+  u.id,
+  CASE
+    WHEN u.email LIKE '%1@test.com' THEN '11111111-1111-1111-1111-111111111111'
+    ELSE '22222222-2222-2222-2222-222222222222'
+  END,
+  CASE u.global_role WHEN 'admin' THEN 'admin' WHEN 'manager' THEN 'manager' ELSE 'member' END,
+  'approved',
+  true,
+  NOW(), NOW(), NOW()
+FROM per_society u
+ON CONFLICT (user_id, society_id) DO UPDATE SET
+  role = EXCLUDED.role,
+  approval_status = 'approved',
+  is_primary = true,
+  approved_at = NOW(),
+  updated_at = NOW();
+
 -- ============================================
 -- 4. VERIFY TEST ACCOUNTS CREATED
 -- ============================================

@@ -9,8 +9,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
 
-  // Only show sidebar for authenticated users
-  const showSidebar = !loading && user;
+  // Keep the shell visible while auth is loading to avoid layout collapse on refresh
+  const showSidebar = loading || !!user;
 
   const handleLogout = async () => {
     await logout();
