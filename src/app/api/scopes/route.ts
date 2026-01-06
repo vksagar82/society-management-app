@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("[API Scopes] Missing or invalid authorization header");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -15,19 +16,32 @@ export async function GET(req: NextRequest) {
     const decoded = verifyToken(token);
 
     if (!decoded) {
+      console.error("[API Scopes] Invalid or expired token");
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const supabase = createServerClient();
 
     // Get user's role and society
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("users")
       .select("global_role")
       .eq("id", decoded.userId)
       .single();
 
-    if (!user || user.global_role !== "developer") {
+    if (userError) {
+      console.error("[API Scopes] Error fetching user:", userError);
+    }
+
+    if (!user) {
+      console.error(`[API Scopes] User not found with ID: ${decoded.userId}`);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (user.global_role !== "developer") {
+      console.error(
+        `[API Scopes] User role ${user.global_role} is not developer`
+      );
       return NextResponse.json(
         { error: "Only developers can manage scopes" },
         { status: 403 }

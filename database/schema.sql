@@ -12,6 +12,7 @@ CREATE TABLE users (
   avatar_url TEXT,
   global_role VARCHAR(50) DEFAULT 'member', -- 'developer', 'admin', 'manager', 'member'
   is_active BOOLEAN DEFAULT true,
+  settings JSONB DEFAULT '{}'::jsonb, -- User preferences (timezone, dateFormat, notifications, etc.)
   last_login TIMESTAMP,
   reset_token VARCHAR(255),
   reset_token_expiry TIMESTAMP,
@@ -344,6 +345,7 @@ CREATE TABLE IF NOT EXISTS api_requests (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- System Request Logs Table - Comprehensive API request logging
 -- Indexes for API request tracking
 CREATE INDEX IF NOT EXISTS idx_api_requests_society_id ON api_requests(society_id);
 CREATE INDEX IF NOT EXISTS idx_api_requests_user_id ON api_requests(user_id);
@@ -380,3 +382,9 @@ UPDATE user_societies
 SET approval_status = 'approved', 
     approved_at = created_at 
 WHERE approval_status IS NULL OR approval_status = 'pending';
+
+-- Add a comment to document the settings structure
+COMMENT ON COLUMN users.settings IS 'User preferences including timezone, dateFormat, timeFormat, language, notifications, etc.';
+
+-- Create an index on settings for better query performance
+CREATE INDEX IF NOT EXISTS idx_users_settings ON users USING GIN (settings);

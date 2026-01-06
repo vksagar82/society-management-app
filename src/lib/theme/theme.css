@@ -6,6 +6,7 @@
   --panel: rgba(248, 250, 252, 0.92);
   --border: rgba(0, 0, 0, 0.12);
   --card: rgba(248, 250, 252, 0.9);
+  --card-solid: #ffffff;
   --muted: #4b5563;
   --accent: #0ea872;
   --accent-2: #3a7adf;
@@ -44,6 +45,7 @@
   --panel: rgba(20, 24, 35, 0.92);
   --border: rgba(255, 255, 255, 0.06);
   --card: rgba(17, 20, 30, 0.8);
+  --card-solid: #1a1f2e;
   --muted: #94a3b8;
   --accent: #6ee7b7;
   --accent-2: #60a5fa;

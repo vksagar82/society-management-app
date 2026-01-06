@@ -35,6 +35,7 @@ interface AuthContextType {
     userId: string,
     newRole: "admin" | "manager" | "member"
   ) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -221,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         signup,
         updateUserRole,
+        refreshUser: checkUser,
       }}
     >
       {children}

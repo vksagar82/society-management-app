@@ -2,14 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { verifyToken } from "@/lib/auth/utils";
 import { logOperation } from "@/lib/audit/loggingHelper";
-import { logApiRequest } from "@/lib/middleware/apiLogger";
 
 export async function GET(req: NextRequest) {
-  const startTime = Date.now();
-  let societyId: string | null = null;
-  let userId: string | null = null;
-  let statusCode = 200;
-
   try {
     const authHeader = req.headers.get("authorization");
     const supabase = createServerClient();
@@ -18,7 +12,6 @@ export async function GET(req: NextRequest) {
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.slice(7);
       const decoded = verifyToken(token);
-      userId = decoded?.userId || null;
 
       if (decoded) {
         // Check if requester is developer
@@ -57,15 +50,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(societies || []);
   } catch (error) {
     console.error("Error fetching societies:", error);
-    statusCode = 500;
     return NextResponse.json(
       { error: "Failed to fetch societies" },
       { status: 500 }
-    );
-  } finally {
-    const responseTime = Date.now() - startTime;
-    logApiRequest(req, societyId, userId, statusCode, responseTime).catch(
-      console.error
     );
   }
 }

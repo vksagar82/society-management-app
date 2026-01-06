@@ -5,19 +5,22 @@ import { useTheme } from "@/lib/theme/context";
 import { useRouter } from "next/navigation";
 import { LogOut, User, Settings, ChevronDown, Sun, Moon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SocietySelector } from "@/components/SocietySelector";
 
 const roleColorMap: Record<string, string> = {
-  developer: "var(--accent-2)",
-  admin: "var(--accent-2)",
-  manager: "var(--accent)",
-  member: "var(--muted)",
+  developer: "#3a7adf",
+  admin: "#3a7adf",
+  manager: "#0ea872",
+  member: "#64748b",
 };
 
 function badgeStyles(color: string) {
   return {
-    backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
-    color,
-    borderColor: `color-mix(in srgb, ${color} 40%, transparent)`,
+    backgroundColor: color,
+    color: "#ffffff",
+    borderColor: color,
+    opacity: 1,
+    fontWeight: 600,
   } as const;
 }
 
@@ -26,6 +29,7 @@ export function NavBar() {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
@@ -53,6 +57,14 @@ export function NavBar() {
     };
   }, [isProfileOpen]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   if (!user || loading) {
     return null;
   }
@@ -77,7 +89,10 @@ export function NavBar() {
           </div>
         </div>
 
-        <div className="hidden md:flex flex-1 items-center">
+        <div className="hidden md:flex flex-1 items-center gap-3">
+          <div className="w-64 flex-shrink-0">
+            <SocietySelector />
+          </div>
           <div className="relative w-full max-w-lg">
             <input
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] shadow-inner focus:border-[var(--accent-2)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--accent-2)]/20"
@@ -90,6 +105,22 @@ export function NavBar() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 ml-auto text-[var(--foreground)]">
+          <div className="hidden lg:flex flex-col items-end mr-2">
+            <div className="text-sm font-semibold text-[var(--foreground)]">
+              {currentTime.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}
+            </div>
+            <div className="text-xs text-[var(--muted)]">
+              {currentTime.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </div>
+          </div>
           <button
             onClick={toggleTheme}
             className="h-10 w-10 rounded-full border border-[var(--border)] bg-[var(--panel)] shadow flex items-center justify-center transition-colors hover:border-[var(--accent-2)]/60 hover:text-[var(--accent-2)]"
@@ -104,7 +135,11 @@ export function NavBar() {
           <button className="h-10 w-10 rounded-full border border-[var(--border)] bg-[var(--panel)] shadow transition-colors hover:border-[var(--accent-2)]/60 hover:text-[var(--accent-2)]">
             🔔
           </button>
-          <button className="h-10 w-10 rounded-full border border-[var(--border)] bg-[var(--panel)] shadow transition-colors hover:border-[var(--accent-2)]/60 hover:text-[var(--accent-2)]">
+          <button
+            onClick={() => router.push("/settings")}
+            className="h-10 w-10 rounded-full border border-[var(--border)] bg-[var(--panel)] shadow transition-colors hover:border-[var(--accent-2)]/60 hover:text-[var(--accent-2)] flex items-center justify-center"
+            title="Settings"
+          >
             <Settings className="w-4 h-4" />
           </button>
 
@@ -127,8 +162,8 @@ export function NavBar() {
             </button>
 
             {isProfileOpen && (
-              <div className="absolute right-0 mt-3 w-80 rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-hidden">
-                <div className="p-4 border-b border-[var(--border)] text-center bg-[var(--panel)]">
+              <div className="absolute right-0 mt-3 w-80 rounded-2xl border border-[var(--border)] bg-[var(--card-solid)] shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--border)] text-center bg-[var(--card-solid)]">
                   <div className="flex justify-center mb-3">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--accent-2)] to-[var(--accent)] flex items-center justify-center text-[var(--background)] text-2xl font-bold shadow-lg">
                       {user?.full_name?.charAt(0).toUpperCase() || "U"}
@@ -232,7 +267,7 @@ export function NavBar() {
                   </div>
                 )}
 
-                <div className="border-t border-[var(--border)] py-1 bg-[var(--panel)]">
+                <div className="border-t border-[var(--border)] py-1 bg-[var(--card-solid)]">
                   <button
                     onClick={() => {
                       setIsProfileOpen(false);

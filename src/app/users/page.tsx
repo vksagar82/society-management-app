@@ -23,6 +23,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [newRole, setNewRole] = useState<"admin" | "manager" | "member">(
     "member"
   );
@@ -92,6 +94,32 @@ export default function UsersPage() {
       setSelectedUser(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update role");
+    }
+  };
+
+  const handleDeleteUser = async (targetUser: User) => {
+    try {
+      setDeleting(true);
+      setError("");
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`/api/users/${targetUser.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete user");
+      }
+
+      setUsers(users.filter((u) => u.id !== targetUser.id));
+      setUserToDelete(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete user");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -195,15 +223,23 @@ export default function UsersPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm">
-                  <button
-                    onClick={() => {
-                      setSelectedUser(u);
-                      setNewRole(u.role);
-                    }}
-                    className="font-medium text-blue-600 hover:text-blue-500"
-                  >
-                    Change Role
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setSelectedUser(u);
+                        setNewRole(u.role);
+                      }}
+                      className="font-medium text-blue-600 hover:text-blue-500"
+                    >
+                      Change Role
+                    </button>
+                    <button
+                      onClick={() => setUserToDelete(u)}
+                      className="font-medium text-red-600 hover:text-red-500"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -260,6 +296,53 @@ export default function UsersPage() {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700"
                 >
                   Update Role
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Delete User
+            </h3>
+
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <p className="text-sm text-red-800">
+                  Are you sure you want to delete{" "}
+                  <strong>{userToDelete.full_name}</strong> (
+                  {userToDelete.email})? This action cannot be undone.
+                </p>
+              </div>
+
+              {error && (
+                <div className="bg-red-100 border border-red-300 rounded-md p-3">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setUserToDelete(null);
+                    setError("");
+                  }}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteUser(userToDelete)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete User"}
                 </button>
               </div>
             </div>

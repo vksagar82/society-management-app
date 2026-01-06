@@ -27,19 +27,38 @@ export default function ApiScopesManager() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<RoleType>("admin");
   const [saving, setSaving] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
   const roles: RoleType[] = ["developer", "admin", "manager", "member"];
   const scopeCategories = getScopesGroupedByCategory();
 
+  // Get token from localStorage on mount
   useEffect(() => {
-    fetchScopes();
+    const authToken = localStorage.getItem("auth_token");
+    setToken(authToken);
   }, []);
+
+  // Fetch scopes when token is available
+  useEffect(() => {
+    if (token) {
+      fetchScopes();
+    } else {
+      setLoading(false);
+      setError("No authentication token found. Please login.");
+    }
+  }, [token]);
 
   const fetchScopes = async () => {
     try {
       setLoading(true);
-      // Align with auth context token key used across the app
-      const token = localStorage.getItem("auth_token");
+      setError(null);
+
+      if (!token) {
+        setError("No authentication token found. Please login.");
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch("/api/scopes", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,16 +66,26 @@ export default function ApiScopesManager() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch scopes");
+        const errorData = await response.json().catch(() => ({}));
+        setError(
+          `Failed to fetch scopes (${response.status}): ${
+            errorData.error || response.statusText
+          }`
+        );
+        console.error("Fetch scopes error:", response.status, errorData);
+        setLoading(false);
+        return;
       }
 
       const data = await response.json();
       setScopes(data.scopes || []);
+      setError(null);
       if (data.defaultScopes) {
         setDefaultScopes(data.defaultScopes as Record<RoleType, string[]>);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("Fetch scopes exception:", err);
     } finally {
       setLoading(false);
     }
