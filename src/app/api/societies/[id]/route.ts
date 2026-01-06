@@ -4,9 +4,10 @@ import { verifyToken } from "@/lib/auth/utils";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -32,7 +33,7 @@ export async function GET(
     const { data: society, error } = await supabase
       .from("societies")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error || !society) {

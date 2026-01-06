@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
+import { useTheme } from "@/lib/theme/context";
 import { isAdmin } from "@/lib/auth/permissions";
 import { SocietySelector } from "@/components/SocietySelector";
 import {
@@ -58,12 +59,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: HomeIcon,
     developerOnly: true,
   },
-  {
-    href: "/developer",
-    label: "Developer Panel",
-    icon: CubeIcon,
-    developerOnly: true,
-  },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
@@ -103,10 +98,11 @@ const ADMIN_ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const { user, loading, logout, selectedSocietyId } = useAuth();
+  const { theme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [isPinned, setIsPinned] = useState(true);
+  const [isPinned, setIsPinned] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [hideOnScroll, setHideOnScroll] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -114,6 +110,7 @@ export function Sidebar() {
     null
   );
   const [adminExpanded, setAdminExpanded] = useState(true);
+  const [developerExpanded, setDeveloperExpanded] = useState(true);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -125,7 +122,7 @@ export function Sidebar() {
         setIsPinned(false);
       } else {
         setIsOpen(true);
-        setIsPinned(true);
+        setIsPinned(false);
       }
     };
 
@@ -263,7 +260,7 @@ export function Sidebar() {
       {/* Mobile toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-8 right-8 md:hidden z-40 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white p-4 rounded-2xl shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-300 ring-4 ring-blue-100"
+        className="fixed bottom-8 right-8 md:hidden z-40 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-[var(--foreground)] p-4 rounded-2xl shadow-2xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-300 ring-4 ring-blue-100"
         aria-label="Toggle sidebar"
       >
         {isOpen ? (
@@ -272,22 +269,6 @@ export function Sidebar() {
           <Bars3Icon className="w-6 h-6" />
         )}
       </button>
-
-      {/* Desktop collapse button - outside sidebar */}
-      {!isMobile && (
-        <button
-          onClick={() => setIsPinned(!isPinned)}
-          className="hidden md:flex fixed left-64 top-6 z-50 p-2 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full shadow-xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-300 ring-2 ring-blue-400/50"
-          style={{ left: isPinned ? "256px" : "80px" }}
-          title={isPinned ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {isPinned ? (
-            <ChevronLeftIcon className="w-5 h-5" />
-          ) : (
-            <ChevronRightIcon className="w-5 h-5" />
-          )}
-        </button>
-      )}
 
       {/* Overlay for mobile */}
       {isOpen && isMobile && (
@@ -299,26 +280,42 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 left-0 min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white transition-all duration-300 ease-in-out z-40 ${getSidebarWidth()} border-r border-slate-700/50 shadow-2xl ${
+        data-theme={theme}
+        className={`fixed md:sticky top-0 left-0 min-h-screen bg-[var(--sidebar-bg)] text-[var(--foreground)] transition-all duration-300 ease-in-out z-40 ${getSidebarWidth()} border-r border-[var(--border)] shadow-[0_24px_80px_rgba(0,0,0,0.45)] ${
           hideOnScroll && !isMobile
             ? "md:-translate-x-full md:opacity-0"
             : "md:translate-x-0 md:opacity-100"
         }`}
         style={{ overflow: "visible" }}
       >
+        {/* Arrow toggle button integrated into sidebar edge - Desktop only */}
+        {!isMobile && (
+          <button
+            onClick={() => setIsPinned(!isPinned)}
+            className="hidden md:block absolute top-1/2 -translate-y-1/2 -right-3 z-50 bg-gradient-to-br from-blue-600 to-indigo-600 text-[var(--foreground)] rounded-full shadow-xl hover:shadow-blue-500/50 hover:scale-110 transition-all duration-300 ring-2 ring-blue-400/50 w-6 h-12 flex items-center justify-center"
+            title={isPinned ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {isPinned ? (
+              <ChevronLeftIcon className="w-4 h-4" />
+            ) : (
+              <ChevronRightIcon className="w-4 h-4" />
+            )}
+          </button>
+        )}
+
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex flex-col border-b border-slate-700/50 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 backdrop-blur-sm">
+          <div className="flex flex-col border-b border-[var(--border)] bg-[var(--sidebar-bg)] backdrop-blur-xl">
             {/* Current Society Indicator (for developers) */}
             {userRole === "developer" &&
               currentSocietyName &&
               (isMobile ? isOpen : isPinned) && (
                 <div className="px-6 pt-4 pb-2">
-                  <div className="bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-lg px-3 py-2">
-                    <p className="text-xs text-emerald-300 font-semibold uppercase tracking-wider mb-1">
+                  <div className="bg-[var(--hover-bg)] border border-[var(--border)] rounded-lg px-3 py-2 shadow-inner">
+                    <p className="text-xs text-[var(--muted)] font-semibold uppercase tracking-wider mb-1">
                       Current Society
                     </p>
-                    <p className="text-sm text-white font-bold truncate">
+                    <p className="text-sm text-[var(--foreground)] font-semibold truncate">
                       {currentSocietyName}
                     </p>
                   </div>
@@ -328,39 +325,28 @@ export function Sidebar() {
             <div className="flex items-center justify-between px-6 py-4">
               <Link
                 href="/dashboard"
-                className="flex items-center gap-3 hover:opacity-80 transition-all duration-300 transform hover:scale-105"
+                className="flex items-center gap-3 hover:opacity-90 transition-all duration-300 transform hover:scale-102"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg ring-2 ring-blue-400/50">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 via-cyan-400 to-emerald-300 rounded-xl flex items-center justify-center text-[var(--foreground)] font-black text-lg shadow-lg ring-2 ring-cyan-300/60">
                   {user.full_name?.charAt(0).toUpperCase() || "U"}
                 </div>
-                {isMobile ? (
-                  isOpen ? (
-                    <div className="hidden md:block">
-                      <p className="text-sm font-bold text-white tracking-wide">
-                        {user.full_name}
-                      </p>
-                      <p className="text-xs text-blue-400 font-medium">
-                        {user.email}
-                      </p>
-                    </div>
-                  ) : null
-                ) : isPinned ? (
+                {((isMobile && isOpen) || (!isMobile && isPinned)) && (
                   <div className="hidden md:block">
-                    <p className="text-sm font-bold text-white tracking-wide">
+                    <p className="text-sm font-bold text-[var(--foreground)] tracking-wide">
                       {user.full_name}
                     </p>
-                    <p className="text-xs text-blue-400 font-medium">
+                    <p className="text-xs text-[var(--muted)] font-medium">
                       {user.email}
                     </p>
                   </div>
-                ) : null}
+                )}
               </Link>
 
               {/* Close button (mobile only) */}
               {isOpen && isMobile && (
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="md:hidden p-2 hover:bg-slate-700/70 rounded-lg transition-all duration-300 ml-auto hover:scale-110"
+                  className="md:hidden p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-all duration-300 ml-auto hover:scale-110"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -369,8 +355,8 @@ export function Sidebar() {
           </div>
 
           {/* Society Selector */}
-          {(isMobile ? isOpen : isPinned) && (
-            <div className="px-3 py-3 border-b border-slate-700/50">
+          {((isMobile && isOpen) || (!isMobile && isPinned)) && (
+            <div className="px-3 py-3 border-b border-[var(--border)] bg-[var(--hover-bg)]">
               <SocietySelector />
             </div>
           )}
@@ -383,10 +369,10 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 group relative transform hover:scale-102 ${
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all duration-200 group relative ${
                     isActive(item.href)
-                      ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xl shadow-blue-500/30 scale-102"
-                      : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-lg"
+                      ? "bg-[var(--active-bg)] text-[var(--foreground)] border-cyan-300/40 shadow-lg shadow-cyan-500/15"
+                      : "bg-[var(--hover-bg)] text-[var(--foreground)] border-transparent hover:bg-[var(--active-bg)] hover:border-[var(--border)]"
                   } ${
                     isMobile
                       ? isOpen
@@ -403,23 +389,17 @@ export function Sidebar() {
                   }
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
-                  {isMobile ? (
-                    isOpen ? (
-                      <span className="text-sm font-semibold tracking-wide">
-                        {item.label}
-                      </span>
-                    ) : null
-                  ) : isPinned ? (
+                  {((isMobile && isOpen) || (!isMobile && isPinned)) && (
                     <span className="text-sm font-semibold tracking-wide">
                       {item.label}
                     </span>
-                  ) : null}
-                  {(isMobile && !isOpen) || (!isMobile && !isPinned) ? (
-                    <div className="absolute left-full ml-3 hidden group-hover:block bg-gradient-to-r from-slate-700 to-slate-600 text-white text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap z-50 shadow-xl">
+                  )}
+                  {((isMobile && !isOpen) || (!isMobile && !isPinned)) && (
+                    <div className="absolute left-full ml-3 hidden group-hover:block bg-[var(--sidebar-bg)] text-[var(--foreground)] text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap z-50 shadow-xl border border-[var(--border)]">
                       {item.label}
-                      <div className="absolute top-1/2 right-full -translate-y-1/2 border-8 border-transparent border-r-slate-700" />
+                      <div className="absolute top-1/2 right-full -translate-y-1/2 border-8 border-transparent border-r-[var(--sidebar-bg)]" />
                     </div>
-                  ) : null}
+                  )}
                 </Link>
               );
             })}
@@ -430,7 +410,7 @@ export function Sidebar() {
                 <button
                   onClick={() => setAdminExpanded(!adminExpanded)}
                   type="button"
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white"
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 text-[var(--foreground)] border border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)]"
                 >
                   <UsersIcon className="w-5 h-5 flex-shrink-0" />
                   {((isMobile && isOpen) || (!isMobile && isPinned)) && (
@@ -447,29 +427,121 @@ export function Sidebar() {
                   )}
                 </button>
                 {/* Dropdown menu within sidebar */}
-                {adminExpanded && (
-                  <div className="pl-4 mt-2 space-y-1">
-                    {ADMIN_ITEMS.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
-                            isActive(item.href)
-                              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
-                              : "text-slate-300 hover:bg-slate-600/50 hover:text-white"
-                          }`}
-                        >
-                          <Icon className="w-4 h-4 flex-shrink-0" />
-                          <span className="text-sm font-medium">
-                            {item.label}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
+                {adminExpanded &&
+                  ((isMobile && isOpen) || (!isMobile && isPinned)) && (
+                    <div className="pl-4 mt-2 space-y-1">
+                      {ADMIN_ITEMS.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                              isActive(item.href)
+                                ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                                : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
+                            }`}
+                          >
+                            <Icon className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-sm font-medium">
+                              {item.label}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {/* Developer Section */}
+            {userRole === "developer" && (
+              <div>
+                <button
+                  onClick={() => setDeveloperExpanded(!developerExpanded)}
+                  type="button"
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 text-[var(--foreground)] border border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)]"
+                >
+                  <CubeIcon className="w-5 h-5 flex-shrink-0" />
+                  {((isMobile && isOpen) || (!isMobile && isPinned)) && (
+                    <>
+                      <span className="text-sm font-semibold tracking-wide flex-1 text-left">
+                        Developer Panel
+                      </span>
+                      <ChevronRightIcon
+                        className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${
+                          developerExpanded ? "rotate-90" : ""
+                        }`}
+                      />
+                    </>
+                  )}
+                </button>
+                {developerExpanded &&
+                  ((isMobile && isOpen) || (!isMobile && isPinned)) && (
+                    <div className="pl-4 mt-2 space-y-1">
+                      <Link
+                        href="/developer"
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                          isActive("/developer")
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
+                        }`}
+                      >
+                        <HomeIcon className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">
+                          Developer Dashboard
+                        </span>
+                      </Link>
+                      <Link
+                        href="/developer/api-scopes"
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                          isActive("/developer/api-scopes")
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
+                        }`}
+                      >
+                        <CubeIcon className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">API Scopes</span>
+                      </Link>
+                      <Link
+                        href="/developer/system-logs"
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                          isActive("/developer/system-logs")
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
+                        }`}
+                      >
+                        <DocumentTextIcon className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">System Logs</span>
+                      </Link>
+                      <Link
+                        href="/developer/database-status"
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                          isActive("/developer/database-status")
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
+                        }`}
+                      >
+                        <ArrowUpIcon className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">
+                          Database Status
+                        </span>
+                      </Link>
+                      <Link
+                        href="/developer/cache-status"
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                          isActive("/developer/cache-status")
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
+                        }`}
+                      >
+                        <ClockIcon className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">
+                          Cache Status
+                        </span>
+                      </Link>
+                    </div>
+                  )}
               </div>
             )}
 
@@ -480,7 +552,7 @@ export function Sidebar() {
                   await logout();
                   router.push("/auth/login");
                 }}
-                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 group relative transform hover:scale-102 text-slate-300 hover:bg-gradient-to-r hover:from-red-700/60 hover:to-rose-600/60 hover:text-white hover:shadow-lg ${
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group relative text-rose-100 border border-transparent hover:border-rose-400/40 hover:bg-rose-500/15 hover:text-[var(--foreground)] ${
                   isMobile
                     ? isOpen
                       ? ""
@@ -496,84 +568,27 @@ export function Sidebar() {
                 }
               >
                 <PowerIcon className="w-5 h-5 flex-shrink-0" />
-                {isMobile ? (
-                  isOpen ? (
-                    <span className="text-sm font-semibold tracking-wide">
-                      Logout
-                    </span>
-                  ) : null
-                ) : isPinned ? (
+                {((isMobile && isOpen) || (!isMobile && isPinned)) && (
                   <span className="text-sm font-semibold tracking-wide">
                     Logout
                   </span>
-                ) : null}
-                {(isMobile && !isOpen) || (!isMobile && !isPinned) ? (
-                  <div className="absolute left-full ml-3 hidden group-hover:block bg-gradient-to-r from-red-700 to-rose-600 text-white text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap z-50 shadow-xl">
+                )}
+                {((isMobile && !isOpen) || (!isMobile && !isPinned)) && (
+                  <div className="absolute left-full ml-3 hidden group-hover:block bg-gradient-to-r from-red-700 to-rose-600 text-[var(--foreground)] text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap z-50 shadow-xl">
                     Logout
                     <div className="absolute top-1/2 right-full -translate-y-1/2 border-8 border-transparent border-r-red-700" />
                   </div>
-                ) : null}
+                )}
               </button>
             </div>
           </nav>
 
-          {/* Footer - User Info */}
-          <div className="border-t border-slate-700/50 p-4 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-900 backdrop-blur-sm space-y-3">
-            <Link
-              href="/profile"
-              className={`flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-lg group transform hover:scale-102 ${
-                isMobile
-                  ? isOpen
-                    ? ""
-                    : "justify-center"
-                  : isPinned
-                  ? ""
-                  : "justify-center"
-              }`}
-              title={
-                (isMobile && !isOpen) || (!isMobile && !isPinned)
-                  ? "Profile"
-                  : ""
-              }
-            >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0 shadow-lg ring-2 ring-blue-400/50">
-                {user.full_name?.charAt(0).toUpperCase() || "U"}
-              </div>
-              {isMobile ? (
-                isOpen ? (
-                  <div className="min-w-0 hidden md:block">
-                    <p className="text-sm font-bold text-white truncate tracking-wide">
-                      {user.full_name}
-                    </p>
-                    <p className="text-xs text-slate-400 truncate">
-                      {user.email}
-                    </p>
-                  </div>
-                ) : null
-              ) : isPinned ? (
-                <div className="min-w-0 hidden md:block">
-                  <p className="text-sm font-bold text-white truncate tracking-wide">
-                    {user.full_name}
-                  </p>
-                  <p className="text-xs text-slate-400 truncate">
-                    {user.email}
-                  </p>
-                </div>
-              ) : null}
-              {(isMobile && !isOpen) || (!isMobile && !isPinned) ? (
-                <div className="absolute left-full ml-3 hidden group-hover:block bg-gradient-to-r from-slate-700 to-slate-600 text-white text-xs px-3 py-2 rounded-lg whitespace-nowrap z-50 w-max shadow-xl">
-                  <p className="font-bold">{user.full_name}</p>
-                  <p className="text-slate-300">{user.email}</p>
-                  <div className="absolute top-1/2 right-full -translate-y-1/2 border-8 border-transparent border-r-slate-700" />
-                </div>
-              ) : null}
-            </Link>
-
-            {/* Back to Top Button */}
+          {/* Footer - Back to Top Button */}
+          <div className="border-t border-slate-700/50 p-4 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-900 backdrop-blur-sm">
             <button
               type="button"
               onClick={scrollToTop}
-              className={`flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xl hover:shadow-blue-500/50 hover:scale-105 group mt-3 ${
+              className={`w-full flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-[var(--foreground)] shadow-xl hover:shadow-blue-500/50 hover:scale-105 group ${
                 isMobile
                   ? isOpen
                     ? ""
@@ -589,23 +604,17 @@ export function Sidebar() {
               }
             >
               <ArrowUpIcon className="w-5 h-5 flex-shrink-0" />
-              {isMobile ? (
-                isOpen ? (
-                  <span className="text-sm font-bold tracking-wide">
-                    Back to Top
-                  </span>
-                ) : null
-              ) : isPinned ? (
+              {((isMobile && isOpen) || (!isMobile && isPinned)) && (
                 <span className="text-sm font-bold tracking-wide">
                   Back to Top
                 </span>
-              ) : null}
-              {(isMobile && !isOpen) || (!isMobile && !isPinned) ? (
-                <div className="absolute left-full ml-3 hidden group-hover:block bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap z-50 shadow-xl">
+              )}
+              {((isMobile && !isOpen) || (!isMobile && !isPinned)) && (
+                <div className="absolute left-full ml-3 hidden group-hover:block bg-gradient-to-r from-blue-600 to-indigo-600 text-[var(--foreground)] text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap z-50 shadow-xl">
                   Back to Top
                   <div className="absolute top-1/2 right-full -translate-y-1/2 border-8 border-transparent border-r-blue-600" />
                 </div>
-              ) : null}
+              )}
             </button>
           </div>
         </div>

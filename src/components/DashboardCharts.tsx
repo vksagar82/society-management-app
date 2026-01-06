@@ -25,19 +25,17 @@ export const LineChart: React.FC<{
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-md p-6 border border-blue-100 ${
+      className={`bg-[var(--card)] rounded-2xl shadow-[0_20px_70px_rgba(0,0,0,0.45)] p-6 border border-[var(--border)] backdrop-blur-xl ${
         clickable
-          ? "cursor-pointer hover:shadow-xl hover:border-blue-200 transition-all duration-300 hover:-translate-y-1"
+          ? "cursor-pointer hover:border-cyan-300/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
           : ""
       }`}
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          {title}
-        </h3>
+        <h3 className="text-lg font-bold text-[var(--foreground)]">{title}</h3>
         {clickable && (
-          <ChevronRightIcon className="w-5 h-5 text-blue-600 animate-pulse" />
+          <ChevronRightIcon className="w-5 h-5 text-cyan-300 animate-pulse" />
         )}
       </div>
       <svg
@@ -48,12 +46,16 @@ export const LineChart: React.FC<{
         {/* Gradient definitions */}
         <defs>
           <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+            <stop
+              offset="0%"
+              stopColor="var(--chart-cyan)"
+              stopOpacity="0.35"
+            />
+            <stop offset="100%" stopColor="var(--chart-blue)" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="lineStroke" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#3b82f6" />
-            <stop offset="100%" stopColor="#6366f1" />
+            <stop offset="0%" stopColor="var(--chart-cyan)" />
+            <stop offset="100%" stopColor="var(--chart-purple)" />
           </linearGradient>
         </defs>
 
@@ -65,7 +67,7 @@ export const LineChart: React.FC<{
             y1={300 - (i * 300) / 4}
             x2="780"
             y2={300 - (i * 300) / 4}
-            stroke="#e5e7eb"
+            stroke="var(--border)"
             strokeWidth="1"
           />
         ))}
@@ -109,15 +111,15 @@ export const LineChart: React.FC<{
               cx={60 + (i * 720) / (data.length - 1 || 1)}
               cy={280 - ((d.value - min) / range) * 240}
               r="6"
-              fill="#3b82f6"
+              fill="var(--chart-cyan)"
               opacity="0.2"
             />
             <circle
               cx={60 + (i * 720) / (data.length - 1 || 1)}
               cy={280 - ((d.value - min) / range) * 240}
               r="4"
-              fill="#fff"
-              stroke="#3b82f6"
+              fill="var(--card)"
+              stroke="var(--chart-cyan)"
               strokeWidth="2"
             />
           </g>
@@ -131,7 +133,7 @@ export const LineChart: React.FC<{
             y="295"
             textAnchor="middle"
             fontSize="12"
-            fill="#6b7280"
+            fill="var(--muted)"
             fontWeight="500"
           >
             {d.label}
@@ -140,8 +142,10 @@ export const LineChart: React.FC<{
       </svg>
       <div className="mt-6 flex flex-wrap justify-center gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"></div>
-          <span className="text-sm font-medium text-gray-700">Trend Data</span>
+          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-300 to-purple-300"></div>
+          <span className="text-sm font-medium text-[var(--muted)]">
+            Trend Data
+          </span>
         </div>
       </div>
     </div>
@@ -160,19 +164,20 @@ export const BarChart: React.FC<{
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-indigo-50/30 rounded-2xl shadow-md p-6 border border-indigo-100 ${
+      className={`bg-[var(--card)] rounded-2xl shadow-[0_20px_70px_rgba(0,0,0,0.45)] p-6 border border-[var(--border)] backdrop-blur-xl ${
         clickable
-          ? "cursor-pointer hover:shadow-xl hover:border-indigo-200 transition-all duration-300 hover:-translate-y-1"
+          ? "cursor-pointer hover:border-cyan-300/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
           : ""
       }`}
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          {title}
-        </h3>
+        <h3 className="text-lg font-bold text-[var(--foreground)]">{title}</h3>
         {clickable && (
-          <ChevronRightIcon className="w-5 h-5 text-indigo-600 animate-pulse" />
+          <ChevronRightIcon
+            className="w-5 h-5 animate-pulse"
+            style={{ color: "var(--chart-cyan)" }}
+          />
         )}
       </div>
       <svg
@@ -188,7 +193,7 @@ export const BarChart: React.FC<{
             y1={300 - (i * 300) / 4}
             x2="780"
             y2={300 - (i * 300) / 4}
-            stroke="#e5e7eb"
+            stroke="var(--border)"
             strokeWidth="1"
           />
         ))}
@@ -209,10 +214,13 @@ export const BarChart: React.FC<{
                   x2="0"
                   y2="1"
                 >
-                  <stop offset="0%" stopColor={d.color || "#3b82f6"} />
+                  <stop
+                    offset="0%"
+                    stopColor={d.color || "var(--chart-blue)"}
+                  />
                   <stop
                     offset="100%"
-                    stopColor={d.color || "#3b82f6"}
+                    stopColor={d.color || "var(--chart-blue)"}
                     stopOpacity="0.7"
                   />
                 </linearGradient>
@@ -231,7 +239,7 @@ export const BarChart: React.FC<{
                 y="295"
                 textAnchor="middle"
                 fontSize="12"
-                fill="#6b7280"
+                fill="var(--muted)"
                 fontWeight="500"
               >
                 {d.label}
@@ -242,7 +250,7 @@ export const BarChart: React.FC<{
                 textAnchor="middle"
                 fontSize="12"
                 fontWeight="700"
-                fill="#374151"
+                fill="var(--foreground)"
               >
                 {d.value}
               </text>
@@ -255,9 +263,9 @@ export const BarChart: React.FC<{
           <div key={`legend-${i}`} className="flex items-center gap-2">
             <div
               className="w-3 h-3 rounded"
-              style={{ backgroundColor: d.color || "#3b82f6" }}
+              style={{ backgroundColor: d.color || "var(--chart-blue)" }}
             ></div>
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-[var(--muted)]">
               {d.label}: {d.value}
             </span>
           </div>
@@ -285,18 +293,20 @@ export const PieChart: React.FC<{
   if (totalWithValues === 0) {
     return (
       <div
-        className={`bg-gradient-to-br from-white to-purple-50/30 rounded-2xl shadow-md p-6 border border-purple-100 ${
-          clickable ? "cursor-pointer hover:shadow-xl" : ""
+        className={`bg-[var(--card)] rounded-2xl shadow-[0_20px_70px_rgba(0,0,0,0.45)] p-6 border border-[var(--border)] backdrop-blur-xl ${
+          clickable
+            ? "cursor-pointer hover:border-cyan-300/50 hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+            : ""
         }`}
         onClick={onClick}
       >
         {title && (
-          <h3 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+          <h3 className="text-lg font-bold text-[var(--foreground)] mb-4">
             {title}
           </h3>
         )}
         <div className="flex items-center justify-center h-40">
-          <p className="text-gray-500 text-center">No data available</p>
+          <p className="text-[var(--muted)] text-center">No data available</p>
         </div>
       </div>
     );
@@ -338,20 +348,23 @@ export const PieChart: React.FC<{
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-purple-50/30 rounded-2xl shadow-md p-6 border border-purple-100 ${
+      className={`bg-[var(--card)] rounded-2xl shadow-[0_20px_70px_rgba(0,0,0,0.45)] p-6 border border-[var(--border)] backdrop-blur-xl ${
         clickable
-          ? "cursor-pointer hover:shadow-xl hover:border-purple-200 transition-all duration-300 hover:-translate-y-1"
+          ? "cursor-pointer hover:border-cyan-300/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
           : ""
       }`}
       onClick={onClick}
     >
       {title && (
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <h3 className="text-lg font-bold text-[var(--foreground)]">
             {title}
           </h3>
           {clickable && (
-            <ChevronRightIcon className="w-5 h-5 text-purple-600 animate-pulse" />
+            <ChevronRightIcon
+              className="w-5 h-5 animate-pulse"
+              style={{ color: "var(--chart-cyan)" }}
+            />
           )}
         </div>
       )}
@@ -396,13 +409,13 @@ export const PieChart: React.FC<{
                 }`}
               >
                 <div
-                  className="w-4 h-4 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm"
+                  className="w-4 h-4 rounded-full flex-shrink-0 ring-2 ring-[var(--border)] shadow-sm"
                   style={{ backgroundColor: d.color }}
                 />
-                <span className="text-sm font-medium text-gray-700 text-center flex-1">
+                <span className="text-sm font-medium text-[var(--muted)] text-center flex-1">
                   {d.label}
                 </span>
-                <span className="text-sm font-bold text-gray-900 flex-shrink-0">
+                <span className="text-sm font-bold text-[var(--foreground)] flex-shrink-0">
                   {d.value} ({percentage}%)
                 </span>
               </div>
@@ -420,21 +433,23 @@ export const ProgressBar: React.FC<{
   value: number;
   max: number;
   color?: string;
-}> = ({ label, value, max, color = "bg-blue-600" }) => {
+}> = ({ label, value, max, color = "var(--chart-blue)" }) => {
   const percentage = (value / max) * 100;
 
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <span className="text-sm font-semibold text-gray-700">{label}</span>
-        <span className="text-sm font-bold text-gray-900">
+        <span className="text-sm font-semibold text-[var(--foreground)]">
+          {label}
+        </span>
+        <span className="text-sm font-bold text-[var(--foreground)]">
           {value} / {max}
         </span>
       </div>
-      <div className="relative w-full bg-gradient-to-r from-gray-100 to-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+      <div className="relative w-full rounded-full h-3 overflow-hidden shadow-inner border border-[var(--border)] bg-[var(--card)]">
         <div
-          className={`absolute inset-y-0 left-0 ${color} transition-all duration-500 ease-out rounded-full shadow-md relative overflow-hidden`}
-          style={{ width: `${percentage}%` }}
+          className="absolute inset-y-0 left-0 transition-all duration-500 ease-out rounded-full shadow-md relative overflow-hidden"
+          style={{ width: `${percentage}%`, backgroundColor: color }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
         </div>
@@ -456,26 +471,42 @@ export const TrendCard: React.FC<{
   const ArrowIcon = change >= 0 ? ArrowUpIcon : ArrowDownIcon;
 
   return (
-    <div className="bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-2xl p-5 border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <div className="bg-[var(--card)] rounded-2xl p-5 border border-[var(--border)] shadow-[0_16px_60px_rgba(0,0,0,0.45)] hover:border-cyan-300/50 transition-all duration-300 hover:-translate-y-1 backdrop-blur-xl">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-gray-600">
+        <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
           {title}
         </span>
         {icon ? (
-          <span className="text-2xl">{icon}</span>
+          <span className="text-2xl text-[var(--foreground)]">{icon}</span>
         ) : (
-          <TrendIcon className="w-6 h-6 text-gray-400" />
+          <TrendIcon
+            className="w-6 h-6"
+            style={{ color: "var(--chart-cyan)" }}
+          />
         )}
       </div>
-      <p className="text-3xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">
+      <p className="text-3xl font-black text-[var(--foreground)] mb-3 drop-shadow-[0_0_16px_rgba(0,0,0,0.35)]">
         {value}
       </p>
       <div
-        className={`inline-flex items-center gap-1.5 text-xs font-bold ${
+        className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm"
+        style={
           showPositive
-            ? "text-green-700 bg-gradient-to-r from-green-50 to-green-100 border border-green-200"
-            : "text-red-700 bg-gradient-to-r from-red-50 to-red-100 border border-red-200"
-        } px-3 py-1.5 rounded-full shadow-sm`}
+            ? {
+                color: "var(--chart-emerald)",
+                backgroundColor:
+                  "color-mix(in srgb, var(--chart-emerald) 18%, transparent)",
+                border:
+                  "1px solid color-mix(in srgb, var(--chart-emerald) 30%, transparent)",
+              }
+            : {
+                color: "var(--chart-red)",
+                backgroundColor:
+                  "color-mix(in srgb, var(--chart-red) 18%, transparent)",
+                border:
+                  "1px solid color-mix(in srgb, var(--chart-red) 30%, transparent)",
+              }
+        }
       >
         <ArrowIcon className="w-3.5 h-3.5" />
         {Math.abs(change)}% vs last month

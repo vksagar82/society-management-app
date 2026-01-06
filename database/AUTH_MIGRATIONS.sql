@@ -147,12 +147,6 @@ WITH soc AS (
   SELECT id, name FROM societies WHERE id IN ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')
 ), base_users AS (
   SELECT id, email, global_role FROM users WHERE email IN ('admin@test.com', 'manager@test.com', 'member@test.com')
-), per_society AS (
-  SELECT id, email, global_role FROM users WHERE email IN (
-    'admin1@test.com','admin2@test.com',
-    'manager1@test.com','manager2@test.com',
-    'member1@test.com','member2@test.com'
-  )
 )
 -- Base test users: give access to both societies
 INSERT INTO user_societies (user_id, society_id, role, approval_status, is_primary, approved_at, created_at, updated_at)
@@ -173,12 +167,19 @@ ON CONFLICT (user_id, society_id) DO UPDATE SET
   updated_at = NOW();
 
 -- Per-society users: map each to its specific society
+WITH per_society AS (
+  SELECT id, email, global_role FROM users WHERE email IN (
+    'admin1@test.com','admin2@test.com',
+    'manager1@test.com','manager2@test.com',
+    'member1@test.com','member2@test.com'
+  )
+)
 INSERT INTO user_societies (user_id, society_id, role, approval_status, is_primary, approved_at, created_at, updated_at)
 SELECT
   u.id,
   CASE
-    WHEN u.email LIKE '%1@test.com' THEN '11111111-1111-1111-1111-111111111111'
-    ELSE '22222222-2222-2222-2222-222222222222'
+    WHEN u.email LIKE '%1@test.com' THEN '11111111-1111-1111-1111-111111111111'::uuid
+    ELSE '22222222-2222-2222-2222-222222222222'::uuid
   END,
   CASE u.global_role WHEN 'admin' THEN 'admin' WHEN 'manager' THEN 'manager' ELSE 'member' END,
   'approved',

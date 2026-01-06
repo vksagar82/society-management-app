@@ -33,53 +33,53 @@ export const StatCard: React.FC<StatCardProps> = ({
 }) => {
   const colorClasses = {
     blue: {
-      bg: "bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-50",
-      border: "border-blue-300",
-      icon: "text-blue-600",
-      trend: "text-blue-700 bg-blue-100 border-blue-200",
-      ring: "ring-blue-200",
+      bg: "bg-[var(--card)]",
+      border: "border-blue-400/30",
+      icon: "text-cyan-200",
+      trend: "text-cyan-50 bg-cyan-500/15 border-cyan-300/40",
+      ring: "ring-cyan-500/10",
     },
     green: {
-      bg: "bg-gradient-to-br from-green-50 via-emerald-100 to-green-50",
-      border: "border-green-300",
-      icon: "text-green-600",
-      trend: "text-green-700 bg-green-100 border-green-200",
-      ring: "ring-green-200",
+      bg: "bg-[var(--card)]",
+      border: "border-emerald-400/30",
+      icon: "text-emerald-200",
+      trend: "text-emerald-50 bg-emerald-500/15 border-emerald-300/40",
+      ring: "ring-emerald-500/10",
     },
     red: {
-      bg: "bg-gradient-to-br from-red-50 via-red-100 to-rose-50",
-      border: "border-red-300",
-      icon: "text-red-600",
-      trend: "text-red-700 bg-red-100 border-red-200",
-      ring: "ring-red-200",
+      bg: "bg-[var(--card)]",
+      border: "border-rose-400/30",
+      icon: "text-rose-200",
+      trend: "text-rose-50 bg-rose-500/15 border-rose-300/40",
+      ring: "ring-rose-500/10",
     },
     orange: {
-      bg: "bg-gradient-to-br from-orange-50 via-orange-100 to-amber-50",
-      border: "border-orange-300",
-      icon: "text-orange-600",
-      trend: "text-orange-700 bg-orange-100 border-orange-200",
-      ring: "ring-orange-200",
+      bg: "bg-[var(--card)]",
+      border: "border-amber-400/30",
+      icon: "text-amber-200",
+      trend: "text-amber-50 bg-amber-500/15 border-amber-300/40",
+      ring: "ring-amber-500/10",
     },
     purple: {
-      bg: "bg-gradient-to-br from-purple-50 via-purple-100 to-fuchsia-50",
-      border: "border-purple-300",
-      icon: "text-purple-600",
-      trend: "text-purple-700 bg-purple-100 border-purple-200",
-      ring: "ring-purple-200",
+      bg: "bg-[var(--card)]",
+      border: "border-purple-400/30",
+      icon: "text-purple-200",
+      trend: "text-purple-50 bg-purple-500/15 border-purple-300/40",
+      ring: "ring-purple-500/10",
     },
     indigo: {
-      bg: "bg-gradient-to-br from-indigo-50 via-indigo-100 to-blue-50",
-      border: "border-indigo-300",
-      icon: "text-indigo-600",
-      trend: "text-indigo-700 bg-indigo-100 border-indigo-200",
-      ring: "ring-indigo-200",
+      bg: "bg-[var(--card)]",
+      border: "border-indigo-400/30",
+      icon: "text-indigo-200",
+      trend: "text-indigo-50 bg-indigo-500/15 border-indigo-300/40",
+      ring: "ring-indigo-500/10",
     },
     cyan: {
-      bg: "bg-gradient-to-br from-cyan-50 via-cyan-100 to-teal-50",
-      border: "border-cyan-300",
-      icon: "text-cyan-600",
-      trend: "text-cyan-700 bg-cyan-100 border-cyan-200",
-      ring: "ring-cyan-200",
+      bg: "bg-[var(--card)]",
+      border: "border-cyan-400/30",
+      icon: "text-cyan-200",
+      trend: "text-cyan-50 bg-cyan-500/15 border-cyan-300/40",
+      ring: "ring-cyan-500/10",
     },
   };
 
@@ -87,40 +87,42 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <div
-      className={`${colors.bg} ${colors.border} border-2 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 backdrop-blur-sm transform hover:-translate-y-1 ${colors.ring} ring-2`}
+      className={`${colors.bg} ${colors.border} border-2 rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-2xl transition-all duration-300 backdrop-blur-sm transform hover:-translate-y-1 ${colors.ring} ring-2 text-[var(--foreground)]`}
     >
       <div className="flex flex-col items-center justify-center text-center">
         {icon && (
           <div
-            className={`${colors.icon} text-4xl flex-shrink-0 opacity-80 transform transition-transform duration-300 hover:scale-110 mb-4`}
+            className={`${colors.icon} flex-shrink-0 opacity-90 transform transition-transform duration-300 hover:scale-110 mb-3 drop-shadow-[0_0_14px_rgba(59,130,246,0.35)]`}
           >
             {icon}
           </div>
         )}
-        <div className="w-full">
-          <p className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3">
+        <div className="w-full min-w-0">
+          <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest mb-2 truncate">
             {title}
           </p>
-          <p className="text-4xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mt-1">
+          <p className="text-2xl sm:text-3xl md:text-4xl font-black bg-gradient-to-r from-slate-50 via-white to-slate-200 bg-clip-text text-transparent mt-1 drop-shadow-[0_0_18px_rgba(0,0,0,0.35)] break-all">
             {value}
           </p>
           {description && (
-            <p className="text-xs text-gray-600 mt-2 font-medium">
+            <p className="text-xs text-[var(--muted)] mt-2 font-medium truncate">
               {description}
             </p>
           )}
           {trend !== undefined && (
             <div
-              className={`mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold border ${colors.trend} shadow-sm`}
+              className={`mt-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold border ${colors.trend} shadow-sm`}
             >
               {trend > 0 ? (
-                <ArrowUpIcon className="w-3.5 h-3.5" />
+                <ArrowUpIcon className="w-3 h-3 flex-shrink-0" />
               ) : (
-                <ArrowDownIcon className="w-3.5 h-3.5" />
+                <ArrowDownIcon className="w-3 h-3 flex-shrink-0" />
               )}
-              {Math.abs(trend)}%
+              <span className="whitespace-nowrap">{Math.abs(trend)}%</span>
               {trendLabel && (
-                <span className="text-gray-600 font-medium">{trendLabel}</span>
+                <span className="hidden sm:inline text-xs font-medium truncate">
+                  {trendLabel}
+                </span>
               )}
             </div>
           )}

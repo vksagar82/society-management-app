@@ -128,7 +128,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      localStorage.removeItem("auth_token");
+      // Wipe client storage and cookies to prevent unintended auto login
+      localStorage.clear();
+      sessionStorage.clear();
+      document.cookie
+        .split(";")
+        .map((cookie) => cookie.split("=")[0]?.trim())
+        .filter(Boolean)
+        .forEach((name) => {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        });
+      setSelectedSocietyIdState(null);
       setUser(null);
     } catch (err) {
       console.error("Error logging out:", err);
