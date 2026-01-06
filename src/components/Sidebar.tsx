@@ -283,12 +283,12 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         data-theme={theme}
-        className={`fixed md:sticky top-0 left-0 min-h-screen bg-[var(--sidebar-bg)] text-[var(--foreground)] transition-all duration-300 ease-in-out z-40 ${getSidebarWidth()} border-r border-[var(--border)] shadow-[0_24px_80px_rgba(0,0,0,0.45)] ${
+        className={`fixed md:sticky top-0 left-0 h-screen bg-[var(--sidebar-bg)] text-[var(--foreground)] transition-all duration-300 ease-in-out z-40 ${getSidebarWidth()} border-r border-[var(--border)] shadow-[0_24px_80px_rgba(0,0,0,0.45)] ${
           hideOnScroll && !isMobile
             ? "md:-translate-x-full md:opacity-0"
             : "md:translate-x-0 md:opacity-100"
         }`}
-        style={{ overflow: "visible" }}
+        style={{ overflow: "hidden" }}
       >
         {/* Arrow toggle button integrated into sidebar edge - Desktop only */}
         {!isMobile && (
@@ -305,9 +305,9 @@ export function Sidebar() {
           </button>
         )}
 
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-hidden">
           {/* Header */}
-          <div className="flex flex-col border-b border-[var(--border)] bg-[var(--sidebar-bg)] backdrop-blur-xl">
+          <div className="flex flex-col border-b border-[var(--border)] bg-[var(--sidebar-bg)] backdrop-blur-xl shrink-0">
             {/* Current Society Indicator (for developers) */}
             {userRole === "developer" &&
               currentSocietyName &&
@@ -358,13 +358,13 @@ export function Sidebar() {
 
           {/* Society Selector */}
           {((isMobile && isOpen) || (!isMobile && isPinned)) && (
-            <div className="px-3 py-3 border-b border-[var(--border)] bg-[var(--hover-bg)]">
+            <div className="px-3 py-3 border-b border-[var(--border)] bg-[var(--hover-bg)] shrink-0">
               <SocietySelector />
             </div>
           )}
 
           {/* Navigation */}
-          <nav className="flex-1 flex flex-col overflow-y-auto py-6 px-3 space-y-2 overflow-x-visible">
+          <nav className="flex-1 flex flex-col overflow-y-auto py-6 px-3 space-y-2 min-h-0">
             {visibleItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -619,7 +619,7 @@ export function Sidebar() {
           </nav>
 
           {/* Footer - Back to Top Button */}
-          <div className="border-t border-slate-700/50 p-4 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-900 backdrop-blur-sm">
+          <div className="border-t border-slate-700/50 p-4 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-900 backdrop-blur-sm shrink-0">
             <button
               type="button"
               onClick={scrollToTop}
