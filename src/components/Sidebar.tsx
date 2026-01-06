@@ -22,6 +22,8 @@ import {
   UserCircleIcon,
   ArrowUpIcon,
   PowerIcon,
+  ShieldCheckIcon,
+  CodeBracketSquareIcon,
 } from "@heroicons/react/24/outline";
 
 interface NavItem {
@@ -407,48 +409,72 @@ export function Sidebar() {
             {/* Admin Section */}
             {(userRole === "admin" || userRole === "developer") && (
               <div>
-                <button
-                  onClick={() => setAdminExpanded(!adminExpanded)}
-                  type="button"
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 text-[var(--foreground)] border border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)]"
+                <Link
+                  href="/admin"
+                  onClick={(e) => {
+                    // Toggle expansion when clicking the chevron area
+                    if (
+                      e.target instanceof HTMLElement &&
+                      e.target.closest(".chevron-toggle")
+                    ) {
+                      e.preventDefault();
+                      setAdminExpanded(!adminExpanded);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 border ${
+                    isActive("/admin")
+                      ? "bg-[var(--active-bg)] text-[var(--foreground)] border-orange-300/40 shadow-lg shadow-orange-500/15"
+                      : "text-[var(--foreground)] border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)]"
+                  }`}
                 >
-                  <UsersIcon className="w-5 h-5 flex-shrink-0" />
+                  <ShieldCheckIcon className="w-5 h-5 flex-shrink-0 text-orange-400" />
                   {((isMobile && isOpen) || (!isMobile && isPinned)) && (
                     <>
                       <span className="text-sm font-semibold tracking-wide flex-1 text-left">
-                        Admin {currentSocietyName && `- ${currentSocietyName}`}
+                        Admin Dashboard
                       </span>
-                      <ChevronRightIcon
-                        className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${
-                          adminExpanded ? "rotate-90" : ""
-                        }`}
-                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setAdminExpanded(!adminExpanded);
+                        }}
+                        className="chevron-toggle p-1 hover:bg-[var(--hover-bg)] rounded transition-colors"
+                      >
+                        <ChevronRightIcon
+                          className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${
+                            adminExpanded ? "rotate-90" : ""
+                          }`}
+                        />
+                      </button>
                     </>
                   )}
-                </button>
+                </Link>
                 {/* Dropdown menu within sidebar */}
                 {adminExpanded &&
                   ((isMobile && isOpen) || (!isMobile && isPinned)) && (
                     <div className="pl-4 mt-2 space-y-1">
-                      {ADMIN_ITEMS.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
-                              isActive(item.href)
-                                ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
-                                : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
-                            }`}
-                          >
-                            <Icon className="w-4 h-4 flex-shrink-0" />
-                            <span className="text-sm font-medium">
-                              {item.label}
-                            </span>
-                          </Link>
-                        );
-                      })}
+                      {ADMIN_ITEMS.filter((item) => item.href !== "/admin").map(
+                        (item) => {
+                          const Icon = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                                isActive(item.href)
+                                  ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-orange-300/40 shadow-lg shadow-orange-500/10"
+                                  : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
+                              }`}
+                            >
+                              <Icon className="w-4 h-4 flex-shrink-0" />
+                              <span className="text-sm font-medium">
+                                {item.label}
+                              </span>
+                            </Link>
+                          );
+                        }
+                      )}
                     </div>
                   )}
               </div>
@@ -457,46 +483,55 @@ export function Sidebar() {
             {/* Developer Section */}
             {userRole === "developer" && (
               <div>
-                <button
-                  onClick={() => setDeveloperExpanded(!developerExpanded)}
-                  type="button"
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 text-[var(--foreground)] border border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)]"
+                <Link
+                  href="/developer"
+                  onClick={(e) => {
+                    // Toggle expansion when clicking the chevron area
+                    if (
+                      e.target instanceof HTMLElement &&
+                      e.target.closest(".chevron-toggle")
+                    ) {
+                      e.preventDefault();
+                      setDeveloperExpanded(!developerExpanded);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 border ${
+                    isActive("/developer")
+                      ? "bg-[var(--active-bg)] text-[var(--foreground)] border-purple-300/40 shadow-lg shadow-purple-500/15"
+                      : "text-[var(--foreground)] border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)]"
+                  }`}
                 >
-                  <CubeIcon className="w-5 h-5 flex-shrink-0" />
+                  <CodeBracketSquareIcon className="w-5 h-5 flex-shrink-0 text-purple-400" />
                   {((isMobile && isOpen) || (!isMobile && isPinned)) && (
                     <>
                       <span className="text-sm font-semibold tracking-wide flex-1 text-left">
-                        Developer Panel
+                        Developer Dashboard
                       </span>
-                      <ChevronRightIcon
-                        className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${
-                          developerExpanded ? "rotate-90" : ""
-                        }`}
-                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setDeveloperExpanded(!developerExpanded);
+                        }}
+                        className="chevron-toggle p-1 hover:bg-[var(--hover-bg)] rounded transition-colors"
+                      >
+                        <ChevronRightIcon
+                          className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${
+                            developerExpanded ? "rotate-90" : ""
+                          }`}
+                        />
+                      </button>
                     </>
                   )}
-                </button>
+                </Link>
                 {developerExpanded &&
                   ((isMobile && isOpen) || (!isMobile && isPinned)) && (
                     <div className="pl-4 mt-2 space-y-1">
                       <Link
-                        href="/developer"
-                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
-                          isActive("/developer")
-                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
-                            : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
-                        }`}
-                      >
-                        <HomeIcon className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm font-medium">
-                          Developer Dashboard
-                        </span>
-                      </Link>
-                      <Link
                         href="/developer/api-scopes"
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
                           isActive("/developer/api-scopes")
-                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-purple-300/40 shadow-lg shadow-purple-500/10"
                             : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
                         }`}
                       >
@@ -507,7 +542,7 @@ export function Sidebar() {
                         href="/developer/system-logs"
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
                           isActive("/developer/system-logs")
-                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-purple-300/40 shadow-lg shadow-purple-500/10"
                             : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
                         }`}
                       >
@@ -518,7 +553,7 @@ export function Sidebar() {
                         href="/developer/database-status"
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
                           isActive("/developer/database-status")
-                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-purple-300/40 shadow-lg shadow-purple-500/10"
                             : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
                         }`}
                       >
@@ -531,7 +566,7 @@ export function Sidebar() {
                         href="/developer/cache-status"
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
                           isActive("/developer/cache-status")
-                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-cyan-300/40 shadow-lg shadow-cyan-500/10"
+                            ? "bg-[var(--active-bg)] text-[var(--foreground)] border border-purple-300/40 shadow-lg shadow-purple-500/10"
                             : "text-[var(--foreground)] hover:bg-[var(--active-bg)] border border-transparent hover:border-[var(--border)]"
                         }`}
                       >

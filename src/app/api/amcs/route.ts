@@ -4,6 +4,7 @@ import { z } from "zod";
 import { sendAMCExpiryAlert } from "@/lib/notifications/notificationService";
 import { logOperation } from "@/lib/audit/loggingHelper";
 import { verifyToken } from "@/lib/auth/utils";
+import { logApiRequest } from "@/lib/middleware/apiLogger";
 
 // Validate bearer token from Authorization header and return the user
 async function getAuthenticatedUser(req: NextRequest) {
@@ -77,9 +78,13 @@ const amcSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const startTime = Date.now();
+  let societyId: string | null = null;
+  let statusCode = 200;
+
   try {
     const supabase = createServerClient();
-    const societyId = req.nextUrl.searchParams.get("society_id");
+    societyId = req.nextUrl.searchParams.get("society_id");
 
     let query = supabase
       .from("amcs")
@@ -124,9 +129,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(withAssets);
   } catch (error) {
     console.error("Error fetching AMCs:", error);
+    statusCode = 500;
     return NextResponse.json(
       { error: "Failed to fetch AMCs" },
       { status: 500 }
+    );
+  } finally {
+    const responseTime = Date.now() - startTime;
+    logApiRequest(req, societyId, null, statusCode, responseTime).catch(
+      console.error
     );
   }
 }

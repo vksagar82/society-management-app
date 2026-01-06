@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { verifyToken } from "@/lib/auth/utils";
+import { logApiRequest } from "@/lib/middleware/apiLogger";
 
 export async function GET(req: NextRequest) {
+  const startTime = Date.now();
+  let societyId: string | null = null;
+  let userId: string | null = null;
+  let statusCode = 200;
+
   try {
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      statusCode = 401;
       return NextResponse.json(
         { error: "Missing or invalid authorization header" },
         { status: 401 }
@@ -15,6 +22,7 @@ export async function GET(req: NextRequest) {
 
     const token = authHeader.slice(7);
     const decoded = verifyToken(token);
+    userId = decoded?.userId || null;
 
     if (!decoded) {
       return NextResponse.json(
@@ -65,6 +73,8 @@ export async function GET(req: NextRequest) {
     const hasApprovedSociety =
       approvedSocieties && approvedSocieties.length > 0;
 
+    societyId = primarySociety?.society_id || null;
+
     return NextResponse.json({
       id: user.id,
       email: user.email,
@@ -82,6 +92,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Get user error:", error);
+    statusCode = 500;
     return NextResponse.json({ error: "An error occurred" }, { status: 500 });
+  } finally {
+    const responseTime = Date.now() - startTime;
+    logApiRequest(req, societyId, userId, statusCode, responseTime).catch(
+      console.error
+    );
   }
 }

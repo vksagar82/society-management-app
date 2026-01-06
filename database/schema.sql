@@ -329,6 +329,27 @@ CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token);
 CREATE INDEX IF NOT EXISTS idx_user_societies_approval_status ON user_societies(approval_status);
 CREATE INDEX IF NOT EXISTS idx_user_societies_society_approval ON user_societies(society_id, approval_status);
 
+-- API Request Tracking Table
+-- This table tracks all API requests for analytics and monitoring
+CREATE TABLE IF NOT EXISTS api_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  society_id UUID REFERENCES societies(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  method VARCHAR(10) NOT NULL,
+  path TEXT NOT NULL,
+  status_code INTEGER,
+  response_time_ms INTEGER,
+  ip_address VARCHAR(50),
+  user_agent TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for API request tracking
+CREATE INDEX IF NOT EXISTS idx_api_requests_society_id ON api_requests(society_id);
+CREATE INDEX IF NOT EXISTS idx_api_requests_user_id ON api_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_requests_created_at ON api_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_api_requests_path ON api_requests(path);
+CREATE INDEX IF NOT EXISTS idx_api_requests_society_created ON api_requests(society_id, created_at DESC);
 
 -- Enable RLS (Row Level Security) policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -343,6 +364,7 @@ ALTER TABLE amc_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role_scopes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE api_requests ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE users 
 ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/client";
 import { z } from "zod";
 import { logOperation } from "@/lib/audit/loggingHelper";
+import { logApiRequest } from "@/lib/middleware/apiLogger";
 
 const assetSchema = z.object({
   society_id: z.string().uuid().optional(),
@@ -24,9 +25,13 @@ const assetSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const startTime = Date.now();
+  let societyId: string | null = null;
+  let statusCode = 200;
+
   try {
     const supabase = createServerClient();
-    const societyId = req.nextUrl.searchParams.get("society_id");
+    societyId = req.nextUrl.searchParams.get("society_id");
     const status = req.nextUrl.searchParams.get("status");
 
     let query = supabase
@@ -50,9 +55,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching assets:", error);
+    statusCode = 500;
     return NextResponse.json(
       { error: "Failed to fetch assets" },
       { status: 500 }
+    );
+  } finally {
+    const responseTime = Date.now() - startTime;
+    logApiRequest(req, societyId, null, statusCode, responseTime).catch(
+      console.error
     );
   }
 }

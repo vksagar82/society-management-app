@@ -106,14 +106,14 @@ export default function AssetsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--background)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-4xl font-bold text-[var(--foreground)]">
               Asset Tracking {societyName && `- ${societyName}`}
             </h1>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-[var(--muted)]">
               Manage and track all society assets
             </p>
           </div>
@@ -126,12 +126,12 @@ export default function AssetsPage() {
         </div>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="bg-[var(--card)] rounded-lg shadow p-6 mb-8">
             <h2 className="text-2xl font-bold mb-6">Add New Asset</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Asset Name
                   </label>
                   <input
@@ -144,7 +144,7 @@ export default function AssetsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   Description
                 </label>
                 <textarea
@@ -156,7 +156,7 @@ export default function AssetsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Purchase Date
                   </label>
                   <input
@@ -166,7 +166,7 @@ export default function AssetsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Warranty Expiry
                   </label>
                   <input
@@ -179,7 +179,7 @@ export default function AssetsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Location
                   </label>
                   <input
@@ -190,7 +190,7 @@ export default function AssetsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Asset Code
                   </label>
                   <input
@@ -212,7 +212,7 @@ export default function AssetsPage() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400"
+                  className="flex-1 bg-[var(--muted-bg)] text-[var(--foreground)] py-2 rounded-lg font-medium hover:bg-[var(--active-bg)]"
                 >
                   Cancel
                 </button>
@@ -227,7 +227,7 @@ export default function AssetsPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               !filter
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             All
@@ -237,7 +237,7 @@ export default function AssetsPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               filter === "active"
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             Active
@@ -247,7 +247,7 @@ export default function AssetsPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               filter === "maintenance"
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             In Maintenance
@@ -257,7 +257,7 @@ export default function AssetsPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               filter === "inactive"
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             Inactive
@@ -267,20 +267,22 @@ export default function AssetsPage() {
         {loading ? (
           <div className="text-center py-12">Loading...</div>
         ) : assets.length === 0 ? (
-          <div className="text-center py-12 text-gray-600">No assets found</div>
+          <div className="text-center py-12 text-[var(--muted)]">
+            No assets found
+          </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {assets.map((asset) => (
               <div
                 key={asset.id}
-                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+                className="bg-[var(--card)] rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-lg font-semibold text-[var(--foreground)]">
                       {asset.name}
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-[var(--muted)] mt-1">
                       {asset.category || "Uncategorized"}
                     </p>
                   </div>
@@ -288,7 +290,7 @@ export default function AssetsPage() {
                 </div>
 
                 {asset.description && (
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-[var(--muted)] mb-4">
                     {asset.description}
                   </p>
                 )}

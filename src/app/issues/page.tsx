@@ -91,31 +91,31 @@ export default function IssuesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--background)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-4xl font-bold text-[var(--foreground)]">
               Issues & Complaints {societyName && `- ${societyName}`}
             </h1>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-[var(--muted)]">
               Report and track maintenance issues
             </p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-[var(--foreground)] px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
             + Report Issue
           </button>
         </div>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg shadow p-6 mb-8">
             <h2 className="text-2xl font-bold mb-6">Report New Issue</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   Title
                 </label>
                 <input
@@ -126,7 +126,7 @@ export default function IssuesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   Description
                 </label>
                 <textarea
@@ -138,7 +138,7 @@ export default function IssuesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Category
                   </label>
                   <select
@@ -152,7 +152,7 @@ export default function IssuesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Priority
                   </label>
                   <select
@@ -167,7 +167,7 @@ export default function IssuesPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   Location
                 </label>
                 <input
@@ -187,7 +187,7 @@ export default function IssuesPage() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400"
+                  className="flex-1 bg-[var(--muted-bg)] text-[var(--foreground)] py-2 rounded-lg font-medium hover:bg-[var(--active-bg)]"
                 >
                   Cancel
                 </button>
@@ -202,7 +202,7 @@ export default function IssuesPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               !filter
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             All
@@ -212,7 +212,7 @@ export default function IssuesPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               filter === "open"
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             Open
@@ -222,7 +222,7 @@ export default function IssuesPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               filter === "in_progress"
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             In Progress
@@ -232,7 +232,7 @@ export default function IssuesPage() {
             className={`px-4 py-2 rounded-lg font-medium ${
               filter === "resolved"
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border"
+                : "bg-[var(--card)] text-[var(--foreground)] border"
             }`}
           >
             Resolved
@@ -242,27 +242,31 @@ export default function IssuesPage() {
         {loading ? (
           <div className="text-center py-12">Loading...</div>
         ) : issues.length === 0 ? (
-          <div className="text-center py-12 text-gray-600">No issues found</div>
+          <div className="text-center py-12 text-[var(--muted)]">
+            No issues found
+          </div>
         ) : (
           <div className="space-y-4">
             {issues.map((issue) => (
               <div
                 key={issue.id}
-                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+                className="bg-[var(--card)] rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-lg font-semibold text-[var(--foreground)]">
                       {issue.title}
                     </h3>
-                    <p className="text-gray-600 mt-1">{issue.description}</p>
+                    <p className="text-[var(--muted)] mt-1">
+                      {issue.description}
+                    </p>
                   </div>
                   <div className="ml-4 flex gap-2">
                     <StatusBadge status={issue.status} />
                     <PriorityBadge priority={issue.priority} />
                   </div>
                 </div>
-                <div className="flex gap-6 text-sm text-gray-600">
+                <div className="flex gap-6 text-sm text-[var(--muted)]">
                   <div>📍 {issue.location || "Not specified"}</div>
                   <div>🏷️ {issue.category}</div>
                   <div>

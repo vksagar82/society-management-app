@@ -26,27 +26,36 @@ export default function DeveloperPage() {
           ? { Authorization: `Bearer ${token}` }
           : undefined;
 
-        const params = new URLSearchParams();
-        if (societyId) params.append("society_id", societyId);
-        params.append("limit", "1");
-        params.append("offset", "0");
+        // Prepare date filter for today's API calls
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const [usersRes, societiesRes, auditRes] = await Promise.all([
+        const apiRequestParams = new URLSearchParams();
+        if (societyId) apiRequestParams.append("society_id", societyId);
+        apiRequestParams.append("startDate", today.toISOString());
+        apiRequestParams.append("endDate", tomorrow.toISOString());
+
+        const [usersRes, societiesRes, apiRequestsRes] = await Promise.all([
           fetch(`/api/users${societyId ? `?society_id=${societyId}` : ""}`, {
             headers,
           }),
           fetch(`/api/societies`, { headers }),
-          fetch(`/api/audit-logs?${params.toString()}`, { headers }),
+          fetch(`/api/system/api-requests?${apiRequestParams.toString()}`, {
+            headers,
+          }),
         ]);
 
         if (!usersRes.ok) throw new Error("Failed to load users count");
         if (!societiesRes.ok) throw new Error("Failed to load societies");
-        if (!auditRes.ok) throw new Error("Failed to load audit logs");
+        if (!apiRequestsRes.ok)
+          throw new Error("Failed to load API request stats");
 
-        const [usersData, societiesData, auditData] = await Promise.all([
+        const [usersData, societiesData, apiRequestsData] = await Promise.all([
           usersRes.json(),
           societiesRes.json(),
-          auditRes.json(),
+          apiRequestsRes.json(),
         ]);
 
         setStats({
@@ -55,7 +64,9 @@ export default function DeveloperPage() {
             ? societiesData.length
             : 0,
           apiCallsToday:
-            typeof auditData?.count === "number" ? auditData.count : 0,
+            typeof apiRequestsData?.count === "number"
+              ? apiRequestsData.count
+              : 0,
         });
       } catch (err) {
         setError(

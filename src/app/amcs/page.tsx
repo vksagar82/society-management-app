@@ -314,7 +314,7 @@ export default function AMCsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Flash Messages */}
       {flashMessage && (
         <div className="fixed top-4 right-4 z-50">
@@ -332,10 +332,10 @@ export default function AMCsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-4xl font-bold text-[var(--foreground)]">
               AMC Management {societyName && `- ${societyName}`}
             </h1>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-[var(--muted)]">
               Track and manage annual maintenance contracts
             </p>
           </div>
@@ -351,14 +351,14 @@ export default function AMCsPage() {
         </div>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="bg-[var(--card)] rounded-lg shadow p-6 mb-8">
             <h2 className="text-2xl font-bold mb-6">
               {editingId ? "Edit AMC" : "Add New AMC"}
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     Vendor Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -376,7 +376,7 @@ export default function AMCsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     Service Type <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -394,7 +394,7 @@ export default function AMCsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     Start Date <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -411,7 +411,7 @@ export default function AMCsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     End Date <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -428,7 +428,7 @@ export default function AMCsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     Annual Cost
                   </label>
                   <input
@@ -445,7 +445,7 @@ export default function AMCsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     Currency
                   </label>
                   <select
@@ -464,7 +464,7 @@ export default function AMCsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     Renewal Reminder (Days)
                   </label>
                   <input
@@ -480,7 +480,7 @@ export default function AMCsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1">
                     Notes
                   </label>
                   <input
@@ -498,9 +498,9 @@ export default function AMCsPage() {
                 </div>
               </div>
 
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="mb-6 p-4 bg-[var(--background)] rounded-lg border border-gray-200">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-gray-900">
+                  <h4 className="font-medium text-[var(--foreground)]">
                     Linked Assets <span className="text-red-500">*</span>
                   </h4>
                   <span className="text-xs text-gray-500">
@@ -508,9 +508,9 @@ export default function AMCsPage() {
                   </span>
                 </div>
                 {assetsLoading ? (
-                  <div className="text-sm text-gray-600">Loading assets...</div>
+                  <div className="text-sm text-[var(--muted)]">Loading assets...</div>
                 ) : assetOptions.length === 0 ? (
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-[var(--muted)]">
                     No assets available. Please add assets first.
                   </div>
                 ) : (
@@ -523,7 +523,7 @@ export default function AMCsPage() {
                           className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${
                             checked
                               ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 hover:border-gray-300"
+                              : "border-gray-200 hover:border-[var(--border)]"
                           }`}
                         >
                           <input
@@ -544,10 +544,10 @@ export default function AMCsPage() {
                             }}
                           />
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
+                            <p className="text-sm font-semibold text-[var(--foreground)] truncate">
                               {asset.name}
                             </p>
-                            <p className="text-xs text-gray-600 truncate">
+                            <p className="text-xs text-[var(--muted)] truncate">
                               {asset.asset_code || "No code"}
                               {asset.location ? ` • ${asset.location}` : ""}
                             </p>
@@ -559,9 +559,9 @@ export default function AMCsPage() {
                 )}
               </div>
 
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="mb-6 p-4 bg-[var(--background)] rounded-lg">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium text-gray-900">
+                  <h4 className="font-medium text-[var(--foreground)]">
                     Contact Details <span className="text-red-500">*</span>
                   </h4>
                   <button
@@ -574,9 +574,9 @@ export default function AMCsPage() {
                 </div>
 
                 {contacts.map((contact, index) => (
-                  <div key={index} className="mb-4 p-3 bg-white rounded border">
+                  <div key={index} className="mb-4 p-3 bg-[var(--card)] rounded border">
                     <div className="flex justify-between mb-2">
-                      <h4 className="font-medium text-gray-900">
+                      <h4 className="font-medium text-[var(--foreground)]">
                         Contact {index + 1}
                         {index === 0 && <span className="text-red-500">*</span>}
                       </h4>
@@ -593,7 +593,7 @@ export default function AMCsPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1">
                           Name{" "}
                           {index === 0 && (
                             <span className="text-red-500">*</span>
@@ -611,7 +611,7 @@ export default function AMCsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1">
                           Phone{" "}
                           {index === 0 && (
                             <span className="text-red-500">*</span>
@@ -629,7 +629,7 @@ export default function AMCsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1">
                           Email{" "}
                           {index === 0 && (
                             <span className="text-red-500">*</span>
@@ -664,7 +664,7 @@ export default function AMCsPage() {
                     resetForm();
                     setShowForm(false);
                   }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400"
+                  className="flex-1 bg-[var(--muted-bg)] text-[var(--foreground)] py-2 rounded-lg font-medium hover:bg-[var(--active-bg)]"
                 >
                   Cancel
                 </button>
@@ -676,7 +676,7 @@ export default function AMCsPage() {
         {loading ? (
           <div className="text-center py-12">Loading...</div>
         ) : amcs.length === 0 ? (
-          <div className="text-center py-12 text-gray-600">No AMCs found</div>
+          <div className="text-center py-12 text-[var(--muted)]">No AMCs found</div>
         ) : (
           <div className="grid gap-6">
             {amcs.map((amc) => {
@@ -684,14 +684,14 @@ export default function AMCsPage() {
               return (
                 <div
                   key={amc.id}
-                  className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+                  className="bg-[var(--card)] rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="text-lg font-semibold text-[var(--foreground)]">
                         {amc.vendor_name}
                       </h3>
-                      <p className="text-gray-600 mt-1">{amc.service_type}</p>
+                      <p className="text-[var(--muted)] mt-1">{amc.service_type}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <StatusBadge status={amc.status} />
@@ -713,7 +713,7 @@ export default function AMCsPage() {
                           </button>
                           <button
                             onClick={() => setDeleteConfirm(null)}
-                            className="p-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition"
+                            className="p-2 bg-gray-400 text-white rounded-lg hover:bg-[var(--background)]0 transition"
                             title="Cancel"
                           >
                             <XMarkIcon className="w-5 h-5" />
@@ -764,8 +764,8 @@ export default function AMCsPage() {
                   </div>
 
                   {amc.assets && amc.assets.length > 0 && (
-                    <div className="mb-4 text-sm text-gray-700">
-                      <p className="font-semibold text-gray-900 mb-2">Assets</p>
+                    <div className="mb-4 text-sm text-[var(--foreground)]">
+                      <p className="font-semibold text-[var(--foreground)] mb-2">Assets</p>
                       <div className="flex flex-wrap gap-2">
                         {amc.assets.map((asset) => (
                           <span
@@ -780,7 +780,7 @@ export default function AMCsPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-4 text-sm text-gray-600">
+                  <div className="flex gap-4 text-sm text-[var(--muted)]">
                     <div>👤 {amc.contact_person}</div>
                     <div>📞 {amc.contact_phone}</div>
                   </div>

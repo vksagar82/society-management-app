@@ -95,6 +95,12 @@ export async function GET(req: NextRequest) {
     const entityType = searchParams.get("entityType") || undefined;
     const action = searchParams.get("action") || undefined;
     const userFilter = searchParams.get("userId") || undefined;
+    const startDate = searchParams.get("startDate")
+      ? new Date(searchParams.get("startDate")!)
+      : undefined;
+    const endDate = searchParams.get("endDate")
+      ? new Date(searchParams.get("endDate")!)
+      : undefined;
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -102,6 +108,8 @@ export async function GET(req: NextRequest) {
       entityType,
       action,
       userId: userFilter || undefined,
+      startDate,
+      endDate,
       limit,
       offset,
     };
