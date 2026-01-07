@@ -1,0 +1,368 @@
+"""
+Asset Management API endpoints using SQLAlchemy ORM.
+
+This module provides endpoints for asset and asset category management.
+"""
+
+from typing import List, Optional
+from uuid import UUID, uuid4
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.deps import get_current_active_user, check_society_access
+from app.database import get_session
+from app.models import Asset, AssetCategory, UserSociety
+from app.schemas.asset import (
+    AssetResponse,
+    AssetCreate,
+    AssetUpdate,
+    AssetCategoryResponse,
+    AssetCategoryCreate
+)
+from app.schemas.user import UserResponse
+
+router = APIRouter(prefix="/assets", tags=["Assets"])
+
+
+@router.get(
+    "/categories",
+    response_model=List[AssetCategoryResponse],
+    summary="List Asset Categories",
+    description="Get all asset categories."
+)
+async def list_categories(
+    db: AsyncSession = Depends(get_session)
+):
+    """List all asset categories."""
+    stmt = select(AssetCategory).order_by(AssetCategory.name)
+    result = await db.execute(stmt)
+    categories = result.scalars().all()
+    
+    return [AssetCategoryResponse.model_validate(c) for c in categories]
+
+
+@router.post(
+    "/categories",
+    response_model=AssetCategoryResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Asset Category",
+    description="Create a new asset category."
+)
+async def create_category(
+    category: AssetCategoryCreate,
+    current_user: UserResponse = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    Create a new asset category.
+
+    Requires developer role.
+    """
+    if current_user.global_role != "developer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only developers can create asset categories"
+        )
+    
+    # Check if category already exists
+    stmt = select(AssetCategory).where(AssetCategory.name == category.name)
+    result = await db.execute(stmt)
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Category already exists"
+        )
+    
+    new_category = AssetCategory(
+        id=uuid4(),
+        name=category.name,
+        description=category.description
+    )
+    
+    db.add(new_category)
+    await db.commit()
+    await db.refresh(new_category)
+    
+    return AssetCategoryResponse.model_validate(new_category)
+
+
+@router.get(
+    "",
+    response_model=List[AssetResponse],
+    summary="List Assets",
+    description="Get list of assets with filtering."
+)
+async def list_assets(
+    society_id: Optional[UUID] = Query(None),
+    category_id: Optional[UUID] = Query(None, description="Filter by category"),
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    current_user: UserResponse = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """List assets with filtering options."""
+    stmt = select(Asset)
+    
+    if society_id:
+        await check_society_access(current_user, str(society_id))
+        stmt = stmt.where(Asset.society_id == society_id)
+    else:
+        # Get assets from user's societies
+        stmt_societies = select(UserSociety.society_id).where(
+            and_(
+                UserSociety.user_id == current_user.id,
+                UserSociety.status == "approved"
+            )
+        )
+        result = await db.execute(stmt_societies)
+        society_ids = [row[0] for row in result.all()]
+        
+        if not society_ids:
+            return []
+        
+        stmt = stmt.where(Asset.society_id.in_(society_ids))
+    
+    # Apply filters
+    if category_id:
+        stmt = stmt.where(Asset.category_id == category_id)
+    
+    if status_filter:
+        stmt = stmt.where(Asset.status == status_filter)
+    
+    # Order and pagination
+    stmt = stmt.order_by(Asset.created_at.desc()).offset(skip).limit(limit)
+    
+    result = await db.execute(stmt)
+    assets = result.scalars().all()
+    
+    return [AssetResponse.model_validate(a) for a in assets]
+
+
+@router.post(
+    "",
+    response_model=AssetResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Asset",
+    description="Create a new asset."
+)
+async def create_asset(
+    asset: AssetCreate,
+    current_user: UserResponse = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    Create a new asset.
+
+    Requires admin role in the society or developer.
+    """
+    # Check user is admin in society or developer
+    if current_user.global_role != "developer":
+        stmt = select(UserSociety).where(
+            and_(
+                UserSociety.user_id == current_user.id,
+                UserSociety.society_id == asset.society_id,
+                UserSociety.role == "admin",
+                UserSociety.status == "approved"
+            )
+        )
+        result = await db.execute(stmt)
+        if not result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You must be an admin of this society"
+            )
+    
+    # Verify category exists
+    stmt = select(AssetCategory).where(AssetCategory.id == asset.category_id)
+    result = await db.execute(stmt)
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset category not found"
+        )
+    
+    new_asset = Asset(
+        id=uuid4(),
+        society_id=asset.society_id,
+        category_id=asset.category_id,
+        name=asset.name,
+        description=asset.description,
+        location=asset.location,
+        purchase_date=asset.purchase_date,
+        purchase_cost=asset.purchase_cost,
+        current_value=asset.current_value,
+        warranty_expiry=asset.warranty_expiry,
+        maintenance_schedule=asset.maintenance_schedule,
+        last_maintenance_date=asset.last_maintenance_date,
+        next_maintenance_date=asset.next_maintenance_date,
+        status=asset.status or "active",
+        assigned_to=asset.assigned_to,
+        image_urls=asset.image_urls or [],
+        documents=asset.documents or [],
+        specifications=asset.specifications or {}
+    )
+    
+    db.add(new_asset)
+    await db.commit()
+    await db.refresh(new_asset)
+    
+    return AssetResponse.model_validate(new_asset)
+
+
+@router.get(
+    "/{asset_id}",
+    response_model=AssetResponse,
+    summary="Get Asset",
+    description="Get details of a specific asset."
+)
+async def get_asset(
+    asset_id: UUID,
+    current_user: UserResponse = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """Get asset by ID."""
+    stmt = select(Asset).where(Asset.id == asset_id)
+    result = await db.execute(stmt)
+    asset = result.scalar_one_or_none()
+    
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset not found"
+        )
+    
+    # Check user has access to the society
+    stmt = select(UserSociety).where(
+        and_(
+            UserSociety.user_id == current_user.id,
+            UserSociety.society_id == asset.society_id,
+            UserSociety.status == "approved"
+        )
+    )
+    result = await db.execute(stmt)
+    if not result.scalar_one_or_none() and current_user.global_role != "developer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to this asset"
+        )
+    
+    return AssetResponse.model_validate(asset)
+
+
+@router.put(
+    "/{asset_id}",
+    response_model=AssetResponse,
+    summary="Update Asset",
+    description="Update asset details."
+)
+async def update_asset(
+    asset_id: UUID,
+    asset_update: AssetUpdate,
+    current_user: UserResponse = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    Update asset details.
+
+    Requires admin role in the society or developer.
+    """
+    # Get asset
+    stmt = select(Asset).where(Asset.id == asset_id)
+    result = await db.execute(stmt)
+    asset = result.scalar_one_or_none()
+    
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset not found"
+        )
+    
+    # Check permissions
+    if current_user.global_role != "developer":
+        stmt = select(UserSociety).where(
+            and_(
+                UserSociety.user_id == current_user.id,
+                UserSociety.society_id == asset.society_id,
+                UserSociety.role == "admin",
+                UserSociety.status == "approved"
+            )
+        )
+        result = await db.execute(stmt)
+        if not result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You must be an admin of this society"
+            )
+    
+    # Update fields
+    update_data = asset_update.model_dump(exclude_unset=True)
+    
+    # If category is being changed, verify it exists
+    if "category_id" in update_data:
+        stmt = select(AssetCategory).where(AssetCategory.id == update_data["category_id"])
+        result = await db.execute(stmt)
+        if not result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Asset category not found"
+            )
+    
+    for field, value in update_data.items():
+        setattr(asset, field, value)
+    
+    await db.commit()
+    await db.refresh(asset)
+    
+    return AssetResponse.model_validate(asset)
+
+
+@router.delete(
+    "/{asset_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Asset",
+    description="Delete an asset."
+)
+async def delete_asset(
+    asset_id: UUID,
+    current_user: UserResponse = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    Delete an asset.
+
+    Requires admin role in the society or developer.
+    """
+    # Get asset
+    stmt = select(Asset).where(Asset.id == asset_id)
+    result = await db.execute(stmt)
+    asset = result.scalar_one_or_none()
+    
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset not found"
+        )
+    
+    # Check permissions
+    if current_user.global_role != "developer":
+        stmt = select(UserSociety).where(
+            and_(
+                UserSociety.user_id == current_user.id,
+                UserSociety.society_id == asset.society_id,
+                UserSociety.role == "admin",
+                UserSociety.status == "approved"
+            )
+        )
+        result = await db.execute(stmt)
+        if not result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You must be an admin of this society"
+            )
+    
+    await db.delete(asset)
+    await db.commit()
