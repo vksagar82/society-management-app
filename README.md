@@ -105,21 +105,23 @@ The documentation includes:
 git clone https://github.com/vksagar82/society-management-app.git
 cd society-management-app
 
-# 2. Install dependencies
+# 2. Install frontend dependencies
+cd frontend
 npm install
+cd ..
 
 # 3. Configure environment variables
+cd frontend
 cp .env.local.example .env.local
 # Edit .env.local with your credentials
+cd ..
 
 # 4. Setup database (Run in Supabase SQL Editor)
 # - Execute: database/schema.sql
 # - Execute: database/AUTH_MIGRATIONS.sql
 
-# 5. Create test data
-node setup-society.js
-
-# 6. Start development server
+# 5. Start development server
+cd frontend
 npm run dev
 ```
 
@@ -149,22 +151,37 @@ For complete setup instructions, API documentation, and deployment guides, visit
 
 ```
 society-management-app/
-├── src/
-│   ├── app/              # Next.js app router pages
-│   │   ├── api/          # API routes
-│   │   ├── auth/         # Authentication pages
-│   │   ├── dashboard/    # Dashboard
-│   │   ├── amcs/         # AMC management
-│   │   ├── assets/       # Asset tracking
-│   │   └── issues/       # Issue reporting
-│   ├── components/       # Reusable components
-│   └── lib/              # Utilities and services
-│       ├── auth/         # Auth context & utils
-│       ├── supabase/     # Database client
-│       └── notifications/ # Email service
-├── database/             # SQL schema and migrations
-├── docs/                 # GitHub Pages documentation
-└── public/               # Static assets
+├── frontend/            # Next.js Frontend Application
+│   ├── src/
+│   │   ├── app/         # Next.js app router pages
+│   │   │   ├── auth/    # Authentication pages
+│   │   │   ├── dashboard/ # Dashboard
+│   │   │   ├── amcs/    # AMC management
+│   │   │   ├── assets/  # Asset tracking
+│   │   │   └── issues/  # Issue reporting
+│   │   ├── components/  # Reusable components
+│   │   └── lib/         # Utilities and services
+│   ├── public/          # Static assets
+│   └── package.json     # Frontend dependencies
+│
+├── backend/             # API & Backend Services
+│   ├── api/             # Next.js API routes
+│   │   ├── auth/        # Authentication endpoints
+│   │   ├── amcs/        # AMC management API
+│   │   ├── assets/      # Asset tracking API
+│   │   ├── issues/      # Issue management API
+│   │   └── users/       # User management API
+│   └── tests/           # Backend test scripts
+│
+├── database/            # Database Schema & Migrations
+│   ├── schema.sql       # Main database schema
+│   ├── AUTH_MIGRATIONS.sql
+│   └── INITIALIZE_ROLE_SCOPES.sql
+│
+└── docs/                # Documentation (GitHub Pages)
+    ├── quick-start.md
+    ├── api-reference.md
+    └── deployment.md
 ```
 
 ---
