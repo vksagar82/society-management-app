@@ -22,15 +22,18 @@ engine = create_async_engine(
     echo=False,
     future=True,
     poolclass=NullPool,  # Disable connection pooling (pgbouncer handles this)
-    pool_pre_ping=False,  # Disable pre-ping as it can cause issues with pgbouncer
+    pool_pre_ping=False,
     connect_args={
         "ssl": "require",
-        "statement_cache_size": 0,  # CRITICAL: Disable prepared statements for pgbouncer
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
         "server_settings": {
             "jit": "off"
         }
-    }
+    },
 )
+# Force simple execution (no server-side prepares) via execution_options
+engine = engine.execution_options(prepared=False)
 
 # Async session factory
 AsyncSessionLocal = sessionmaker(

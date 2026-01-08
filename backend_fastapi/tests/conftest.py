@@ -14,7 +14,7 @@ from sqlalchemy import select, delete
 from uuid import UUID, uuid4
 
 from main import app
-from app.database import AsyncSessionLocal, engine
+from app.database import AsyncSessionLocal, engine, get_session
 from app.core.security import create_access_token, hash_password
 from app.models import User, Society, UserSociety, Issue, IssueComment, Asset, AssetCategory, AMC, AMCServiceHistory
 from config import settings
@@ -45,46 +45,44 @@ def event_loop() -> Generator:
 @pytest.fixture(scope="function")
 async def db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Database fixture for tests with automatic cleanup.
-
-    Creates a test database session for each test function.
-    Ensures all test data is cleaned up even if test fails.
+    Legacy direct-session fixture (kept for compatibility).
+    Uses live DB; callers should prefer db_sandbox for rollback isolation.
     """
     async with AsyncSessionLocal() as session:
         yield session
 
-        # Cleanup test data in reverse order (to respect foreign keys)
-        try:
-            # Delete in correct order to avoid foreign key violations
-            await session.execute(delete(AMCServiceHistory).where(AMCServiceHistory.id.in_(test_data_ids["amc_service_histories"])))
-            await session.execute(delete(AMC).where(AMC.id.in_(test_data_ids["amcs"])))
-            await session.execute(delete(IssueComment).where(IssueComment.id.in_(test_data_ids["issue_comments"])))
-            await session.execute(delete(Issue).where(Issue.id.in_(test_data_ids["issues"])))
-            await session.execute(delete(Asset).where(Asset.id.in_(test_data_ids["assets"])))
-            await session.execute(delete(AssetCategory).where(AssetCategory.id.in_(test_data_ids["asset_categories"])))
-            await session.execute(delete(UserSociety).where(UserSociety.id.in_(test_data_ids["user_societies"])))
-            await session.execute(delete(Society).where(Society.id.in_(test_data_ids["societies"])))
-            await session.execute(delete(User).where(User.id.in_(test_data_ids["users"])))
 
-            await session.commit()
+@pytest.fixture(scope="function")
+async def db_sandbox() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Transactional sandbox on the live Supabase DB.
 
-            # Clear tracking lists
-            for key in test_data_ids:
-                test_data_ids[key].clear()
-        except Exception as e:
-            print(f"⚠️  Cleanup error: {e}")
-            await session.rollback()
+    Each test runs inside a transaction that is rolled back, so mock data
+    never persists while still exercising the real database.
+    """
+    async with engine.connect() as conn:
+        trans = await conn.begin()
+        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+            try:
+                yield session
+            finally:
+                await session.rollback()
+        await trans.rollback()
 
 
 @pytest.fixture(scope="function")
-def client(db: AsyncSession) -> Generator:
-    """
-    Test client fixture.
+def client(db_sandbox: AsyncSession) -> Generator:
+    """Test client that injects the sandboxed DB session."""
 
-    Provides a TestClient for making requests to the API.
-    """
-    with TestClient(app) as test_client:
-        yield test_client
+    async def override_get_session():
+        yield db_sandbox
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.pop(get_session, None)
 
 
 @pytest.fixture
