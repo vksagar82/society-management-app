@@ -13,7 +13,32 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.associationproxy import association_proxy
 from app.database import Base
+
+
+class Role(Base):
+    """Defines application roles."""
+
+    __tablename__ = "roles"
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_roles_name"),
+        Index("ix_roles_name", "name"),
+    )
+
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    name = Column(String(50), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+    # Relationships
+    users = relationship("User", back_populates="role")
+    user_societies = relationship("UserSociety", back_populates="role_def")
+    role_scopes = relationship(
+        "RoleScope", back_populates="role", cascade="all, delete-orphan")
+    scopes = association_proxy("role_scopes", "scope")
 
 
 class User(Base):
@@ -35,8 +60,9 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(Text, nullable=True)
-    # developer, admin, manager, member
-    global_role = Column(String(50), default="member")
+    # developer, admin, manager, member (validated via roles table)
+    global_role = Column(String(50), ForeignKey(
+        "roles.name"), nullable=False, default="member")
     is_active = Column(Boolean, default=True)
     settings = Column(JSON, default={})
     last_login = Column(DateTime, nullable=True)
@@ -60,6 +86,12 @@ class User(Base):
     asset_categories = relationship(
         "AssetCategory", back_populates="created_by_user")
     assets = relationship("Asset", back_populates="created_by_user")
+    role = relationship(
+        "Role",
+        back_populates="users",
+        primaryjoin="Role.name==User.global_role",
+    )
+    scopes = association_proxy("role", "scopes")
 
 
 class Society(Base):
@@ -117,7 +149,8 @@ class UserSociety(Base):
         "users.id", ondelete="CASCADE"), nullable=False)
     society_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "societies.id", ondelete="CASCADE"), nullable=False)
-    role = Column(String(50), default="member")  # admin, manager, member
+    role = Column(String(50), ForeignKey("roles.name"),
+                  default="member")  # admin, manager, member
     # pending, approved, rejected
     approval_status = Column(String(50), default="pending")
     approved_by = Column(PG_UUID(as_uuid=True),
@@ -136,6 +169,11 @@ class UserSociety(Base):
     user = relationship(
         "User", back_populates="user_societies", foreign_keys=[user_id])
     society = relationship("Society", back_populates="user_societies")
+    role_def = relationship(
+        "Role",
+        back_populates="user_societies",
+        primaryjoin="Role.name==UserSociety.role",
+    )
 
 
 class Issue(Base):
@@ -378,3 +416,49 @@ class AMCServiceHistory(Base):
 
     # Relationships
     amc = relationship("AMC", back_populates="service_history")
+
+
+class Scope(Base):
+    """Defines an application permission scope."""
+
+    __tablename__ = "scopes"
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_scopes_name"),
+        Index("ix_scopes_name", "name"),
+    )
+
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+    # Relationships
+    role_scopes = relationship(
+        "RoleScope", back_populates="scope", cascade="all, delete-orphan")
+
+
+class RoleScope(Base):
+    """Mapping between roles and scopes."""
+
+    __tablename__ = "role_scopes"
+    __table_args__ = (
+        UniqueConstraint("role_id", "scope_id",
+                         name="uq_role_scope_role_scope"),
+        Index("ix_role_scopes_role_id", "role_id"),
+        Index("ix_role_scopes_scope_id", "scope_id"),
+    )
+
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    role_id = Column(PG_UUID(as_uuid=True), ForeignKey(
+        "roles.id", ondelete="CASCADE"), nullable=False)
+    scope_id = Column(PG_UUID(as_uuid=True), ForeignKey(
+        "scopes.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    role = relationship("Role", back_populates="role_scopes",
+                        foreign_keys=[role_id])
+    scope = relationship(
+        "Scope", back_populates="role_scopes", foreign_keys=[scope_id])

@@ -7,17 +7,21 @@ configurations, middleware, and routers.
 
 from contextlib import asynccontextmanager
 
+import logging
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import settings
-from app.database import engine, Base
+from app.database import engine, Base, create_direct_engine_for_schema
 from app.api.v1.router import api_router
 
 # Import all models to ensure they are registered with Base.metadata
 from app import models
+
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -29,17 +33,25 @@ async def lifespan(app: FastAPI):
     and other resources.
     """
     # Startup: Create missing database tables
+    url_lower = settings.database_url.lower()
+    is_supabase = "supabase.co" in url_lower
+
+    ddl_engine = engine
+    if is_supabase:
+        ddl_engine = create_direct_engine_for_schema()
+        logger.info(
+            "Using direct Supabase Postgres connection for schema creation")
+
     try:
-        async with engine.begin() as conn:
-            # Create tables defined in models if they don't exist
-            # Existing tables and data are preserved
-            # Note: This may show warnings about prepared statements with pgbouncer
-            # but tables will be created successfully
+        async with ddl_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-    except Exception as e:
-        # Log error but don't prevent app startup
-        # Tables may already exist or error may be related to pgbouncer prepared statements
-        pass
+    except Exception as exc:
+        logger.exception(
+            "Table creation failed during startup", exc_info=exc)
+        raise
+    finally:
+        if ddl_engine is not engine:
+            await ddl_engine.dispose()
 
     yield
 
