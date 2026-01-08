@@ -18,23 +18,28 @@ DATABASE_URL = settings.database_url.replace(
     "postgres://", "postgresql+asyncpg://"
 ).replace("?sslmode=require&pgbouncer=true", "").replace("?sslmode=require", "")
 
+# Ensure asyncpg disables statement caching via URL params too.
+if "?" in DATABASE_URL:
+    DATABASE_URL = f"{DATABASE_URL}&statement_cache_size=0"
+else:
+    DATABASE_URL = f"{DATABASE_URL}?statement_cache_size=0"
+
 # Create async database engine optimized for pgbouncer
 engine = create_async_engine(
-    DATABASE_URL,
+    DATABASE_URL,  # must point to Supabase pooler port 6543
     echo=False,
     future=True,
-    poolclass=NullPool,  # Disable connection pooling (pgbouncer handles this)
-    pool_pre_ping=False,
+    poolclass=NullPool,
+    pool_pre_ping=True,  # recommended for Supabase
     connect_args={
         "ssl": "require",
-        # Disable prepared statements for pgbouncer transaction/statement mode
+        # Disable asyncpg prepared statements
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
-        "server_settings": {
-            "jit": "off"
-        }
     },
 )
+
+
 # Force simple execution (no server-side prepares) via execution_options
 engine = engine.execution_options(prepared=False)
 
@@ -66,7 +71,7 @@ def create_direct_engine_for_schema():
     """Create an async engine aimed at the direct Postgres port for DDL."""
 
     direct_url = build_supabase_direct_url(DATABASE_URL)
-    return create_async_engine(
+    direct_engine = create_async_engine(
         direct_url,
         echo=False,
         future=True,
@@ -74,13 +79,18 @@ def create_direct_engine_for_schema():
         pool_pre_ping=False,
         connect_args={
             "ssl": "require",
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
         },
     )
+    return direct_engine.execution_options(prepared=False)
 
 
 # Async session factory
 AsyncSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
 )
 
 # Base class for models

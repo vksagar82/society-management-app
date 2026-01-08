@@ -9,11 +9,36 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.hash import bcrypt_sha256
+
+# Ensure bcrypt exposes version metadata for passlib compatibility. Some bcrypt
+# builds omit the __about__ module expected by passlib, so we add a minimal
+# shim when needed.
+try:  # pragma: no cover - defensive patch
+    import bcrypt as _bcrypt
+
+    if not hasattr(_bcrypt, "__about__") and hasattr(_bcrypt, "__version__"):
+        class _About:
+            __version__ = _bcrypt.__version__
+
+        _bcrypt.__about__ = _About()
+except Exception:
+    # If bcrypt is missing or behaves unexpectedly, let passlib raise its own
+    # error later; the patch is purely best-effort.
+    pass
 
 from config import settings
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context. Force bcrypt_sha256 only to bypass bcrypt's 72-byte
+# limit reliably. If legacy pure-bcrypt hashes exist, migrate them to
+# bcrypt_sha256; we intentionally avoid auto-fallback to bcrypt to prevent the
+# 72-byte error path during tests.
+pwd_context = CryptContext(
+    schemes=["bcrypt_sha256"],
+    default="bcrypt_sha256",
+    deprecated="auto",
+    bcrypt_sha256__truncate_error=False,
+)
 
 
 def hash_password(password: str) -> str:
@@ -26,7 +51,8 @@ def hash_password(password: str) -> str:
     Returns:
         str: Hashed password
     """
-    return pwd_context.hash(password)
+    # Use passlib's bcrypt_sha256 directly to avoid bcrypt's 72-byte limit.
+    return bcrypt_sha256.using(truncate_error=False).hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -40,6 +66,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: True if password matches, False otherwise
     """
+    # Verify using bcrypt_sha256 only; legacy bcrypt hashes should be migrated.
     return pwd_context.verify(plain_password, hashed_password)
 
 

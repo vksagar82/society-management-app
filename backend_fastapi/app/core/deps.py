@@ -8,21 +8,27 @@ and checking user permissions based on roles and scopes.
 from typing import Optional, List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
+from app.database import get_session
+from app.models import User
 from app.schemas.user import UserInDB
 
 security = HTTPBearer()
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_session),
 ) -> UserInDB:
     """
     Get the current authenticated user from JWT token.
 
     Args:
         credentials: HTTP authorization credentials with Bearer token
+        db: Database session
 
     Returns:
         UserInDB: Current authenticated user
@@ -49,13 +55,8 @@ async def get_current_user(
         )
 
     # Fetch user from database
-    query = """
-        SELECT id, email, phone, full_name, global_role, is_active, 
-               avatar_url, settings, created_at, updated_at
-        FROM users
-        WHERE id = :user_id
-    """
-    user = await database.fetch_one(query=query, values={"user_id": user_id})
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
 
     if user is None:
         raise HTTPException(
@@ -63,13 +64,24 @@ async def get_current_user(
             detail="User not found"
         )
 
-    if not user["is_active"]:
+    if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled"
         )
 
-    return UserInDB(**dict(user))
+    return UserInDB(**{
+        "id": str(user.id),
+        "email": user.email,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "global_role": user.global_role,
+        "is_active": user.is_active,
+        "avatar_url": user.avatar_url,
+        "settings": user.settings,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    })
 
 
 async def get_current_active_user(

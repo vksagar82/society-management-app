@@ -6,7 +6,7 @@ This module defines all database models using SQLAlchemy ORM for async operation
 
 from datetime import datetime
 from typing import Optional, List
-from uuid import UUID
+from uuid import UUID, uuid4
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Text, Date, Numeric,
     ForeignKey, UniqueConstraint, JSON, CheckConstraint, Index
@@ -26,7 +26,7 @@ class Role(Base):
         Index("ix_roles_name", "name"),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -54,7 +54,7 @@ class User(Base):
         Index('ix_users_reset_token', 'reset_token'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     email = Column(String(255), unique=True, nullable=False)
     phone = Column(String(20), unique=True, nullable=False)
     full_name = Column(String(255), nullable=False)
@@ -74,7 +74,11 @@ class User(Base):
 
     # Relationships
     user_societies = relationship(
-        "UserSociety", back_populates="user", cascade="all, delete-orphan")
+        "UserSociety",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="UserSociety.user_id",
+    )
     issues_reported = relationship(
         "Issue", foreign_keys="Issue.reported_by", back_populates="reporter")
     issues_assigned = relationship(
@@ -104,7 +108,7 @@ class Society(Base):
         Index('ix_societies_created_at', 'created_at'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String(255), nullable=False)
     address = Column(Text, nullable=False)
     city = Column(String(100), nullable=True)
@@ -144,7 +148,7 @@ class UserSociety(Base):
         Index('ix_user_societies_user_society', 'user_id', 'society_id'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "users.id", ondelete="CASCADE"), nullable=False)
     society_id = Column(PG_UUID(as_uuid=True), ForeignKey(
@@ -191,7 +195,7 @@ class Issue(Base):
         Index('ix_issues_society_status', 'society_id', 'status'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     society_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "societies.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), nullable=False)
@@ -236,7 +240,7 @@ class IssueComment(Base):
         Index('ix_issue_comments_created_at', 'created_at'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     issue_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "issues.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(PG_UUID(as_uuid=True),
@@ -263,7 +267,7 @@ class AssetCategory(Base):
         Index('ix_asset_categories_name', 'name'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     society_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "societies.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(100), nullable=False)
@@ -293,7 +297,7 @@ class Asset(Base):
         Index('ix_assets_society_status', 'society_id', 'status'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     society_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "societies.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
@@ -342,7 +346,7 @@ class AMC(Base):
         Index('ix_amcs_society_status', 'society_id', 'status'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     society_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "societies.id", ondelete="CASCADE"), nullable=False)
     vendor_name = Column(String(255), nullable=False)
@@ -393,7 +397,7 @@ class AMCServiceHistory(Base):
         Index('ix_amc_service_history_created_at', 'created_at'),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     amc_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "amcs.id", ondelete="CASCADE"), nullable=False)
     service_date = Column(Date, nullable=False)
@@ -427,7 +431,7 @@ class Scope(Base):
         Index("ix_scopes_name", "name"),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -450,7 +454,7 @@ class RoleScope(Base):
         Index("ix_role_scopes_scope_id", "scope_id"),
     )
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=UUID)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     role_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "roles.id", ondelete="CASCADE"), nullable=False)
     scope_id = Column(PG_UUID(as_uuid=True), ForeignKey(

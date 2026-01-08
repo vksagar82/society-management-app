@@ -13,7 +13,8 @@ from app.api.v1.endpoints import (
     societies,
     issues,
     assets,
-    amcs
+    amcs,
+    roles_scopes,
 )
 
 api_router = APIRouter()
@@ -21,6 +22,7 @@ api_router = APIRouter()
 # Include all endpoint routers
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
+api_router.include_router(roles_scopes.router)
 api_router.include_router(societies.router)
 api_router.include_router(issues.router)
 api_router.include_router(assets.router)
