@@ -95,7 +95,7 @@ def run_server():
     print("API will be available at: http://localhost:8000")
     print("Docs will be available at: http://localhost:8000/api/docs")
     print("\nPress Ctrl+C to stop\n")
-    os.system("uvicorn main:app --reload --port 8000")
+    os.system("python main.py")
 
 
 def show_menu():

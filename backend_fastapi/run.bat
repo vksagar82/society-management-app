@@ -56,7 +56,7 @@ echo API: http://localhost:8000
 echo Docs: http://localhost:8000/api/docs
 echo.
 call venv\Scripts\activate.bat
-uvicorn main:app --reload --port 8000
+python main.py
 goto end
 
 :test

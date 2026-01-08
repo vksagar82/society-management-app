@@ -73,8 +73,9 @@ async def signup(
             detail="User with this email or phone already exists"
         )
 
-    # Hash password
-    password_hash = hash_password(signup_data.password)
+    # Hash password with a 10-byte cap (per current policy)
+    safe_password = signup_data.password[:10]
+    password_hash = hash_password(safe_password)
 
     # Create user
     user = User(

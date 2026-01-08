@@ -12,6 +12,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import multiprocessing
 
 from config import settings
 from app.database import engine, Base, create_direct_engine_for_schema
@@ -112,7 +113,7 @@ async def health_check():
     return {
         "status": "healthy",
         "app_name": settings.app_name,
-        "version": settings.app_version
+        "version": settings.app_version,
     }
 
 
@@ -134,9 +135,14 @@ async def global_exception_handler(request, exc):
 
 
 if __name__ == "__main__":
+    # Required for Windows multiprocessing support
+    multiprocessing.freeze_support()
+
     uvicorn.run(
         "main:app",
         host="127.0.0.1",
         port=8000,
-        reload=settings.debug
+        reload=settings.debug,
+        reload_delay=0.5,
+        use_colors=True
     )

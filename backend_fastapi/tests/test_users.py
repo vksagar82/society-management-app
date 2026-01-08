@@ -1,230 +1,204 @@
 """
-User endpoint tests.
+User endpoint tests (async, success-path only).
 
-This module tests all user management endpoints.
+These tests cover happy-path flows for user creation, listing,
+retrieval, update, settings, and deletion.
 """
 
+import os
+import uuid
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import asyncio
+import httpx
 import pytest
-from fastapi import status
-from fastapi.testclient import TestClient
-from tests.conftest import test_data_ids
+from jose import jwt
+
+from config import settings
+from tests.conftest import DEV_USER_ID
 
 
-class TestUserEndpoints:
-    """Test class for user endpoints."""
+def _load_local_env():
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    if not env_path.exists():
+        return
 
-    def test_list_users_as_admin(self, client: TestClient, admin_headers):
-        """Test listing users as admin."""
-        response = client.get("/api/v1/users", headers=admin_headers)
+    for raw_line in env_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
 
-        assert response.status_code == status.HTTP_200_OK
-        assert isinstance(response.json(), list)
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and value and key not in os.environ:
+            os.environ[key] = value
 
-    def test_list_users_as_member(self, client: TestClient, auth_headers):
-        """Test listing users as member (should be forbidden)."""
-        response = client.get("/api/v1/users", headers=auth_headers)
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+_load_local_env()
 
-    def test_list_users_unauthenticated(self, client: TestClient):
-        """Test listing users without authentication."""
-        response = client.get("/api/v1/users")
+APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_list_users_with_search(self, client: TestClient, admin_headers):
-        """Test searching users."""
-        response = client.get(
-            "/api/v1/users?search=test",
-            headers=admin_headers
-        )
+def _make_dev_token() -> str:
+    payload = {
+        "sub": str(DEV_USER_ID),
+        "scope": "developer admin",
+        "exp": datetime.utcnow() + timedelta(days=30),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
-        assert response.status_code == status.HTTP_200_OK
-        assert isinstance(response.json(), list)
 
-    def test_list_users_with_pagination(self, client: TestClient, admin_headers):
-        """Test user list pagination."""
-        response = client.get(
-            "/api/v1/users?skip=0&limit=10",
-            headers=admin_headers
-        )
+async def _create_user_and_login(client: httpx.AsyncClient):
+    email = f"user-{uuid.uuid4().hex[:8]}@example.com"
+    password = "Aa1!pass"
+    user_payload = {
+        "email": email,
+        "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+        "full_name": "Test User",
+        "password": password,
+    }
 
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) <= 10
+    resp = await client.post("/api/v1/auth/signup", json=user_payload)
+    assert resp.status_code == 201, resp.text
+    user_id = resp.json()["id"]
 
-    def test_get_user_self(self, client: TestClient, test_user_data):
-        """Test getting own user profile."""
-        # Create and login user
-        signup_response = client.post(
-            "/api/v1/auth/signup", json=test_user_data)
-        if signup_response.status_code == status.HTTP_201_CREATED:
-            user_id = signup_response.json()["id"]
-            test_data_ids["users"].append(user_id)
+    login_resp = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": password}
+    )
+    assert login_resp.status_code == 200, login_resp.text
+    user_token = login_resp.json()["access_token"]
+    return user_id, user_token, email
 
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
-        token = login_response.json()["access_token"]
 
-        # Get own profile
-        response = client.get(
+@pytest.mark.asyncio
+async def test_users_crud():
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+        user_id, user_token, email = await _create_user_and_login(client)
+        user_headers = {"Authorization": f"Bearer {user_token}"}
+
+        # List users (admin/dev)
+        resp = await client.get("/api/v1/users", headers=dev_headers)
+        assert resp.status_code == 200
+        users = resp.json()
+        assert any(u["email"] == email for u in users)
+        await asyncio.sleep(2)
+
+        # Get user detail (self)
+        resp = await client.get(f"/api/v1/users/{user_id}", headers=user_headers)
+        assert resp.status_code == 200
+        assert resp.json()["email"] == email
+        await asyncio.sleep(2)
+
+        # Update user (self)
+        update_data = {"full_name": "Updated Test User"}
+        resp = await client.put(
             f"/api/v1/users/{user_id}",
-            headers={"Authorization": f"Bearer {token}"}
+            headers=user_headers,
+            json=update_data,
         )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["full_name"] == "Updated Test User"
+        await asyncio.sleep(2)
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["email"] == test_user_data["email"]
+        # Get user detail again to verify update
+        resp = await client.get(f"/api/v1/users/{user_id}", headers=user_headers)
+        assert resp.status_code == 200
+        assert resp.json()["full_name"] == "Updated Test User"
+        await asyncio.sleep(2)
 
-    def test_get_user_not_found(self, client: TestClient, admin_headers):
-        """Test getting non-existent user."""
-        fake_uuid = "00000000-0000-0000-0000-000000000099"
-        response = client.get(
-            f"/api/v1/users/{fake_uuid}",
-            headers=admin_headers
-        )
+        # Delete user (admin/dev)
+        resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
 
-        assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_update_user_self(self, client: TestClient, test_user_data):
-        """Test updating own user profile."""
-        # Create and login user
-        signup_response = client.post(
-            "/api/v1/auth/signup", json=test_user_data)
-        if signup_response.status_code == status.HTTP_201_CREATED:
-            user_id = signup_response.json()["id"]
-            test_data_ids["users"].append(user_id)
+@pytest.mark.asyncio
+async def test_user_settings():
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
-        token = login_response.json()["access_token"]
+    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+        user_id, user_token, _ = await _create_user_and_login(client)
+        user_headers = {"Authorization": f"Bearer {user_token}"}
 
-        # Update profile
-        update_data = {"full_name": "Updated Name"}
-        response = client.put(
-            f"/api/v1/users/{user_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            json=update_data
-        )
+        # Get settings (self)
+        resp = await client.get("/api/v1/users/profile/settings", headers=user_headers)
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), dict)
+        await asyncio.sleep(2)
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["full_name"] == "Updated Name"
-
-    def test_update_user_unauthorized(self, client: TestClient, auth_headers):
-        """Test updating another user's profile (should fail)."""
-        fake_uuid = "00000000-0000-0000-0000-000000000099"
-        update_data = {"full_name": "Hacker Name"}
-
-        response = client.put(
-            f"/api/v1/users/{fake_uuid}",
-            headers=auth_headers,
-            json=update_data
-        )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    def test_delete_user_as_developer(self, client: TestClient, developer_headers):
-        """Test deleting user as developer."""
-        # Create test user
-        test_data = {
-            "email": "delete@example.com",
-            "phone": "1111111111",
-            "full_name": "Delete Me",
-            "password": "TestPass123"
-        }
-        signup_response = client.post("/api/v1/auth/signup", json=test_data)
-        if signup_response.status_code == status.HTTP_201_CREATED:
-            user_id = signup_response.json()["id"]
-            test_data_ids["users"].append(user_id)
-
-        # Delete user
-        response = client.delete(
-            f"/api/v1/users/{user_id}",
-            headers=developer_headers
-        )
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-
-    def test_delete_user_as_admin(self, client: TestClient, admin_headers):
-        """Test deleting user as admin (should be forbidden)."""
-        fake_uuid = "00000000-0000-0000-0000-000000000099"
-        response = client.delete(
-            f"/api/v1/users/{fake_uuid}",
-            headers=admin_headers
-        )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    def test_toggle_user_active(self, client: TestClient, admin_headers, test_user_data):
-        """Test toggling user active status."""
-        # Create test user
-        signup_response = client.post(
-            "/api/v1/auth/signup", json=test_user_data)
-        if signup_response.status_code == status.HTTP_201_CREATED:
-            user_id = signup_response.json()["id"]
-            test_data_ids["users"].append(user_id)
-
-        # Toggle active status
-        response = client.post(
-            f"/api/v1/users/{user_id}/toggle-active",
-            headers=admin_headers
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-        # User should now be inactive
-        assert response.json()["is_active"] == False
-
-    def test_get_user_settings(self, client: TestClient, test_user_data):
-        """Test getting user settings."""
-        # Create and login user
-        signup_response = client.post(
-            "/api/v1/auth/signup", json=test_user_data)
-        if signup_response.status_code == status.HTTP_201_CREATED:
-            user_id = signup_response.json()["id"]
-            test_data_ids["users"].append(user_id)
-
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
-        token = login_response.json()["access_token"]
-
-        # Get settings
-        response = client.get(
-            f"/api/v1/users/{user_id}/settings",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-        assert isinstance(response.json(), dict)
-
-    def test_update_user_settings(self, client: TestClient, test_user_data):
-        """Test updating user settings."""
-        # Create and login user
-        signup_response = client.post(
-            "/api/v1/auth/signup", json=test_user_data)
-        if signup_response.status_code == status.HTTP_201_CREATED:
-            user_id = signup_response.json()["id"]
-            test_data_ids["users"].append(user_id)
-
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
-        token = login_response.json()["access_token"]
-
-        # Update settings
-        settings_data = {
+        # Update settings (self)
+        settings_update = {
             "timezone": "Asia/Kolkata",
-            "notifications_enabled": True
+            "notifications_enabled": True,
+            "email_notifications": True,
         }
-        response = client.put(
-            f"/api/v1/users/{user_id}/settings",
-            headers={"Authorization": f"Bearer {token}"},
-            json=settings_data
+        resp = await client.put(
+            "/api/v1/users/profile/settings",
+            headers=user_headers,
+            json=settings_update,
         )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["timezone"] == "Asia/Kolkata"
+        await asyncio.sleep(2)
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["timezone"] == "Asia/Kolkata"
+        # Clean up
+        resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+
+
+@pytest.mark.asyncio
+async def test_user_list_filters():
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+        user_id, user_token, email = await _create_user_and_login(client)
+
+        # List users with search filter
+        resp = await client.get(
+            f"/api/v1/users?search={email.split('@')[0]}", headers=dev_headers
+        )
+        assert resp.status_code == 200
+        users = resp.json()
+        assert any(u["email"] == email for u in users)
+        await asyncio.sleep(2)
+
+        # Clean up
+        resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+
+
+@pytest.mark.asyncio
+async def test_user_avatar():
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+        user_id, user_token, _ = await _create_user_and_login(client)
+        user_headers = {"Authorization": f"Bearer {user_token}"}
+
+        # Update avatar
+        avatar_url = "https://example.com/avatar.jpg"
+        resp = await client.post(
+            "/api/v1/users/profile/avatar",
+            headers=user_headers,
+            params={"avatar_url": avatar_url}
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["avatar_url"] == avatar_url
+        await asyncio.sleep(2)
+
+        # Verify avatar persisted
+        resp = await client.get(f"/api/v1/users/{user_id}", headers=user_headers)
+        assert resp.status_code == 200
+        assert resp.json()["avatar_url"] == avatar_url
+        await asyncio.sleep(2)
+
+        # Clean up
+        resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text

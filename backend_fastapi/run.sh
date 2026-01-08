@@ -44,7 +44,7 @@ serve() {
     echo "Docs: http://localhost:8000/api/docs"
     echo ""
     source venv/bin/activate
-    uvicorn main:app --reload --port 8000
+    python main.py
 }
 
 run_tests() {

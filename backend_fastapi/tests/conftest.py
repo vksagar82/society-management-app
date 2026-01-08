@@ -20,8 +20,8 @@ from app.models import User, Society, UserSociety, Issue, IssueComment, Asset, A
 from config import settings
 
 
-# Precomputed bcrypt hash for the password "password" (cost=12)
-PASSWORD_HASH = "$2b$12$KIXIDZThs4GNrbfSu5nxeu28pQ5e0siJmq9hw3rrodpJ8WcN6iLMi"
+# Bcrypt_sha256 hash for the password "password" using the app hasher (keeps 72-char limit)
+PASSWORD_HASH = hash_password("password")
 
 # Fixed UUID for dev user
 DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')

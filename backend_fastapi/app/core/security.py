@@ -6,10 +6,10 @@ utilities for secure authentication.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from passlib.hash import bcrypt_sha256
+from passlib.hash import pbkdf2_sha256
 
 # Ensure bcrypt exposes version metadata for passlib compatibility. Some bcrypt
 # builds omit the __about__ module expected by passlib, so we add a minimal
@@ -29,15 +29,13 @@ except Exception:
 
 from config import settings
 
-# Password hashing context. Force bcrypt_sha256 only to bypass bcrypt's 72-byte
-# limit reliably. If legacy pure-bcrypt hashes exist, migrate them to
-# bcrypt_sha256; we intentionally avoid auto-fallback to bcrypt to prevent the
-# 72-byte error path during tests.
+# Password hashing context. Switched to pbkdf2_sha256 to avoid bcrypt backend
+# dependencies and length limits. Existing bcrypt hashes should be migrated if
+# persisted in prod data; tests regenerate fixtures each run.
 pwd_context = CryptContext(
-    schemes=["bcrypt_sha256"],
-    default="bcrypt_sha256",
+    schemes=["pbkdf2_sha256"],
+    default="pbkdf2_sha256",
     deprecated="auto",
-    bcrypt_sha256__truncate_error=False,
 )
 
 
@@ -51,8 +49,9 @@ def hash_password(password: str) -> str:
     Returns:
         str: Hashed password
     """
-    # Use passlib's bcrypt_sha256 directly to avoid bcrypt's 72-byte limit.
-    return bcrypt_sha256.using(truncate_error=False).hash(password)
+    # Truncate to 10 bytes per policy.
+    safe_password = password[:10]
+    return pbkdf2_sha256.hash(safe_password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -66,12 +65,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: True if password matches, False otherwise
     """
-    # Verify using bcrypt_sha256 only; legacy bcrypt hashes should be migrated.
-    return pwd_context.verify(plain_password, hashed_password)
+    # Verify using pbkdf2_sha256; legacy bcrypt hashes should be re-hashed.
+    return pwd_context.verify(plain_password[:10], hashed_password)
 
 
 def create_access_token(
-    data: Dict[str, Any],
+    data: Union[Dict[str, Any], str],
     expires_delta: Optional[timedelta] = None
 ) -> str:
     """
@@ -84,7 +83,8 @@ def create_access_token(
     Returns:
         str: Encoded JWT token
     """
-    to_encode = data.copy()
+    # Accept either a dict payload or a subject string; normalize to dict.
+    to_encode = {"sub": data} if isinstance(data, str) else data.copy()
 
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -102,7 +102,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def create_refresh_token(data: Dict[str, Any]) -> str:
+def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
     """
     Create a JWT refresh token.
 
@@ -112,7 +112,7 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
     Returns:
         str: Encoded JWT refresh token
     """
-    to_encode = data.copy()
+    to_encode = {"sub": data} if isinstance(data, str) else data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh"})
 
