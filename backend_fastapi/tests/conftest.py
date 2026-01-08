@@ -20,6 +20,13 @@ from app.models import User, Society, UserSociety, Issue, IssueComment, Asset, A
 from config import settings
 
 
+# Precomputed bcrypt hash for the password "password" (cost=12)
+PASSWORD_HASH = "$2b$12$KIXIDZThs4GNrbfSu5nxeu28pQ5e0siJmq9hw3rrodpJ8WcN6iLMi"
+
+# Fixed UUID for dev user
+DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
+
+
 # Store created test data IDs for cleanup
 test_data_ids = {
     "users": [],
@@ -40,6 +47,25 @@ def event_loop() -> Generator:
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def setup_dev_user():
+    """Create the dev user once per test session for all tests."""
+    async with AsyncSessionLocal() as session:
+        # Always recreate the dev user to ensure clean state
+        await session.execute(delete(User).where(User.id == DEV_USER_ID))
+        user = User(
+            id=DEV_USER_ID,
+            email="dev-admin@example.com",
+            phone="9999999999",
+            full_name="Dev Admin Test",
+            password_hash=PASSWORD_HASH,
+            global_role="developer",
+            is_active=True
+        )
+        session.add(user)
+        await session.commit()
 
 
 @pytest.fixture(scope="function")

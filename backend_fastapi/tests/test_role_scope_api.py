@@ -15,9 +15,8 @@ from app.database import AsyncSessionLocal
 from app.models import User
 from config import settings
 
-# Precomputed bcrypt hash for the password "password" (cost=12) to avoid
-# runtime hashing and any bcrypt length limits during test setup.
-PASSWORD_HASH = "$2b$12$KIXIDZThs4GNrbfSu5nxeu28pQ5e0siJmq9hw3rrodpJ8WcN6iLMi"
+# Import from tests.conftest
+from tests.conftest import PASSWORD_HASH, DEV_USER_ID
 
 
 def _load_local_env():
@@ -43,9 +42,6 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
 # developer/admin token required for mutations
 DEV_TOKEN = os.environ.get("APP_DEV_TOKEN")
 
-# Fixed UUID used in the token
-DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
-
 
 def _make_dev_token() -> str:
     payload = {
@@ -54,25 +50,6 @@ def _make_dev_token() -> str:
         "exp": datetime.utcnow() + timedelta(days=30),
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
-
-
-@pytest.fixture(scope="session", autouse=True)
-async def setup_dev_user():
-    """Create the dev user once per test session."""
-    async with AsyncSessionLocal() as session:
-        # Always recreate the dev user to ensure clean state
-        await session.execute(delete(User).where(User.id == DEV_USER_ID))
-        user = User(
-            id=DEV_USER_ID,
-            email="dev-admin@test.local",
-            phone="9999999999",
-            full_name="Dev Admin Test",
-            password_hash=PASSWORD_HASH,
-            global_role="developer",
-            is_active=True
-        )
-        session.add(user)
-        await session.commit()
 
 
 @pytest.mark.asyncio

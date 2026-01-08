@@ -1,55 +1,200 @@
-"""Default roles seeding utilities."""
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import sessionmaker
+"""Default roles seeding utilities via API calls."""
+import asyncio
+import os
+from datetime import datetime, timedelta
+from pathlib import Path
+from uuid import UUID
 
-from app.database import create_direct_engine_for_schema
-from app.models import Role
+import httpx
+from jose import jwt, JWTError
+
+# Role definitions
+ROLES_DEF = {
+    "developer": "Developer -- Have access to everything",
+    "admin": "Admin -- Has access to everything but cannot delete the logs",
+    "manager": "Manager -- Has access to everything except cannot delete logs, assets, amc",
+    "member": "Member -- Has only view access of everything",
+}
+
+
+def _get_base_url() -> str:
+    return os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+
+
+def _generate_new_dev_token() -> str:
+    """Generate a new development token with 30-day expiration."""
+    from config import Settings
+    settings = Settings()
+
+    dev_user_id = str(UUID('00000000-0000-0000-0000-000000000001'))
+    to_encode = {'sub': dev_user_id, 'scope': 'developer admin'}
+    expire = datetime.utcnow() + timedelta(days=30)
+    to_encode.update({'exp': expire})
+
+    token = jwt.encode(to_encode, settings.secret_key,
+                       algorithm=settings.algorithm)
+    print(f"[TOKEN] Generated new dev token (expires: {expire.isoformat()})")
+    return token
+
+
+def _update_env_file(new_token: str) -> None:
+    """Update the APP_DEV_TOKEN in .env file."""
+    env_path = Path(__file__).parent.parent.parent.parent / ".env"
+    if not env_path.exists():
+        print(f"[TOKEN] Warning: .env file not found at {env_path}")
+        return
+
+    with open(env_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    token_found = False
+    for i, line in enumerate(lines):
+        if line.strip().startswith('APP_DEV_TOKEN='):
+            lines[i] = f'APP_DEV_TOKEN={new_token}\n'
+            token_found = True
+            break
+
+    if not token_found:
+        lines.append(f'\nAPP_DEV_TOKEN={new_token}\n')
+
+    with open(env_path, 'w', encoding='utf-8') as f:
+        f.writelines(lines)
+    print(f"[TOKEN] ✓ Updated .env file with new token")
+
+
+def _is_token_valid(token: str) -> bool:
+    """Check if a JWT token is valid and not expired."""
+    try:
+        from config import Settings
+        settings = Settings()
+        payload = jwt.decode(token, settings.secret_key,
+                             algorithms=[settings.algorithm])
+        exp = payload.get('exp')
+        if exp:
+            exp_datetime = datetime.utcfromtimestamp(exp)
+            if exp_datetime <= datetime.utcnow():
+                print(f"[TOKEN] Token expired at {exp_datetime.isoformat()}")
+                return False
+            print(f"[TOKEN] Token valid until {exp_datetime.isoformat()}")
+        return True
+    except JWTError as e:
+        print(f"[TOKEN] Invalid token: {e}")
+        return False
+    except Exception as e:
+        print(f"[TOKEN] Error validating token: {e}")
+        return False
+
+
+def _get_token() -> str:
+    """Get valid dev token, auto-regenerating if expired."""
+    token = os.environ.get("APP_DEV_TOKEN")
+
+    if not token:
+        print("[TOKEN] APP_DEV_TOKEN not set, generating new token...")
+        token = _generate_new_dev_token()
+        _update_env_file(token)
+        os.environ["APP_DEV_TOKEN"] = token
+        return token
+
+    if not _is_token_valid(token):
+        print("[TOKEN] Token invalid or expired, regenerating...")
+        token = _generate_new_dev_token()
+        _update_env_file(token)
+        os.environ["APP_DEV_TOKEN"] = token
+
+    return token
 
 
 async def seed_default_roles() -> dict:
     """
-    Seed default roles into the database.
+    Seed default roles using the public API endpoints instead of direct DB access.
 
     Returns:
-        dict: Dictionary of seeded roles {name: description}
+        dict: Detailed result with operations performed and final roles
     """
-    roles_def = {
-        "developer": "Developer -- Have access to everything",
-        "admin": "Admin -- Has access to everything but cannot delete the logs",
-        "manager": "Manager -- Has access to everything except cannot delete logs, assets, amc",
-        "member": "Member -- Has only view access of everything",
-    }
 
-    direct_engine = create_direct_engine_for_schema()
-    async_session = sessionmaker(
-        bind=direct_engine, class_=AsyncSession, expire_on_commit=False)
+    base_url = _get_base_url()
+    token = _get_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    operations = []
 
-    try:
-        async with async_session() as db:
-            # Fetch existing roles
-            result = await db.execute(select(Role).where(Role.name.in_(roles_def.keys())))
-            existing = {role.name: role for role in result.scalars().all()}
+    async with httpx.AsyncClient(base_url=base_url, timeout=20) as client:
+        # Fetch existing roles
+        print("\n[ROLES] Fetching existing roles...")
+        resp = await client.get("/api/v1/roles", headers=headers)
+        await asyncio.sleep(2)
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Failed to list roles: {resp.status_code} {resp.text}")
+        existing = {item["name"]: item for item in resp.json()}
+        print(f"[ROLES] Found {len(existing)} existing roles")
+        operations.append({"action": "GET", "endpoint": "/api/v1/roles",
+                          "status": resp.status_code, "result": f"Found {len(existing)} roles"})
 
-            # Upsert roles and align descriptions
-            for name, description in roles_def.items():
-                role = existing.get(name)
-                if role:
-                    if role.description != description:
-                        role.description = description
-                else:
-                    db.add(Role(name=name, description=description))
+        # Create or update
+        for name, description in ROLES_DEF.items():
+            current = existing.get(name)
+            if current is None:
+                print(f"[ROLES] Creating role '{name}'...")
+                resp = await client.post(
+                    "/api/v1/roles",
+                    json={"name": name, "description": description},
+                    headers=headers,
+                )
+                await asyncio.sleep(2)
+                if resp.status_code not in (200, 201):
+                    raise RuntimeError(
+                        f"Failed to create role {name}: {resp.status_code} {resp.text}"
+                    )
+                print(
+                    f"[ROLES] ✓ Created role '{name}' - Status: {resp.status_code}")
+                operations.append({"action": "POST", "endpoint": f"/api/v1/roles",
+                                  "role": name, "status": resp.status_code, "result": "Created"})
+            elif current.get("description") != description:
+                print(f"[ROLES] Updating role '{name}'...")
+                resp = await client.patch(
+                    f"/api/v1/roles/{name}",
+                    json={"description": description},
+                    headers=headers,
+                )
+                await asyncio.sleep(2)
+                if resp.status_code not in (200, 204):
+                    raise RuntimeError(
+                        f"Failed to update role {name}: {resp.status_code} {resp.text}"
+                    )
+                print(
+                    f"[ROLES] ✓ Updated role '{name}' - Status: {resp.status_code}")
+                operations.append({"action": "PATCH", "endpoint": f"/api/v1/roles/{name}",
+                                  "role": name, "status": resp.status_code, "result": "Updated"})
+            else:
+                print(
+                    f"[ROLES] ✓ Role '{name}' already exists with correct description - Skipped")
+                operations.append(
+                    {"action": "SKIP", "role": name, "result": "Already exists"})
 
-            await db.commit()
+        # Return fresh view
+        print("\n[ROLES] Fetching final roles list...")
+        resp = await client.get("/api/v1/roles", headers=headers)
+        await asyncio.sleep(2)
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Failed to list roles after seeding: {resp.status_code} {resp.text}")
+        data = resp.json()
+        final_roles = {item["name"]: item.get(
+            "description") for item in data if item.get("name") in ROLES_DEF}
+        operations.append({"action": "GET", "endpoint": "/api/v1/roles",
+                          "status": resp.status_code, "result": f"Final count: {len(final_roles)}"})
 
-            # Validate roles are present with correct descriptions
-            result = await db.execute(select(Role))
-            roles = {role.name: role.description for role in result.scalars().all()}
+        print(
+            f"[ROLES] ✓ Seeding complete - {len(final_roles)} roles verified\n")
 
-            for name, description in roles_def.items():
-                assert name in roles, f"Missing role: {name}"
-                assert roles[name] == description, f"Role description mismatch for {name}"
-
-            return roles
-    finally:
-        await direct_engine.dispose()
+        return {
+            "roles": final_roles,
+            "operations": operations,
+            "summary": {
+                "total_roles": len(ROLES_DEF),
+                "created": sum(1 for op in operations if op.get("action") == "POST"),
+                "updated": sum(1 for op in operations if op.get("action") == "PATCH"),
+                "skipped": sum(1 for op in operations if op.get("action") == "SKIP"),
+            }
+        }

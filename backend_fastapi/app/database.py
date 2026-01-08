@@ -24,25 +24,6 @@ if "?" in DATABASE_URL:
 else:
     DATABASE_URL = f"{DATABASE_URL}?statement_cache_size=0"
 
-# Create async database engine optimized for pgbouncer
-engine = create_async_engine(
-    DATABASE_URL,  # must point to Supabase pooler port 6543
-    echo=False,
-    future=True,
-    poolclass=NullPool,
-    pool_pre_ping=True,  # recommended for Supabase
-    connect_args={
-        "ssl": "require",
-        # Disable asyncpg prepared statements
-        "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0,
-    },
-)
-
-
-# Force simple execution (no server-side prepares) via execution_options
-engine = engine.execution_options(prepared=False)
-
 
 def build_supabase_direct_url(url: str) -> str:
     """Return a Supabase connection URL pointed at the direct Postgres port (5432).
@@ -67,10 +48,38 @@ def build_supabase_direct_url(url: str) -> str:
     return urlunparse(parsed)
 
 
+# Use direct PostgreSQL port (5432) to bypass pgbouncer prepared statement issues
+DIRECT_DATABASE_URL = build_supabase_direct_url(DATABASE_URL)
+
+# Create async database engine using direct connection to avoid pgbouncer issues
+engine = create_async_engine(
+    DIRECT_DATABASE_URL,  # Direct port 5432 to bypass pgbouncer
+    echo=False,
+    future=True,
+    poolclass=NullPool,
+    pool_pre_ping=True,  # recommended for Supabase
+    connect_args={
+        "ssl": "require",
+        # Disable asyncpg prepared statements
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+        "server_settings": {
+            "jit": "off",
+            "application_name": "society_mgmt_api",
+        },
+    },
+)
+
+
+# Force simple execution (no server-side prepares) via execution_options
+engine = engine.execution_options(prepared=False)
+
+
 def create_direct_engine_for_schema():
     """Create an async engine aimed at the direct Postgres port for DDL."""
 
-    direct_url = build_supabase_direct_url(DATABASE_URL)
+    # Already using direct URL for main engine, so reuse it
+    direct_url = DIRECT_DATABASE_URL
     direct_engine = create_async_engine(
         direct_url,
         echo=False,
@@ -81,6 +90,10 @@ def create_direct_engine_for_schema():
             "ssl": "require",
             "statement_cache_size": 0,
             "prepared_statement_cache_size": 0,
+            "server_settings": {
+                "jit": "off",
+                "application_name": "society_mgmt_direct",
+            },
         },
     )
     return direct_engine.execution_options(prepared=False)
