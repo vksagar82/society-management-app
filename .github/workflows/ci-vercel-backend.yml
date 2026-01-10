@@ -13,12 +13,11 @@ jobs:
     outputs:
       preview_url: ${{ steps.deploy.outputs.url }}
     env:
-      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      SMTP_HOST: ${{ secrets.SMTP_HOST }}
-      SMTP_USER: ${{ secrets.SMTP_USER }}
-      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-    steps:
+      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      SMTP_HOST: ${{ secrets.BACKEND_SMTP_HOST }}
+      SMTP_USER: ${{ secrets.BACKEND_SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.BACKEND_SMTP_PASSWORD }}    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -46,8 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_BASE_URL: https://society-management-app-backend.vercel.app
-      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,11 +81,11 @@ jobs:
     environment:
       name: backend_production
     env:
-      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      SMTP_HOST: ${{ secrets.SMTP_HOST }}
-      SMTP_USER: ${{ secrets.SMTP_USER }}
-      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      DATABASE_URL: ${{ secrets.BACKEND_PRODUCTION_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      SMTP_HOST: ${{ secrets.BACKEND_SMTP_HOST }}
+      SMTP_USER: ${{ secrets.BACKEND_SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.BACKEND_SMTP_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
