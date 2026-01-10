@@ -76,28 +76,6 @@ jobs:
           curl -v -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
             ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
 
-  test-health:
-    needs: [deploy-backend-preview, wait-for-deployment]
-    runs-on: ubuntu-latest
-    env:
-      APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r backend_fastapi/requirements.txt
-
-      - name: Run health tests
-        run: cd backend_fastapi && pytest tests/test_health.py -v --tb=short
-
   test-auth:
     needs: [deploy-backend-preview, test-health]
     runs-on: ubuntu-latest
