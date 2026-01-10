@@ -12,9 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       preview_url: ${{ steps.deploy.outputs.url }}
-    defaults:
-      run:
-        working-directory: backend_fastapi
     env:
       DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
@@ -47,9 +44,6 @@ jobs:
   test-backend-preview:
     needs: deploy-backend-preview
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend_fastapi
     env:
       APP_BASE_URL: https://society-management-app-backend.vercel.app
       DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
@@ -79,7 +73,7 @@ jobs:
           echo "Backend failed to respond" && exit 1
 
       - name: Run tests against preview
-        run: pytest -v --maxfail=1
+        run: cd backend_fastapi && pip install -r requirements.txt && pytest -v --maxfail=1
 
   deploy-backend-production:
     needs: test-backend-preview
@@ -87,9 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: backend_production
-    defaults:
-      run:
-        working-directory: backend_fastapi
     env:
       DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
