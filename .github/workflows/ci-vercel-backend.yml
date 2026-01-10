@@ -28,14 +28,9 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Clean up Vercel config
-        run: rm -rf .vercel
-
       - name: Deploy to Vercel (preview)
         id: deploy
         run: |
-          mkdir -p .vercel
-          echo "{\"projectId\":\"${{ secrets.VERCEL_BACKEND_PROJECT_ID }}\"}" > .vercel/project.json
           URL=$(vercel deploy \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --build-env DATABASE_URL="${DATABASE_URL}" \
@@ -105,13 +100,8 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Clean up Vercel config
-        run: rm -rf .vercel
-
       - name: Deploy to Vercel (production)
         run: |
-          mkdir -p .vercel
-          echo "{\"projectId\":\"${{ secrets.VERCEL_BACKEND_PROJECT_ID }}\"}" > .vercel/project.json
           vercel deploy --prod \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --build-env DATABASE_URL="${DATABASE_URL}" \
