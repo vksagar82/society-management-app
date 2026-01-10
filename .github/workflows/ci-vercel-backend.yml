@@ -48,6 +48,19 @@ jobs:
       APP_BASE_URL: https://society-management-app-backend.vercel.app
       DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+    strategy:
+      matrix:
+        test_file:
+          - test_auth.py
+          - test_role_scope.py
+          - test_assets.py
+          - test_amcs.py
+          - test_issues.py
+          - test_users.py
+          - test_societies.py
+          - test_docs.py
+          - test_health.py
+      fail-fast: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,8 +85,8 @@ jobs:
           done
           echo "Backend failed to respond" && exit 1
 
-      - name: Run tests against preview
-        run: cd backend_fastapi && pytest -v --maxfail=1
+      - name: Run ${{ matrix.test_file }} tests
+        run: cd backend_fastapi && pytest tests/${{ matrix.test_file }} -v --tb=short
 
   deploy-backend-production:
     needs: test-backend-preview
