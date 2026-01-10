@@ -55,6 +55,23 @@ def build_supabase_direct_url(url: str) -> str:
 # Use direct PostgreSQL port (5432) to bypass pgbouncer prepared statement issues
 DIRECT_DATABASE_URL = build_supabase_direct_url(DATABASE_URL)
 
+# Determine if SSL is required (for Supabase or when explicitly set in URL)
+url_lower = settings.database_url.lower()
+require_ssl = "supabase.co" in url_lower or "sslmode=require" in url_lower
+
+# Build connect_args based on SSL requirement
+connect_args = {
+    "statement_cache_size": 0,
+    "prepared_statement_cache_size": 0,
+    "server_settings": {
+        "jit": "off",
+        "application_name": "society_mgmt_api",
+    },
+}
+
+if require_ssl:
+    connect_args["ssl"] = "require"
+
 # Create async database engine using direct connection to avoid pgbouncer issues
 engine = create_async_engine(
     DIRECT_DATABASE_URL,  # Direct port 5432 to bypass pgbouncer
@@ -62,16 +79,7 @@ engine = create_async_engine(
     future=True,
     poolclass=NullPool,
     pool_pre_ping=True,  # recommended for Supabase
-    connect_args={
-        "ssl": "require",
-        # Disable asyncpg prepared statements
-        "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0,
-        "server_settings": {
-            "jit": "off",
-            "application_name": "society_mgmt_api",
-        },
-    },
+    connect_args=connect_args,
 )
 
 
@@ -82,6 +90,19 @@ engine = engine.execution_options(prepared=False)
 def create_direct_engine_for_schema():
     """Create an async engine aimed at the direct Postgres port for DDL."""
 
+    # Build connect_args for schema engine (reuse SSL logic)
+    schema_connect_args = {
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+        "server_settings": {
+            "jit": "off",
+            "application_name": "society_mgmt_direct",
+        },
+    }
+    
+    if require_ssl:
+        schema_connect_args["ssl"] = "require"
+
     # Already using direct URL for main engine, so reuse it
     direct_url = DIRECT_DATABASE_URL
     direct_engine = create_async_engine(
@@ -90,15 +111,7 @@ def create_direct_engine_for_schema():
         future=True,
         poolclass=NullPool,
         pool_pre_ping=False,
-        connect_args={
-            "ssl": "require",
-            "statement_cache_size": 0,
-            "prepared_statement_cache_size": 0,
-            "server_settings": {
-                "jit": "off",
-                "application_name": "society_mgmt_direct",
-            },
-        },
+        connect_args=schema_connect_args,
     )
     return direct_engine.execution_options(prepared=False)
 
