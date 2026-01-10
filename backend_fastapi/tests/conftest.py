@@ -12,6 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from uuid import UUID, uuid4
+from datetime import datetime
 
 from main import app
 from app.database import AsyncSessionLocal, engine, get_session
@@ -321,3 +322,56 @@ def test_amc_data():
         "contact_person": "Vendor Contact",
         "contact_phone": "9876543210"
     }
+
+
+# ============================================================================
+# PYTEST HOOKS - Test Summary Reporting
+# ============================================================================
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Print a custom test summary at the end of the test session.
+
+    This hook runs after all tests are completed and provides a formatted
+    summary of test results with statistics.
+    """
+    # Get test statistics
+    passed = len([r for r in session.items if r.outcome ==
+                 "passed"]) if hasattr(session, "items") else 0
+    failed = len([r for r in session.items if r.outcome ==
+                 "failed"]) if hasattr(session, "items") else 0
+    skipped = len([r for r in session.items if r.outcome ==
+                  "skipped"]) if hasattr(session, "items") else 0
+
+    # Get info from the session's terminalreporter if available
+    if hasattr(session, "config") and hasattr(session.config, "pluginmanager"):
+        try:
+            reporter = session.config.pluginmanager.get_plugin(
+                "terminalreporter")
+            if reporter and hasattr(reporter, "stats"):
+                stats = reporter.stats
+                passed = len(stats.get("passed", []))
+                failed = len(stats.get("failed", []))
+                skipped = len(stats.get("skipped", []))
+        except:
+            pass
+
+    total = passed + failed + skipped
+
+    # Print summary
+    print("\n" + "=" * 80)
+    print("TEST EXECUTION SUMMARY".center(80))
+    print("=" * 80)
+    print(f"\n📊 Total Tests: {total}")
+    print(f"✅ Passed: {passed}")
+    if failed > 0:
+        print(f"❌ Failed: {failed}")
+    if skipped > 0:
+        print(f"⏭️  Skipped: {skipped}")
+
+    if total > 0:
+        pass_rate = (passed / total) * 100
+        print(f"\n📈 Pass Rate: {pass_rate:.1f}%")
+
+    print(f"\n⏱️  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 80 + "\n")

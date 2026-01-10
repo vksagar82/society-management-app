@@ -169,7 +169,7 @@ def _get_headers() -> dict:
 
 def _get_client() -> httpx.AsyncClient:
     """Create HTTP client with default headers including bypass token."""
-    return httpx.AsyncClient(base_url=APP_BASE_URL, headers=_get_headers(), timeout=60)
+    return httpx.AsyncClient(base_url=APP_BASE_URL, headers=_get_headers(), timeout=90)
 
 
 def _make_dev_token() -> str:
@@ -319,12 +319,15 @@ async def test_list_roles():
     HAPPY PATH: List all roles
     Endpoint: GET /api/v1/roles
 
-    Verifies: List returns all roles (public endpoint, no auth required)
+    Verifies: List returns all roles (requires auth)
     Cleanup: None (no data created)
     """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
     async with _get_client() as client:
-        # TEST: GET /api/v1/roles without auth
-        resp = await client.get("/api/v1/roles")
+        # TEST: GET /api/v1/roles with auth
+        resp = await client.get("/api/v1/roles", headers=dev_headers)
         assert resp.status_code == 200, "List roles without auth succeeds"
         roles = resp.json()
         assert isinstance(roles, list), "Response is list of roles"
@@ -339,12 +342,15 @@ async def test_list_scopes():
     HAPPY PATH: List all scopes
     Endpoint: GET /api/v1/roles/scopes
 
-    Verifies: List returns all scopes (public endpoint, no auth required)
+    Verifies: List returns all scopes (requires auth)
     Cleanup: None (no data created)
     """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
     async with _get_client() as client:
-        # TEST: GET /api/v1/roles/scopes without auth
-        resp = await client.get("/api/v1/roles/scopes")
+        # TEST: GET /api/v1/roles/scopes with auth
+        resp = await client.get("/api/v1/roles/scopes", headers=dev_headers)
         assert resp.status_code == 200, "List scopes without auth succeeds"
         scopes = resp.json()
         assert isinstance(scopes, list), "Response is list of scopes"

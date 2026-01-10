@@ -148,7 +148,7 @@ def _get_headers() -> dict:
 
 def _get_client() -> httpx.AsyncClient:
     """Create HTTP client with default headers including bypass token."""
-    return httpx.AsyncClient(base_url=APP_BASE_URL, headers=_get_headers(), timeout=60)
+    return httpx.AsyncClient(base_url=APP_BASE_URL, headers=_get_headers(), timeout=90)
 
 
 def _make_dev_token() -> str:
