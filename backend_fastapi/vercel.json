@@ -14,12 +14,5 @@
       "src": "/(.*)",
       "dest": "main.py"
     }
-  ],
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "SECRET_KEY": "@secret_key",
-    "SMTP_HOST": "@smtp_host",
-    "SMTP_USER": "@smtp_user",
-    "SMTP_PASSWORD": "@smtp_password"
-  }
+  ]
 }

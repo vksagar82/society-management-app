@@ -18,6 +18,11 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +36,13 @@ jobs:
       - name: Deploy to Vercel (preview)
         id: deploy
         run: |
-          URL=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }})
+          URL=$(vercel deploy \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --build-env DATABASE_URL="${DATABASE_URL}" \
+            --build-env SECRET_KEY="${SECRET_KEY}" \
+            --build-env SMTP_HOST="${SMTP_HOST}" \
+            --build-env SMTP_USER="${SMTP_USER}" \
+            --build-env SMTP_PASSWORD="${SMTP_PASSWORD}")
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $URL"
 
@@ -84,6 +95,11 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,7 +111,14 @@ jobs:
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy to Vercel (production)
-        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel deploy --prod \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --build-env DATABASE_URL="${DATABASE_URL}" \
+            --build-env SECRET_KEY="${SECRET_KEY}" \
+            --build-env SMTP_HOST="${SMTP_HOST}" \
+            --build-env SMTP_USER="${SMTP_USER}" \
+            --build-env SMTP_PASSWORD="${SMTP_PASSWORD}"
 
   deploy-frontend-production:
     needs: test-backend-preview
