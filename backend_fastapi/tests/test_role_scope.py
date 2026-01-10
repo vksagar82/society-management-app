@@ -156,6 +156,20 @@ def _load_local_env():
 _load_local_env()
 
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+VERCEL_BYPASS_TOKEN = os.environ.get("VERCEL_BYPASS_TOKEN", "")
+
+
+def _get_headers() -> dict:
+    """Get default headers including Vercel bypass token if set."""
+    headers = {}
+    if VERCEL_BYPASS_TOKEN:
+        headers["x-vercel-protection-bypass"] = VERCEL_BYPASS_TOKEN
+    return headers
+
+
+def _get_client() -> httpx.AsyncClient:
+    """Create HTTP client with default headers including bypass token."""
+    return httpx.AsyncClient(base_url=APP_BASE_URL, headers=_get_headers(), timeout=15)
 
 
 def _make_dev_token() -> str:
@@ -193,7 +207,7 @@ async def test_roles_scopes_crud():
     role_name = f"role-{uuid.uuid4().hex[:8]}"
     scope_name = f"scope-{uuid.uuid4().hex[:8]}"
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # TEST 1: POST /api/v1/roles - Create role
         resp = await client.post(
             "/api/v1/roles",
@@ -308,7 +322,7 @@ async def test_list_roles():
     Verifies: List returns all roles (public endpoint, no auth required)
     Cleanup: None (no data created)
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # TEST: GET /api/v1/roles without auth
         resp = await client.get("/api/v1/roles")
         assert resp.status_code == 200, "List roles without auth succeeds"
@@ -328,7 +342,7 @@ async def test_list_scopes():
     Verifies: List returns all scopes (public endpoint, no auth required)
     Cleanup: None (no data created)
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # TEST: GET /api/v1/roles/scopes without auth
         resp = await client.get("/api/v1/roles/scopes")
         assert resp.status_code == 200, "List scopes without auth succeeds"
@@ -351,7 +365,7 @@ async def test_get_role_scopes_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_role = f"fake-role-{uuid.uuid4().hex[:8]}"
         resp = await client.get(
             f"/api/v1/roles/{fake_role}/scopes",
@@ -373,7 +387,7 @@ async def test_delete_role_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_role = f"fake-role-{uuid.uuid4().hex[:8]}"
         resp = await client.delete(
             f"/api/v1/roles/{fake_role}",
@@ -393,7 +407,7 @@ async def test_update_role_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_role = f"fake-role-{uuid.uuid4().hex[:8]}"
         resp = await client.patch(
             f"/api/v1/roles/{fake_role}",
@@ -414,7 +428,7 @@ async def test_assign_scopes_role_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create a valid scope first
         scope_name = f"scope-{uuid.uuid4().hex[:8]}"
         resp = await client.post(
@@ -449,7 +463,7 @@ async def test_assign_scopes_missing():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create role
         role_name = f"role-{uuid.uuid4().hex[:8]}"
         resp = await client.post(
@@ -486,7 +500,7 @@ async def test_delete_scope_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_scope = f"fake-scope-{uuid.uuid4().hex[:8]}"
         resp = await client.delete(
             f"/api/v1/roles/scopes/{fake_scope}",
@@ -506,7 +520,7 @@ async def test_update_scope_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_scope = f"fake-scope-{uuid.uuid4().hex[:8]}"
         resp = await client.patch(
             f"/api/v1/roles/scopes/{fake_scope}",
@@ -529,7 +543,7 @@ async def test_delete_role_in_use_prevented():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Try to delete a default role that is in use (developer role used by test user)
         resp = await client.delete(
             "/api/v1/roles/developer",
@@ -552,7 +566,7 @@ async def test_create_requires_developer_or_admin():
     Verifies: Regular users cannot create roles
     Note: Using invalid/no token to simulate regular user (would need login)
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         role_name = f"role-{uuid.uuid4().hex[:8]}"
         # No auth header = 403
         resp = await client.post(
@@ -570,7 +584,7 @@ async def test_update_role_requires_developer_or_admin():
 
     Verifies: Regular users cannot update roles
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # No auth header = 403
         resp = await client.patch(
             "/api/v1/roles/member",
@@ -587,7 +601,7 @@ async def test_delete_role_requires_developer_or_admin():
 
     Verifies: Regular users cannot delete roles
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # No auth header = 403
         resp = await client.delete(
             "/api/v1/roles/member",
@@ -603,7 +617,7 @@ async def test_create_scope_requires_developer_or_admin():
 
     Verifies: Regular users cannot create scopes
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         scope_name = f"scope-{uuid.uuid4().hex[:8]}"
         # No auth header = 403
         resp = await client.post(
@@ -622,7 +636,7 @@ async def test_update_scope_requires_developer_or_admin():
 
     Verifies: Regular users cannot update scopes
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # No auth header = 403
         resp = await client.patch(
             "/api/v1/roles/scopes/test-scope",
@@ -640,7 +654,7 @@ async def test_delete_scope_requires_developer_or_admin():
 
     Verifies: Regular users cannot delete scopes
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # No auth header = 403
         resp = await client.delete(
             "/api/v1/roles/scopes/test-scope",
@@ -657,7 +671,7 @@ async def test_assign_requires_developer_or_admin():
 
     Verifies: Regular users cannot assign scopes to roles
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # No auth header = 403
         resp = await client.put(
             "/api/v1/roles/member/scopes",
@@ -682,7 +696,7 @@ async def test_create_role_duplicate():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         role_name = f"role-{uuid.uuid4().hex[:8]}"
 
         # Create first role
@@ -719,7 +733,7 @@ async def test_create_scope_duplicate():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         scope_name = f"scope-{uuid.uuid4().hex[:8]}"
 
         # Create first scope
