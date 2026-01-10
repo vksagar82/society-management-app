@@ -41,26 +41,13 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
-  test-backend-preview:
+  test-auth:
     needs: deploy-backend-preview
     runs-on: ubuntu-latest
     env:
       APP_BASE_URL: https://society-management-app-backend.vercel.app
       DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-    strategy:
-      matrix:
-        test_file:
-          - test_auth.py
-          - test_role_scope.py
-          # - test_assets.py
-          # - test_amcs.py
-          # - test_issues.py
-          - test_users.py
-          - test_societies.py
-          # - test_docs.py
-          # - test_health.py
-      fail-fast: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -85,11 +72,77 @@ jobs:
           done
           echo "Backend failed to respond" && exit 1
 
-      - name: Run ${{ matrix.test_file }} tests
-        run: cd backend_fastapi && pytest tests/${{ matrix.test_file }} -v --tb=short
+      - name: Run auth tests
+        run: cd backend_fastapi && pytest tests/test_auth.py -v --tb=short
+
+  test-role-scope:
+    needs: test-auth
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: https://society-management-app-backend.vercel.app
+      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend_fastapi/requirements.txt
+
+      - name: Run role_scope tests
+        run: cd backend_fastapi && pytest tests/test_role_scope.py -v --tb=short
+
+  test-users:
+    needs: test-role-scope
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: https://society-management-app-backend.vercel.app
+      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend_fastapi/requirements.txt
+
+      - name: Run users tests
+        run: cd backend_fastapi && pytest tests/test_users.py -v --tb=short
+
+  test-societies:
+    needs: test-users
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: https://society-management-app-backend.vercel.app
+      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend_fastapi/requirements.txt
+
+      - name: Run societies tests
+        run: cd backend_fastapi && pytest tests/test_societies.py -v --tb=short
 
   deploy-backend-production:
-    needs: test-backend-preview
+    needs: test-societies
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
