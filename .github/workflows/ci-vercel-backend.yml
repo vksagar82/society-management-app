@@ -17,7 +17,8 @@ jobs:
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
       SMTP_HOST: ${{ secrets.BACKEND_SMTP_HOST }}
       SMTP_USER: ${{ secrets.BACKEND_SMTP_USER }}
-      SMTP_PASSWORD: ${{ secrets.BACKEND_SMTP_PASSWORD }}    steps:
+      SMTP_PASSWORD: ${{ secrets.BACKEND_SMTP_PASSWORD }}
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
