@@ -16,8 +16,6 @@ jobs:
       run:
         working-directory: backend_fastapi
     env:
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -33,8 +31,10 @@ jobs:
       - name: Deploy to Vercel (preview)
         id: deploy
         run: |
+          mkdir -p .vercel
+          echo "{\"projectId\":\"${{ secrets.VERCEL_BACKEND_PROJECT_ID }}\"}" > .vercel/project.json
           URL=$(vercel deploy \
-            --token=$VERCEL_TOKEN \
+            --token=${{ secrets.VERCEL_TOKEN }} \
             --build-env DATABASE_URL="${DATABASE_URL}" \
             --build-env SECRET_KEY="${SECRET_KEY}" \
             --build-env SMTP_HOST="${SMTP_HOST}" \
@@ -90,8 +90,6 @@ jobs:
       run:
         working-directory: backend_fastapi
     env:
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -104,18 +102,12 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Link to Vercel project
-        run: |
-          mkdir -p .vercel
-          echo '{"projectId":"${{ secrets.VERCEL_BACKEND_PROJECT_ID }}"}' > .vercel/project.json
-
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
       - name: Deploy to Vercel (production)
         run: |
+          mkdir -p .vercel
+          echo "{\"projectId\":\"${{ secrets.VERCEL_BACKEND_PROJECT_ID }}\"}" > .vercel/project.json
           vercel deploy --prod \
-            --token=$VERCEL_TOKEN \
+            --token=${{ secrets.VERCEL_TOKEN }} \
             --build-env DATABASE_URL="${DATABASE_URL}" \
             --build-env SECRET_KEY="${SECRET_KEY}" \
             --build-env SMTP_HOST="${SMTP_HOST}" \
