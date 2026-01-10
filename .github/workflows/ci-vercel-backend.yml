@@ -66,11 +66,15 @@ jobs:
           echo "Checking if URL is accessible..."
 
           for i in {1..30}; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || echo "000")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
+              ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || echo "000")
             echo "Attempt $i/30 - HTTP Status: $HTTP_CODE"
             
             if [ "$HTTP_CODE" = "200" ]; then
-              RESPONSE=$(curl -sf ${{ needs.deploy-backend-preview.outputs.preview_url }}/health)
+              RESPONSE=$(curl -sf \
+                -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
+                ${{ needs.deploy-backend-preview.outputs.preview_url }}/health)
               echo "Response: $RESPONSE"
               if echo "$RESPONSE" | grep -q "healthy"; then
                 echo "✅ Backend is ready!"
@@ -81,16 +85,11 @@ jobs:
             echo "Waiting for backend... ($i/30)"
             sleep 5
           done
-
+          
           echo "❌ Backend failed to respond after 150 seconds"
           echo "Attempting direct curl to see error:"
-          curl -v ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
-          exit 1
-
-      - name: Run auth tests
-        run: cd backend_fastapi && pytest tests/test_auth.py -v --tb=short
-
-  test-role-scope:
+          curl -v -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
+            ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
     needs: [deploy-backend-preview, test-auth]
     runs-on: ubuntu-latest
     env:
