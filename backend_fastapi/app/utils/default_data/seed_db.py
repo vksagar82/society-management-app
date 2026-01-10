@@ -35,15 +35,21 @@ SCOPES_DEF = {
     "issues.write": "Create or update issues",
     "societies.read": "View societies",
     "societies.write": "Create or update societies",
+    "societies.delete": "Delete societies",
+    "societies.approve": "Approve societies (developer only)",
     "users.read": "View users",
     "users.write": "Create or update users",
+    "users.delete": "Delete users",
+    "members.approve.admin": "Approve admin membership requests (developer only)",
+    "members.approve.manager": "Approve manager membership requests (admin only)",
+    "members.approve.member": "Approve member membership requests (admin/manager)",
 }
 
 # Role-to-scope mappings
 ROLE_SCOPE_MAP = {
     "developer": set(SCOPES_DEF.keys()),
-    "admin": set(SCOPES_DEF.keys()) - {"logs.delete"},
-    "manager": set(SCOPES_DEF.keys()) - {"logs.delete", "assets.delete", "amc.delete"},
+    "admin": set(SCOPES_DEF.keys()) - {"logs.delete", "societies.approve", "members.approve.admin"},
+    "manager": set(SCOPES_DEF.keys()) - {"logs.delete", "assets.delete", "amc.delete", "societies.delete", "societies.approve", "members.approve.admin", "members.approve.manager"},
     "member": {name for name in SCOPES_DEF if name.endswith(".read")},
 }
 

@@ -43,9 +43,9 @@ async def list_amcs(
 ):
     """List AMCs with filtering options."""
     stmt = select(AMC)
-    
+
     if society_id:
-        await check_society_access(current_user, str(society_id))
+        await check_society_access(current_user, str(society_id), db)
         stmt = stmt.where(AMC.society_id == society_id)
     else:
         # Get AMCs from user's societies
@@ -57,22 +57,22 @@ async def list_amcs(
         )
         result = await db.execute(stmt_societies)
         society_ids = [row[0] for row in result.all()]
-        
+
         if not society_ids:
             return []
-        
+
         stmt = stmt.where(AMC.society_id.in_(society_ids))
-    
+
     # Apply filters
     if status_filter:
         stmt = stmt.where(AMC.status == status_filter)
-    
+
     # Order and pagination
     stmt = stmt.order_by(AMC.created_at.desc()).offset(skip).limit(limit)
-    
+
     result = await db.execute(stmt)
     amcs = result.scalars().all()
-    
+
     return [AMCResponse.model_validate(a) for a in amcs]
 
 
@@ -91,25 +91,20 @@ async def create_amc(
     """
     Create a new AMC.
 
-    Requires admin role in the society or developer.
+    Requires admin or manager role in the society or developer.
+    Members cannot create AMCs.
     """
-    # Check user is admin in society or developer
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == amc.society_id,
-                UserSociety.role == "admin",
-                UserSociety.status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-    
+    from app.core.deps import require_society_permission
+
+    # Check permissions: admin or manager can create
+    await require_society_permission(
+        current_user,
+        str(amc.society_id),
+        db,
+        allowed_roles=["admin", "manager"],
+        action="create AMCs in this society"
+    )
+
     # Verify asset exists and belongs to same society
     if amc.asset_id:
         stmt = select(Asset).where(
@@ -124,7 +119,7 @@ async def create_amc(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Asset not found in this society"
             )
-    
+
     new_amc = AMC(
         id=uuid4(),
         society_id=amc.society_id,
@@ -147,11 +142,11 @@ async def create_amc(
         status=amc.status or "active",
         document_urls=amc.document_urls or []
     )
-    
+
     db.add(new_amc)
     await db.commit()
     await db.refresh(new_amc)
-    
+
     return AMCResponse.model_validate(new_amc)
 
 
@@ -170,28 +165,16 @@ async def get_amc(
     stmt = select(AMC).where(AMC.id == amc_id)
     result = await db.execute(stmt)
     amc = result.scalar_one_or_none()
-    
+
     if not amc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="AMC not found"
         )
-    
+
     # Check user has access to the society
-    stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == amc.society_id,
-            UserSociety.status == "approved"
-        )
-    )
-    result = await db.execute(stmt)
-    if not result.scalar_one_or_none() and current_user.global_role != "developer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this AMC"
-        )
-    
+    await check_society_access(current_user, str(amc.society_id), db)
+
     return AMCResponse.model_validate(amc)
 
 
@@ -210,39 +193,33 @@ async def update_amc(
     """
     Update AMC details.
 
-    Requires admin role in the society or developer.
+    Requires admin or manager role in the society or developer.
+    Members have view-only access.
     """
     # Get AMC
     stmt = select(AMC).where(AMC.id == amc_id)
     result = await db.execute(stmt)
     amc = result.scalar_one_or_none()
-    
+
     if not amc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="AMC not found"
         )
-    
-    # Check permissions
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == amc.society_id,
-                UserSociety.role == "admin",
-                UserSociety.status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-    
+
+    # Check permissions: admin or manager can update
+    from app.core.deps import require_society_permission
+    await require_society_permission(
+        current_user,
+        str(amc.society_id),
+        db,
+        allowed_roles=["admin", "manager"],
+        action="update AMCs in this society"
+    )
+
     # Update fields
     update_data = amc_update.model_dump(exclude_unset=True)
-    
+
     # If asset_id is being changed, verify it exists and belongs to same society
     if "asset_id" in update_data and update_data["asset_id"]:
         stmt = select(Asset).where(
@@ -257,13 +234,13 @@ async def update_amc(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Asset not found in this society"
             )
-    
+
     for field, value in update_data.items():
         setattr(amc, field, value)
-    
+
     await db.commit()
     await db.refresh(amc)
-    
+
     return AMCResponse.model_validate(amc)
 
 
@@ -282,35 +259,29 @@ async def delete_amc(
     Delete an AMC.
 
     Requires admin role in the society or developer.
+    Managers and members cannot delete AMCs.
     """
     # Get AMC
     stmt = select(AMC).where(AMC.id == amc_id)
     result = await db.execute(stmt)
     amc = result.scalar_one_or_none()
-    
+
     if not amc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="AMC not found"
         )
-    
-    # Check permissions
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == amc.society_id,
-                UserSociety.role == "admin",
-                UserSociety.status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-    
+
+    # Check permissions: only admin can delete
+    from app.core.deps import require_society_permission
+    await require_society_permission(
+        current_user,
+        str(amc.society_id),
+        db,
+        allowed_roles=["admin"],
+        action="delete AMCs in this society"
+    )
+
     await db.delete(amc)
     await db.commit()
 
@@ -331,36 +302,29 @@ async def add_service_history(
     """
     Add a service history record to an AMC.
 
-    Requires admin role in the society or developer.
+    Requires admin or manager role in the society or developer.
     """
     # Get AMC
     stmt = select(AMC).where(AMC.id == amc_id)
     result = await db.execute(stmt)
     amc = result.scalar_one_or_none()
-    
+
     if not amc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="AMC not found"
         )
-    
-    # Check permissions
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == amc.society_id,
-                UserSociety.role == "admin",
-                UserSociety.status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-    
+
+    # Check permissions: admin or manager can add service history
+    from app.core.deps import require_society_permission
+    await require_society_permission(
+        current_user,
+        str(amc.society_id),
+        db,
+        allowed_roles=["admin", "manager"],
+        action="add service history in this society"
+    )
+
     new_service = AMCServiceHistory(
         id=uuid4(),
         amc_id=amc_id,
@@ -376,17 +340,17 @@ async def add_service_history(
         remarks=service.remarks,
         document_urls=service.document_urls or []
     )
-    
+
     db.add(new_service)
-    
+
     # Update AMC last_service_date and next_service_date
     amc.last_service_date = service.service_date
     if service.next_service_date:
         amc.next_service_date = service.next_service_date
-    
+
     await db.commit()
     await db.refresh(new_service)
-    
+
     return AMCServiceHistoryResponse.model_validate(new_service)
 
 
@@ -406,34 +370,22 @@ async def get_service_history(
     stmt = select(AMC).where(AMC.id == amc_id)
     result = await db.execute(stmt)
     amc = result.scalar_one_or_none()
-    
+
     if not amc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="AMC not found"
         )
-    
+
     # Check user has access to the society
-    stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == amc.society_id,
-            UserSociety.status == "approved"
-        )
-    )
-    result = await db.execute(stmt)
-    if not result.scalar_one_or_none() and current_user.global_role != "developer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this AMC"
-        )
-    
+    await check_society_access(current_user, str(amc.society_id), db)
+
     # Get service history
     stmt = select(AMCServiceHistory).where(
         AMCServiceHistory.amc_id == amc_id
     ).order_by(AMCServiceHistory.service_date.desc())
-    
+
     result = await db.execute(stmt)
     services = result.scalars().all()
-    
+
     return [AMCServiceHistoryResponse.model_validate(s) for s in services]

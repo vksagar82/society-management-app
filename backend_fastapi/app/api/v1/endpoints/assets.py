@@ -40,7 +40,7 @@ async def list_categories(
     stmt = select(AssetCategory).order_by(AssetCategory.name)
     result = await db.execute(stmt)
     categories = result.scalars().all()
-    
+
     return [AssetCategoryResponse.model_validate(c) for c in categories]
 
 
@@ -66,7 +66,7 @@ async def create_category(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only developers can create asset categories"
         )
-    
+
     # Check if category already exists
     stmt = select(AssetCategory).where(AssetCategory.name == category.name)
     result = await db.execute(stmt)
@@ -75,17 +75,17 @@ async def create_category(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Category already exists"
         )
-    
+
     new_category = AssetCategory(
         id=uuid4(),
         name=category.name,
         description=category.description
     )
-    
+
     db.add(new_category)
     await db.commit()
     await db.refresh(new_category)
-    
+
     return AssetCategoryResponse.model_validate(new_category)
 
 
@@ -97,7 +97,8 @@ async def create_category(
 )
 async def list_assets(
     society_id: Optional[UUID] = Query(None),
-    category_id: Optional[UUID] = Query(None, description="Filter by category"),
+    category_id: Optional[UUID] = Query(
+        None, description="Filter by category"),
     status_filter: Optional[str] = Query(None, description="Filter by status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -106,9 +107,9 @@ async def list_assets(
 ):
     """List assets with filtering options."""
     stmt = select(Asset)
-    
+
     if society_id:
-        await check_society_access(current_user, str(society_id))
+        await check_society_access(current_user, str(society_id), db)
         stmt = stmt.where(Asset.society_id == society_id)
     else:
         # Get assets from user's societies
@@ -120,25 +121,25 @@ async def list_assets(
         )
         result = await db.execute(stmt_societies)
         society_ids = [row[0] for row in result.all()]
-        
+
         if not society_ids:
             return []
-        
+
         stmt = stmt.where(Asset.society_id.in_(society_ids))
-    
+
     # Apply filters
     if category_id:
         stmt = stmt.where(Asset.category_id == category_id)
-    
+
     if status_filter:
         stmt = stmt.where(Asset.status == status_filter)
-    
+
     # Order and pagination
     stmt = stmt.order_by(Asset.created_at.desc()).offset(skip).limit(limit)
-    
+
     result = await db.execute(stmt)
     assets = result.scalars().all()
-    
+
     return [AssetResponse.model_validate(a) for a in assets]
 
 
@@ -157,25 +158,19 @@ async def create_asset(
     """
     Create a new asset.
 
-    Requires admin role in the society or developer.
+    Requires admin or manager role in the society or developer.
     """
-    # Check user is admin in society or developer
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == asset.society_id,
-                UserSociety.role == "admin",
-                UserSociety.status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-    
+    from app.core.deps import require_society_permission
+
+    # Check permissions: admin or manager can create
+    await require_society_permission(
+        current_user,
+        str(asset.society_id),
+        db,
+        allowed_roles=["admin", "manager"],
+        action="create assets in this society"
+    )
+
     # Verify category exists
     stmt = select(AssetCategory).where(AssetCategory.id == asset.category_id)
     result = await db.execute(stmt)
@@ -184,7 +179,7 @@ async def create_asset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Asset category not found"
         )
-    
+
     new_asset = Asset(
         id=uuid4(),
         society_id=asset.society_id,
@@ -205,11 +200,11 @@ async def create_asset(
         documents=asset.documents or [],
         specifications=asset.specifications or {}
     )
-    
+
     db.add(new_asset)
     await db.commit()
     await db.refresh(new_asset)
-    
+
     return AssetResponse.model_validate(new_asset)
 
 
@@ -228,28 +223,16 @@ async def get_asset(
     stmt = select(Asset).where(Asset.id == asset_id)
     result = await db.execute(stmt)
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Asset not found"
         )
-    
+
     # Check user has access to the society
-    stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == asset.society_id,
-            UserSociety.status == "approved"
-        )
-    )
-    result = await db.execute(stmt)
-    if not result.scalar_one_or_none() and current_user.global_role != "developer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this asset"
-        )
-    
+    await check_society_access(current_user, str(asset.society_id), db)
+
     return AssetResponse.model_validate(asset)
 
 
@@ -268,55 +251,50 @@ async def update_asset(
     """
     Update asset details.
 
-    Requires admin role in the society or developer.
+    Requires admin or manager role in the society or developer.
+    Members have view-only access.
     """
     # Get asset
     stmt = select(Asset).where(Asset.id == asset_id)
     result = await db.execute(stmt)
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Asset not found"
         )
-    
-    # Check permissions
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == asset.society_id,
-                UserSociety.role == "admin",
-                UserSociety.status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-    
+
+    # Check permissions: admin or manager can update
+    from app.core.deps import require_society_permission
+    await require_society_permission(
+        current_user,
+        str(asset.society_id),
+        db,
+        allowed_roles=["admin", "manager"],
+        action="update assets in this society"
+    )
+
     # Update fields
     update_data = asset_update.model_dump(exclude_unset=True)
-    
+
     # If category is being changed, verify it exists
     if "category_id" in update_data:
-        stmt = select(AssetCategory).where(AssetCategory.id == update_data["category_id"])
+        stmt = select(AssetCategory).where(
+            AssetCategory.id == update_data["category_id"])
         result = await db.execute(stmt)
         if not result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Asset category not found"
             )
-    
+
     for field, value in update_data.items():
         setattr(asset, field, value)
-    
+
     await db.commit()
     await db.refresh(asset)
-    
+
     return AssetResponse.model_validate(asset)
 
 
@@ -335,34 +313,28 @@ async def delete_asset(
     Delete an asset.
 
     Requires admin role in the society or developer.
+    Managers and members cannot delete assets.
     """
     # Get asset
     stmt = select(Asset).where(Asset.id == asset_id)
     result = await db.execute(stmt)
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Asset not found"
         )
-    
-    # Check permissions
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == asset.society_id,
-                UserSociety.role == "admin",
-                UserSociety.status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-    
+
+    # Check permissions: only admin can delete
+    from app.core.deps import require_society_permission
+    await require_society_permission(
+        current_user,
+        str(asset.society_id),
+        db,
+        allowed_roles=["admin"],
+        action="delete assets in this society"
+    )
+
     await db.delete(asset)
     await db.commit()

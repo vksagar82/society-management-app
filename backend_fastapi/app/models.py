@@ -118,6 +118,11 @@ class Society(Base):
     contact_email = Column(String(255), nullable=True)
     contact_phone = Column(String(20), nullable=True)
     logo_url = Column(Text, nullable=True)
+    # pending, approved - only developers can approve societies
+    approval_status = Column(String(50), default="pending")
+    approved_by = Column(PG_UUID(as_uuid=True),
+                         ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)

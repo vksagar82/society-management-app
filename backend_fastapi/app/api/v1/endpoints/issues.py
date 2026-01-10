@@ -46,9 +46,9 @@ async def list_issues(
 ):
     """List issues with filtering options."""
     stmt = select(Issue)
-    
+
     if society_id:
-        await check_society_access(current_user, str(society_id))
+        await check_society_access(current_user, str(society_id), db)
         stmt = stmt.where(Issue.society_id == society_id)
     else:
         # Get issues from user's societies
@@ -60,28 +60,28 @@ async def list_issues(
         )
         result = await db.execute(stmt_societies)
         society_ids = [row[0] for row in result.all()]
-        
+
         if not society_ids:
             return []
-        
+
         stmt = stmt.where(Issue.society_id.in_(society_ids))
-    
+
     # Apply filters
     if status_filter:
         stmt = stmt.where(Issue.status == status_filter)
-    
+
     if priority:
         stmt = stmt.where(Issue.priority == priority)
-    
+
     if category:
         stmt = stmt.where(Issue.category == category)
-    
+
     # Order and pagination
     stmt = stmt.order_by(Issue.created_at.desc()).offset(skip).limit(limit)
-    
+
     result = await db.execute(stmt)
     issues = result.scalars().all()
-    
+
     return [IssueResponse.model_validate(i) for i in issues]
 
 
@@ -100,23 +100,11 @@ async def create_issue(
     """
     Create a new issue/complaint.
 
-    Requires user to be a member of the society.
+    Requires user to be a member of the society (any role).
     """
     # Check user is member of society
-    stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == issue.society_id,
-            UserSociety.status == "approved"
-        )
-    )
-    result = await db.execute(stmt)
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must be a member of this society"
-        )
-    
+    await check_society_access(current_user, str(issue.society_id), db)
+
     # Create issue
     new_issue = Issue(
         id=uuid4(),
@@ -134,11 +122,11 @@ async def create_issue(
         issue_date=issue.issue_date or datetime.utcnow(),
         target_resolution_date=issue.target_resolution_date
     )
-    
+
     db.add(new_issue)
     await db.commit()
     await db.refresh(new_issue)
-    
+
     return IssueResponse.model_validate(new_issue)
 
 
@@ -157,28 +145,16 @@ async def get_issue(
     stmt = select(Issue).where(Issue.id == issue_id)
     result = await db.execute(stmt)
     issue = result.scalar_one_or_none()
-    
+
     if not issue:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Issue not found"
         )
-    
+
     # Check user has access to the society
-    stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == issue.society_id,
-            UserSociety.status == "approved"
-        )
-    )
-    result = await db.execute(stmt)
-    if not result.scalar_one_or_none() and current_user.global_role != "developer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this issue"
-        )
-    
+    await check_society_access(current_user, str(issue.society_id), db)
+
     return IssueResponse.model_validate(issue)
 
 
@@ -197,56 +173,48 @@ async def update_issue(
     """
     Update issue details.
 
-    Issue reporter, assignee, or society admin can update.
+    Issue reporter, assignee, admins, or managers can update.
+    Members can only update issues they reported.
     """
     # Get issue
     stmt = select(Issue).where(Issue.id == issue_id)
     result = await db.execute(stmt)
     issue = result.scalar_one_or_none()
-    
+
     if not issue:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Issue not found"
         )
-    
+
     # Check permissions
+    from app.core.deps import get_user_society_role
+
     is_reporter = str(issue.reported_by) == str(current_user.id)
-    is_assignee = issue.assigned_to and str(issue.assigned_to) == str(current_user.id)
-    
-    # Check if user is admin in society
-    stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == issue.society_id,
-            UserSociety.role == "admin",
-            UserSociety.status == "approved"
-        )
-    )
-    result = await db.execute(stmt)
-    is_admin = result.scalar_one_or_none() is not None
-    
-    is_developer = current_user.global_role == "developer"
-    
-    if not (is_reporter or is_assignee or is_admin or is_developer):
+    is_assignee = issue.assigned_to and str(
+        issue.assigned_to) == str(current_user.id)
+    user_role = await get_user_society_role(current_user, str(issue.society_id), db)
+    is_admin_or_manager = user_role in ["admin", "manager"]
+
+    if not (is_reporter or is_assignee or is_admin_or_manager):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to update this issue"
         )
-    
+
     # Update fields
     update_data = issue_update.model_dump(exclude_unset=True)
-    
+
     # If status is being changed to resolved, set resolved_date
     if "status" in update_data and update_data["status"] == "resolved" and issue.status != "resolved":
         update_data["resolved_date"] = datetime.utcnow()
-    
+
     for field, value in update_data.items():
         setattr(issue, field, value)
-    
+
     await db.commit()
     await db.refresh(issue)
-    
+
     return IssueResponse.model_validate(issue)
 
 
@@ -264,42 +232,33 @@ async def delete_issue(
     """
     Delete an issue.
 
-    Only issue reporter, society admin, or developer can delete.
+    Only issue reporter, society admins, or developers can delete.
+    Managers and members can only delete issues they reported.
     """
     # Get issue
     stmt = select(Issue).where(Issue.id == issue_id)
     result = await db.execute(stmt)
     issue = result.scalar_one_or_none()
-    
+
     if not issue:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Issue not found"
         )
-    
+
     # Check permissions
+    from app.core.deps import get_user_society_role
+
     is_reporter = str(issue.reported_by) == str(current_user.id)
-    
-    # Check if user is admin in society
-    stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == issue.society_id,
-            UserSociety.role == "admin",
-            UserSociety.status == "approved"
-        )
-    )
-    result = await db.execute(stmt)
-    is_admin = result.scalar_one_or_none() is not None
-    
-    is_developer = current_user.global_role == "developer"
-    
-    if not (is_reporter or is_admin or is_developer):
+    user_role = await get_user_society_role(current_user, str(issue.society_id), db)
+    is_admin = user_role == "admin"
+
+    if not (is_reporter or is_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to delete this issue"
         )
-    
+
     await db.delete(issue)
     await db.commit()
 
@@ -326,13 +285,13 @@ async def add_comment(
     stmt = select(Issue).where(Issue.id == issue_id)
     result = await db.execute(stmt)
     issue = result.scalar_one_or_none()
-    
+
     if not issue:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Issue not found"
         )
-    
+
     # Check user has access to the society
     stmt = select(UserSociety).where(
         and_(
@@ -347,7 +306,7 @@ async def add_comment(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this issue"
         )
-    
+
     # Create comment
     new_comment = IssueComment(
         id=uuid4(),
@@ -356,11 +315,11 @@ async def add_comment(
         comment=comment.comment,
         attachment_urls=comment.attachment_urls or []
     )
-    
+
     db.add(new_comment)
     await db.commit()
     await db.refresh(new_comment)
-    
+
     return IssueCommentResponse.model_validate(new_comment)
 
 
@@ -380,13 +339,13 @@ async def get_comments(
     stmt = select(Issue).where(Issue.id == issue_id)
     result = await db.execute(stmt)
     issue = result.scalar_one_or_none()
-    
+
     if not issue:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Issue not found"
         )
-    
+
     # Check user has access to the society
     stmt = select(UserSociety).where(
         and_(
@@ -401,13 +360,13 @@ async def get_comments(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this issue"
         )
-    
+
     # Get comments
     stmt = select(IssueComment).where(
         IssueComment.issue_id == issue_id
     ).order_by(IssueComment.created_at.asc())
-    
+
     result = await db.execute(stmt)
     comments = result.scalars().all()
-    
+
     return [IssueCommentResponse.model_validate(c) for c in comments]

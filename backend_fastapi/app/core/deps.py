@@ -139,6 +139,7 @@ require_manager = require_roles(["developer", "admin", "manager"])
 async def check_society_access(
     user: UserInDB,
     society_id: str,
+    db: AsyncSession,
     required_role: Optional[str] = None
 ) -> bool:
     """
@@ -147,6 +148,7 @@ async def check_society_access(
     Args:
         user: Current user
         society_id: Society ID to check access for
+        db: Database session
         required_role: Optional specific role required within society
 
     Returns:
@@ -155,20 +157,40 @@ async def check_society_access(
     Raises:
         HTTPException: If user doesn't have access
     """
+    from app.models import UserSociety, Society
+    from uuid import UUID
+    from sqlalchemy import and_
+
     # Developers have access to all societies
     if user.global_role == "developer":
         return True
 
+    # Check if society is approved first
+    society_stmt = select(Society).where(Society.id == UUID(society_id))
+    society_result = await db.execute(society_stmt)
+    society = society_result.scalar_one_or_none()
+
+    if not society:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Society not found"
+        )
+
+    if society.approval_status != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Society is not approved yet. Only developers can access pending societies."
+        )
+
     # Check user-society mapping
-    query = """
-        SELECT role, approval_status
-        FROM user_societies
-        WHERE user_id = :user_id AND society_id = :society_id
-    """
-    mapping = await database.fetch_one(
-        query=query,
-        values={"user_id": str(user.id), "society_id": society_id}
+    stmt = select(UserSociety).where(
+        and_(
+            UserSociety.user_id == UUID(user.id),
+            UserSociety.society_id == UUID(society_id)
+        )
     )
+    result = await db.execute(stmt)
+    mapping = result.scalar_one_or_none()
 
     if not mapping:
         raise HTTPException(
@@ -176,16 +198,91 @@ async def check_society_access(
             detail="No access to this society"
         )
 
-    if mapping["approval_status"] != "approved":
+    if mapping.approval_status != "approved":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Society membership not approved"
         )
 
-    if required_role and mapping["role"] != required_role:
+    if required_role and mapping.role != required_role:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Required role '{required_role}' within society"
         )
 
     return True
+
+
+async def get_user_society_role(
+    user: UserInDB,
+    society_id: str,
+    db: AsyncSession
+) -> Optional[str]:
+    """
+    Get user's role in a specific society.
+
+    Args:
+        user: Current user
+        society_id: Society ID
+        db: Database session
+
+    Returns:
+        Optional[str]: User's role in society (admin, manager, member) or None
+    """
+    from app.models import UserSociety
+    from uuid import UUID
+    from sqlalchemy import and_
+
+    # Developers are treated as admins in all societies
+    if user.global_role == "developer":
+        return "admin"
+
+    stmt = select(UserSociety).where(
+        and_(
+            UserSociety.user_id == UUID(user.id),
+            UserSociety.society_id == UUID(society_id),
+            UserSociety.approval_status == "approved"
+        )
+    )
+    result = await db.execute(stmt)
+    mapping = result.scalar_one_or_none()
+
+    return mapping.role if mapping else None
+
+
+async def require_society_permission(
+    user: UserInDB,
+    society_id: str,
+    db: AsyncSession,
+    allowed_roles: List[str] = ["admin", "manager", "member"],
+    action: str = "access"
+) -> str:
+    """
+    Check if user has required permission in a society.
+
+    Args:
+        user: Current user
+        society_id: Society ID
+        db: Database session
+        allowed_roles: List of roles allowed to perform the action
+        action: Description of action being performed (for error message)
+
+    Returns:
+        str: User's role in the society
+
+    Raises:
+        HTTPException: If user doesn't have required permission
+    """
+    # First check basic society access
+    await check_society_access(user, society_id, db)
+
+    # Get user's role
+    role = await get_user_society_role(user, society_id, db)
+
+    if not role or role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions to {action}. Required roles: {', '.join(allowed_roles)}"
+        )
+
+    return role

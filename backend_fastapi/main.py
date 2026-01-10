@@ -69,6 +69,19 @@ async def lifespan(app: FastAPI):
         logger.exception("Default data seeding failed", exc_info=exc)
         # Log but don't raise - allow app to start even if seeding fails
 
+    # Run database migrations
+    try:
+        logger.info("Running database migrations...")
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from app.migrations import run_migrations
+
+        async with AsyncSession(engine) as session:
+            await run_migrations(session)
+            logger.info("Database migrations completed successfully")
+    except Exception as exc:
+        logger.exception("Database migrations failed", exc_info=exc)
+        # Log but don't raise - allow app to start even if migrations fail
+
     yield
 
     # Shutdown

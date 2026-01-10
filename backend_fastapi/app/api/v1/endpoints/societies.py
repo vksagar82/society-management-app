@@ -33,7 +33,8 @@ from app.schemas.society import (
     UserSocietyBase,
     UserSocietyCreate,
     UserSocietyResponse,
-    ApprovalRequest
+    ApprovalRequest,
+    SocietyApprovalRequest
 )
 from app.schemas.user import UserResponse
 
@@ -59,8 +60,8 @@ async def list_societies(
     List societies with pagination and optional search.
 
     **Permissions**:
-    - Developers: See all societies
-    - Other users: See only societies they are approved members of
+    - Developers: See all societies (including pending approval)
+    - Other users: See only approved societies they are members of
 
     **Query Parameters**:
     - `skip`: Pagination offset (default: 0)
@@ -73,6 +74,7 @@ async def list_societies(
     - User searching for a specific society to join
     """
     if current_user.global_role == "developer":
+        # Developers see all societies including pending
         stmt = select(Society)
 
         if search:
@@ -87,13 +89,14 @@ async def list_societies(
         result = await db.execute(stmt)
         societies = result.scalars().all()
     else:
-        # Get societies user is a member of
+        # Get approved societies user is a member of
         stmt = select(Society).join(
             UserSociety, Society.id == UserSociety.society_id
         ).where(
             and_(
                 UserSociety.user_id == current_user.id,
-                UserSociety.approval_status == "approved"
+                UserSociety.approval_status == "approved",
+                Society.approval_status == "approved"  # Only approved societies
             )
         )
 
@@ -141,12 +144,15 @@ async def create_society(
     **Permissions**: Any authenticated user
 
     **Behavior**:
-    - Creator is automatically added as an admin with "approved" status
-    - Creator can immediately manage society settings and approve members
+    - Society is created with "pending" status
+    - Only developers can approve societies
+    - Creator is automatically added as admin (pending until society approved)
+    - For developers: society is auto-approved
 
     **Returns**: Newly created society object
     """
     # Create society
+    is_developer = current_user.global_role == "developer"
     new_society = Society(
         id=uuid4(),
         name=society.name,
@@ -157,7 +163,10 @@ async def create_society(
         contact_person=society.contact_person,
         contact_email=society.contact_email,
         contact_phone=society.contact_phone,
-        logo_url=society.logo_url
+        logo_url=society.logo_url,
+        approval_status="approved" if is_developer else "pending",
+        approved_by=current_user.id if is_developer else None,
+        approved_at=datetime.utcnow() if is_developer else None
     )
 
     db.add(new_society)
@@ -178,6 +187,79 @@ async def create_society(
     await db.refresh(new_society)
 
     return SocietyResponse.model_validate(new_society)
+
+
+@router.post(
+    "/{society_id}/approve-society",
+    response_model=SocietyResponse,
+    summary="Approve Society (Developer Only)",
+    description="Approve a pending society. Only developers can approve societies."
+)
+async def approve_society(
+    society_id: UUID,
+    approval: SocietyApprovalRequest,
+    current_user: UserResponse = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    Approve or reject a society.
+
+    **Path Parameters**:
+    - `society_id`: UUID of the society (required)
+
+    **Request Body**:
+    - `approved`: Boolean - true to approve (required)
+
+    **Permissions**: Developer only
+
+    **Behavior**:
+    - Sets society approval_status to "approved"
+    - Records developer who approved and timestamp
+    - Only pending societies can be approved
+    - Members can only access approved societies
+
+    **Returns**: Updated society object
+
+    **Errors**:
+    - 404: Society not found
+    - 403: Not a developer
+    - 400: Society already approved
+    """
+    from app.core.deps import require_developer
+
+    # Only developers can approve societies
+    if current_user.global_role != "developer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only developers can approve societies"
+        )
+
+    # Get society
+    stmt = select(Society).where(Society.id == society_id)
+    result = await db.execute(stmt)
+    society = result.scalar_one_or_none()
+
+    if not society:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Society not found"
+        )
+
+    if society.approval_status == "approved":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Society is already approved"
+        )
+
+    if approval.approved:
+        society.approval_status = "approved"
+        society.approved_by = current_user.id
+        society.approved_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(society)
+
+    return SocietyResponse.model_validate(society)
 
 
 @router.get(
@@ -248,8 +330,9 @@ async def update_society(
     - `logo_url`: Logo URL
 
     **Permissions**:
-    - Society admin or global developer
-    - Non-admin users will get 403 Forbidden
+    - Developers: Can update any society
+    - Admins: Can only update societies where they are admin
+    - Managers/Members: Cannot update societies
 
     **Returns**: Updated society object
 
@@ -257,22 +340,16 @@ async def update_society(
     - 404: Society not found
     - 403: Insufficient permissions (not admin or developer)
     """
-    # Check user has admin role in society or is developer
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == society_id,
-                UserSociety.role == "admin",
-                UserSociety.approval_status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
+    from app.core.deps import require_society_permission
+
+    # Check permissions: only developers and admins can update
+    await require_society_permission(
+        current_user,
+        str(society_id),
+        db,
+        allowed_roles=["admin"],
+        action="update this society"
+    )
 
     # Get society
     stmt = select(Society).where(Society.id == society_id)
@@ -313,7 +390,10 @@ async def delete_society(
     **Path Parameters**:
     - `society_id`: UUID of the society (required)
 
-    **Permissions**: Developer/Admin only
+    **Permissions**:
+    - Developers: Can delete any society
+    - Admins: Can only delete societies where they are admin
+    - Managers/Members: Cannot delete societies
 
     **Cascade Behavior**:
     - Deletes all UserSociety relationships (memberships)
@@ -326,8 +406,18 @@ async def delete_society(
 
     **Errors**:
     - 404: Society not found
-    - 403: Insufficient permissions (not developer/admin)
+    - 403: Insufficient permissions
     """
+    from app.core.deps import require_society_permission
+
+    # Check permissions: only developers and admins can delete
+    await require_society_permission(
+        current_user,
+        str(society_id),
+        db,
+        allowed_roles=["admin"],
+        action="delete this society"
+    )
     stmt = select(Society).where(Society.id == society_id)
     result = await db.execute(stmt)
     society = result.scalar_one_or_none()
@@ -351,6 +441,7 @@ async def delete_society(
 )
 async def join_society(
     society_id: UUID,
+    join_request: UserSocietyCreate,
     current_user: UserResponse = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
@@ -360,15 +451,26 @@ async def join_society(
     **Path Parameters**:
     - `society_id`: UUID of the society (required)
 
-    **Permissions**: Any authenticated user
+    **Request Body**:
+    - `role`: Desired role - admin, manager, or member (default: member)
+    - `flat_no`: Flat/unit number (optional)
+    - `wing`: Wing/block (optional)
+
+    **Permissions**: Any authenticated user (but society must be approved)
+
+    **Approval Workflow**:
+    - **Admin requests**: Require developer approval
+    - **Manager requests**: Require admin approval
+    - **Member requests**: Require manager or admin approval
 
     **Membership Status Flow**:
-    1. Initial request: status = "pending" (awaiting admin approval)
-    2. Admin approves: status = "approved" (full member access)
-    3. Admin rejects: status = "rejected" (can re-request)
+    1. Initial request: status = "pending" (awaiting approval)
+    2. Appropriate role approves: status = "approved" (full member access)
+    3. Rejected: status = "rejected" (can re-request)
     4. User leaves: membership deleted
 
     **Validation**:
+    - Society must be approved by a developer first
     - Prevents duplicate pending requests
     - Prevents join if already approved member
     - Allows re-requesting after rejection
@@ -377,9 +479,10 @@ async def join_society(
 
     **Errors**:
     - 404: Society not found
+    - 403: Society not approved yet
     - 400: Already a member or pending request exists
     """
-    # Check society exists
+    # Check society exists and is approved
     stmt = select(Society).where(Society.id == society_id)
     result = await db.execute(stmt)
     society = result.scalar_one_or_none()
@@ -388,6 +491,13 @@ async def join_society(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Society not found"
+        )
+
+    # Only developers can join pending societies
+    if society.approval_status != "approved" and current_user.global_role != "developer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Society is pending approval. Only developers can access pending societies."
         )
 
     # Check if already a member or has pending request
@@ -420,11 +530,21 @@ async def join_society(
             await db.refresh(existing)
             return UserSocietyResponse.model_validate(existing)
 
+    # Validate role
+    requested_role = join_request.role or "member"
+    if requested_role not in ["admin", "manager", "member"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid role. Must be 'admin', 'manager', or 'member'"
+        )
+
     # Create new membership request
     user_society = UserSociety(
         user_id=current_user.id,
         society_id=society_id,
-        role="member",
+        role=requested_role,
+        flat_no=join_request.flat_no,
+        wing=join_request.wing,
         approval_status="pending"
     )
 
@@ -511,9 +631,10 @@ async def approve_member(
     - `approved`: Boolean - true to approve, false to reject (required)
     - `rejection_reason`: Optional reason text if rejecting (optional)
 
-    **Permissions**:
-    - Society admin or global developer
-    - Non-admin users will get 403 Forbidden
+    **Permissions** (Approval Workflow):
+    - **Admin requests**: Only developers can approve
+    - **Manager requests**: Only admins (or developers) can approve
+    - **Member requests**: Managers or admins (or developers) can approve
 
     **Behavior**:
     - **Approve**: Sets status to "approved", records approver & timestamp
@@ -525,26 +646,9 @@ async def approve_member(
     **Errors**:
     - 404: Membership request not found
     - 400: Membership is not in "pending" status
-    - 403: Insufficient permissions (not admin or developer)
+    - 403: Insufficient permissions for this role approval
     """
-    # Check user has admin role in society or is developer
-    if current_user.global_role != "developer":
-        stmt = select(UserSociety).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.society_id == society_id,
-                UserSociety.role == "admin",
-                UserSociety.approval_status == "approved"
-            )
-        )
-        result = await db.execute(stmt)
-        if not result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You must be an admin of this society"
-            )
-
-    # Get the membership request by user_society_id
+    # Get the membership request first to check the role being requested
     stmt = select(UserSociety).where(
         UserSociety.id == approval.user_society_id)
     result = await db.execute(stmt)
@@ -554,6 +658,39 @@ async def approve_member(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Membership request not found"
+        )
+
+    # Check approval permissions based on requested role
+    from app.core.deps import get_user_society_role
+
+    requested_role = membership.role
+    approver_role = await get_user_society_role(current_user, str(society_id), db)
+
+    # Approval workflow:
+    # - Admin role: Only developers can approve
+    # - Manager role: Only admins (or developers) can approve
+    # - Member role: Managers or admins (or developers) can approve
+
+    can_approve = False
+
+    if current_user.global_role == "developer":
+        can_approve = True
+    elif requested_role == "admin":
+        # Only developers can approve admins
+        can_approve = False
+    elif requested_role == "manager":
+        # Only admins can approve managers
+        can_approve = approver_role == "admin"
+    elif requested_role == "member":
+        # Managers or admins can approve members
+        can_approve = approver_role in ["admin", "manager"]
+
+    if not can_approve:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions to approve {requested_role} role. "
+                   f"Admin approvals require developer, Manager approvals require admin, "
+                   f"Member approvals require manager or admin."
         )
 
     if membership.approval_status != "pending":

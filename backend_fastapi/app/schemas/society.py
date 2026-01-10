@@ -52,6 +52,12 @@ class SocietyResponse(SocietyBase):
     """Schema for society response."""
 
     id: UUID
+    approval_status: str = Field(
+        default="pending", description="Society approval status: pending, approved")
+    approved_by: Optional[UUID] = Field(
+        None, description="Developer who approved the society")
+    approved_at: Optional[datetime] = Field(
+        None, description="When society was approved")
     created_at: datetime
     updated_at: datetime
 
@@ -72,6 +78,10 @@ class UserSocietyCreate(UserSocietyBase):
     """Schema for joining a society."""
 
     society_id: UUID = Field(..., description="Society ID to join")
+    role: Optional[str] = Field(
+        "member",
+        description="Desired role: admin, manager, or member (default: member)"
+    )
 
 
 class UserSocietyUpdate(BaseModel):
@@ -109,5 +119,13 @@ class ApprovalRequest(BaseModel):
 
     user_society_id: UUID = Field(..., description="User-society mapping ID")
     approved: bool = Field(..., description="Approve or reject")
+    rejection_reason: Optional[str] = Field(
+        None, description="Reason for rejection")
+
+
+class SocietyApprovalRequest(BaseModel):
+    """Schema for society approval by developer."""
+
+    approved: bool = Field(..., description="Approve or reject the society")
     rejection_reason: Optional[str] = Field(
         None, description="Reason if rejected")
