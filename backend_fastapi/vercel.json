@@ -3,6 +3,7 @@
   "git": {
     "deploymentEnabled": false
   },
+  "framework": "fastapi",
   "builds": [
     {
       "src": "main.py",
