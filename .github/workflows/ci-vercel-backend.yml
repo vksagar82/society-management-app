@@ -28,18 +28,25 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Deploy to Vercel (preview)
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+
+      - name: Deploy to Vercel Preview
         id: deploy
         run: |
-          URL=$(vercel deploy --yes \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --build-env DATABASE_URL="${DATABASE_URL}" \
-            --build-env SECRET_KEY="${SECRET_KEY}" \
-            --build-env SMTP_HOST="${SMTP_HOST}" \
-            --build-env SMTP_USER="${SMTP_USER}" \
-            --build-env SMTP_PASSWORD="${SMTP_PASSWORD}")
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "Preview URL: $URL"
+          DEPLOYMENT_OUTPUT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          DEPLOYMENT_URL=$(echo "$DEPLOYMENT_OUTPUT" | grep -oP 'https://[^\s]+' | tail -1)
+          echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Deployed preview to: $DEPLOYMENT_URL"
 
   test-backend-preview:
     needs: deploy-backend-preview
@@ -100,12 +107,19 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Deploy to Vercel (production)
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build for Production
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+
+      - name: Deploy to Production
         run: |
-          vercel deploy --prod --yes \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --build-env DATABASE_URL="${DATABASE_URL}" \
-            --build-env SECRET_KEY="${SECRET_KEY}" \
-            --build-env SMTP_HOST="${SMTP_HOST}" \
-            --build-env SMTP_USER="${SMTP_USER}" \
-            --build-env SMTP_PASSWORD="${SMTP_PASSWORD}"
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+          echo "✅ Successfully deployed to production!"
