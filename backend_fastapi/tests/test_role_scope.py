@@ -125,6 +125,8 @@ import os
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 import asyncio
 import httpx
@@ -167,9 +169,14 @@ def _get_headers() -> dict:
     return headers
 
 
-def _get_client() -> httpx.AsyncClient:
-    """Create HTTP client with default headers including bypass token."""
-    return httpx.AsyncClient(base_url=APP_BASE_URL, headers=_get_headers(), timeout=90)
+@asynccontextmanager
+async def _get_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Create HTTP client with bypass token and extended timeout."""
+    headers = _get_headers()
+    async with httpx.AsyncClient(
+        base_url=APP_BASE_URL, timeout=90.0, headers=headers
+    ) as client:
+        yield client
 
 
 def _make_dev_token() -> str:

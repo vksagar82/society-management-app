@@ -11,7 +11,7 @@ import logging
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 import multiprocessing
 
 from config import settings
@@ -124,6 +124,16 @@ app.add_middleware(
 
 
 # Health check endpoint
+@app.get("/", tags=["System"], include_in_schema=False)
+async def root_redirect():
+    """
+    Redirect root path to API documentation.
+
+    Redirects / to /api/docs for easy access to the API documentation.
+    """
+    return RedirectResponse(url="/api/docs")
+
+
 @app.get("/health", tags=["System"])
 async def health_check():
     """

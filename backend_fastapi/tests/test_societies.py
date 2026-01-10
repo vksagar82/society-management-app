@@ -131,6 +131,8 @@ from pathlib import Path
 import asyncio
 import httpx
 import pytest
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 from jose import jwt
 
 from config import settings
@@ -159,6 +161,25 @@ def _load_local_env():
 _load_local_env()
 
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+VERCEL_BYPASS_TOKEN = os.environ.get("VERCEL_BYPASS_TOKEN", "")
+
+
+def _get_headers() -> dict:
+    """Get headers with bypass token for Vercel deployment protection."""
+    headers = {}
+    if VERCEL_BYPASS_TOKEN:
+        headers["x-bypass-token"] = VERCEL_BYPASS_TOKEN
+    return headers
+
+
+@asynccontextmanager
+async def _get_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Create HTTP client with bypass token and extended timeout."""
+    headers = _get_headers()
+    async with httpx.AsyncClient(
+        base_url=APP_BASE_URL, timeout=90.0, headers=headers
+    ) as client:
+        yield client
 
 
 def _make_dev_token() -> str:
@@ -248,7 +269,7 @@ async def test_societies_crud():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # TEST 1: POST /api/v1/societies - Create society
         society_name = f"TestSociety-{uuid.uuid4().hex[:8]}"
         society_data = {
@@ -317,7 +338,7 @@ async def test_list_societies_with_search():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         society_id, society_data = await _create_society(client, dev_headers, "SearchTest")
 
         # TEST: Search by society name
@@ -350,7 +371,7 @@ async def test_list_societies_pagination():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         society_id, _ = await _create_society(client, dev_headers, "PaginationTest")
 
         # TEST: Pagination with skip and limit
@@ -381,7 +402,7 @@ async def test_list_societies_as_regular_user():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "UserListTest")
 
@@ -452,7 +473,7 @@ async def test_update_society_info():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         society_id, _ = await _create_society(client, dev_headers, "UpdateTest")
 
         # TEST: Update all fields
@@ -490,7 +511,7 @@ async def test_join_society():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "JoinTest")
 
@@ -538,7 +559,7 @@ async def test_approve_society_member():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "ApproveTest")
 
@@ -596,7 +617,7 @@ async def test_reject_society_member():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "RejectTest")
 
@@ -646,7 +667,7 @@ async def test_get_society_members():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "MembersTest")
 
@@ -695,7 +716,7 @@ async def test_get_society_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/societies/{fake_id}", headers=dev_headers)
         assert resp.status_code == 404, "Non-existent society returns 404"
@@ -714,7 +735,7 @@ async def test_delete_society_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/societies/{fake_id}", headers=dev_headers)
         assert resp.status_code == 404, "Deleting non-existent society returns 404"
@@ -731,7 +752,7 @@ async def test_update_society_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.put(
             f"/api/v1/societies/{fake_id}",
@@ -752,7 +773,7 @@ async def test_members_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/societies/{fake_id}/members", headers=dev_headers)
         assert resp.status_code == 200, "Non-existent society members returns 200 with empty list"
@@ -770,7 +791,7 @@ async def test_join_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create a user to attempt join
         user_id, user_token, _ = await _create_user_and_login(client)
         user_headers = {"Authorization": f"Bearer {user_token}"}
@@ -796,7 +817,7 @@ async def test_create_invalid_data():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Missing required field (name)
         invalid_data = {
             "address": "123 Street",
@@ -823,7 +844,7 @@ async def test_update_requires_admin():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Admin creates society
         society_id, _ = await _create_society(client, dev_headers, "PermTest")
 
@@ -860,7 +881,7 @@ async def test_delete_requires_admin():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Admin creates society
         society_id, _ = await _create_society(client, dev_headers, "DelPermTest")
 
@@ -893,7 +914,7 @@ async def test_approve_requires_admin():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Admin creates society
         society_id, _ = await _create_society(client, dev_headers, "ApprovePermTest")
 
@@ -939,7 +960,7 @@ async def test_list_requires_authentication():
 
     Verifies: Unauthenticated user cannot list societies
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         resp = await client.get("/api/v1/societies")
         assert resp.status_code == 403, "No token returns 403 Forbidden"
         error_msg = resp.json()["detail"].lower()
@@ -954,7 +975,7 @@ async def test_get_requires_authentication():
 
     Verifies: Unauthenticated user cannot view society details
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/societies/{fake_id}")
         assert resp.status_code == 403, "No token returns 403 Forbidden"
@@ -968,7 +989,7 @@ async def test_update_requires_authentication():
 
     Verifies: Unauthenticated user cannot update society
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.put(
             f"/api/v1/societies/{fake_id}",
@@ -985,7 +1006,7 @@ async def test_delete_requires_authentication():
 
     Verifies: Unauthenticated user cannot delete society
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/societies/{fake_id}")
         assert resp.status_code == 403, "No token returns 403 Forbidden"
@@ -999,7 +1020,7 @@ async def test_join_requires_authentication():
 
     Verifies: Unauthenticated user cannot join society
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.post(f"/api/v1/societies/{fake_id}/join")
         assert resp.status_code == 403, "No token returns 403 Forbidden"
@@ -1013,7 +1034,7 @@ async def test_members_requires_authentication():
 
     Verifies: Unauthenticated user cannot list members
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/societies/{fake_id}/members")
         assert resp.status_code == 403, "No token returns 403 Forbidden"
@@ -1027,7 +1048,7 @@ async def test_approve_requires_authentication():
 
     Verifies: Unauthenticated user cannot approve members
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.post(
             f"/api/v1/societies/{fake_id}/approve",
@@ -1051,7 +1072,7 @@ async def test_join_duplicate_prevented():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "DuplicateJoinTest")
 
@@ -1092,7 +1113,7 @@ async def test_update_multiple_fields():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "MultiFieldUpdateTest")
         await asyncio.sleep(2)
@@ -1127,7 +1148,7 @@ async def test_create_duplicate_society():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=15) as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
         # Create first society
         society_name = f"UniqueSociety-{uuid.uuid4().hex[:8]}"
         society_data = {

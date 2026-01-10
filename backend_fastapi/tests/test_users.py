@@ -94,6 +94,8 @@ import os
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 import asyncio
 import httpx
@@ -125,6 +127,25 @@ def _load_local_env():
 _load_local_env()
 
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+VERCEL_BYPASS_TOKEN = os.environ.get("VERCEL_BYPASS_TOKEN", "")
+
+
+def _get_headers() -> dict:
+    """Get default headers including Vercel bypass token if set."""
+    headers = {}
+    if VERCEL_BYPASS_TOKEN:
+        headers["x-vercel-protection-bypass"] = VERCEL_BYPASS_TOKEN
+    return headers
+
+
+@asynccontextmanager
+async def _get_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Create HTTP client with bypass token and extended timeout."""
+    headers = _get_headers()
+    async with httpx.AsyncClient(
+        base_url=APP_BASE_URL, timeout=90.0, headers=headers
+    ) as client:
+        yield client
 
 
 def _make_dev_token() -> str:
@@ -186,7 +207,7 @@ async def test_users_crud():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create test user
         user_id, user_token, email = await _create_user_and_login(client)
         user_headers = {"Authorization": f"Bearer {user_token}"}
@@ -239,7 +260,7 @@ async def test_user_settings():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         user_id, user_token, _ = await _create_user_and_login(client)
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
@@ -282,7 +303,7 @@ async def test_user_avatar():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         user_id, user_token, _ = await _create_user_and_login(client)
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
@@ -321,7 +342,7 @@ async def test_list_users_with_search():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         user_id, _, email = await _create_user_and_login(client)
 
         # TEST: Search by email prefix
@@ -354,7 +375,7 @@ async def test_list_users_pagination():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         user_id, _, _ = await _create_user_and_login(client)
 
         # TEST: Pagination with skip and limit
@@ -387,7 +408,7 @@ async def test_get_user_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/users/{fake_id}", headers=dev_headers)
         assert resp.status_code == 404, "Non-existent user returns 404"
@@ -406,7 +427,7 @@ async def test_delete_user_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/users/{fake_id}", headers=dev_headers)
         assert resp.status_code == 404, "Deleting non-existent user returns 404"
@@ -423,7 +444,7 @@ async def test_update_user_not_found():
     user_token = "fake_token"
     user_headers = {"Authorization": f"Bearer {user_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_id = str(uuid.uuid4())
         resp = await client.put(
             f"/api/v1/users/{fake_id}",
@@ -445,7 +466,7 @@ async def test_get_other_user_forbidden():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create two users
         user1_id, user1_token, _ = await _create_user_and_login(client)
         user2_id, user2_token, _ = await _create_user_and_login(client)
@@ -473,7 +494,7 @@ async def test_update_other_user_forbidden():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create two users
         user1_id, user1_token, _ = await _create_user_and_login(client)
         user2_id, user2_token, _ = await _create_user_and_login(client)
@@ -505,7 +526,7 @@ async def test_delete_self_prevented():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # TEST: Admin tries to delete self using DEV_USER_ID
         resp = await client.delete(
             f"/api/v1/users/{DEV_USER_ID}",
@@ -528,7 +549,7 @@ async def test_list_requires_admin():
 
     Verifies: Non-admin users cannot list users
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create regular user
         user_id, user_token, _ = await _create_user_and_login(client)
         user_headers = {"Authorization": f"Bearer {user_token}"}
@@ -555,7 +576,7 @@ async def test_delete_requires_admin():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create two users
         user1_id, user1_token, _ = await _create_user_and_login(client)
         user2_id, user2_token, _ = await _create_user_and_login(client)
@@ -580,7 +601,7 @@ async def test_list_requires_authentication():
 
     Verifies: Unauthenticated requests are rejected
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.get("/api/v1/users")
         assert resp.status_code in [401, 403], "No token rejected"
 
@@ -593,7 +614,7 @@ async def test_get_requires_authentication():
 
     Verifies: Unauthenticated requests are rejected
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/users/{fake_id}")
         assert resp.status_code in [401, 403], "No token rejected"
@@ -607,7 +628,7 @@ async def test_update_requires_authentication():
 
     Verifies: Unauthenticated requests are rejected
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_id = str(uuid.uuid4())
         resp = await client.put(
             f"/api/v1/users/{fake_id}",
@@ -624,7 +645,7 @@ async def test_delete_requires_authentication():
 
     Verifies: Unauthenticated requests are rejected
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         fake_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/users/{fake_id}")
         assert resp.status_code in [401, 403], "No token rejected"
@@ -638,7 +659,7 @@ async def test_settings_requires_authentication():
 
     Verifies: Unauthenticated requests are rejected
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # GET without token
         resp = await client.get("/api/v1/users/profile/settings")
         assert resp.status_code in [401, 403], "No token rejected on GET"
@@ -659,7 +680,7 @@ async def test_avatar_requires_authentication():
 
     Verifies: Unauthenticated requests are rejected
     """
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.post(
             "/api/v1/users/profile/avatar",
             params={"avatar_url": "https://example.com/avatar.jpg"}
@@ -682,7 +703,7 @@ async def test_update_duplicate_email():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         # Create two users
         user1_id, user1_token, email1 = await _create_user_and_login(client)
         user2_id, user2_token, email2 = await _create_user_and_login(client)
