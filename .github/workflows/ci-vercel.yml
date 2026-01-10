@@ -8,32 +8,43 @@ on:
   workflow_dispatch:
 
 jobs:
-  backend-tests:
+  deploy-backend-preview:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: society_db
-        ports:
-          - "5432:5432"
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    outputs:
+      preview_url: ${{ steps.deploy.outputs.url }}
     defaults:
       run:
         working-directory: backend_fastapi
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/society_db
-      SECRET_KEY: test-ci-secret
-      SMTP_HOST: smtp.example.com
-      SMTP_USER: ci@example.com
-      SMTP_PASSWORD: dummy-password
-      APP_BASE_URL: http://127.0.0.1:8000
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel (preview)
+        id: deploy
+        run: |
+          URL=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Preview URL: $URL"
+
+  test-backend-preview:
+    needs: deploy-backend-preview
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend_fastapi
+    env:
+      APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,28 +57,52 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Start API server
-        run: python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
-
-      - name: Wait for API
+      - name: Wait for deployment
         run: |
-          for i in {1..20}; do
-            if curl -s http://127.0.0.1:8000/health | grep -q "healthy"; then
+          for i in {1..30}; do
+            if curl -sf ${{ needs.deploy-backend-preview.outputs.preview_url }}/health | grep -q "healthy"; then
+              echo "Backend is ready!"
               exit 0
             fi
-            sleep 2
+            echo "Waiting for backend... ($i/30)"
+            sleep 5
           done
-          echo "API failed to start" && exit 1
+          echo "Backend failed to respond" && exit 1
 
-      - name: Run backend tests
+      - name: Run tests against preview
         run: pytest -v --maxfail=1
 
-  deploy-vercel:
-    needs: backend-tests
+  deploy-backend-production:
+    needs: test-backend-preview
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
       name: backend_production
+    defaults:
+      run:
+        working-directory: backend_fastapi
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel (production)
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  deploy-frontend-production:
+    needs: test-backend-preview
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment:
+      name: frontend_production
     defaults:
       run:
         working-directory: frontend
