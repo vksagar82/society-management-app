@@ -31,7 +31,7 @@ jobs:
       - name: Deploy to Vercel (preview)
         id: deploy
         run: |
-          URL=$(vercel deploy \
+          URL=$(vercel deploy --yes \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --build-env DATABASE_URL="${DATABASE_URL}" \
             --build-env SECRET_KEY="${SECRET_KEY}" \
@@ -102,7 +102,7 @@ jobs:
 
       - name: Deploy to Vercel (production)
         run: |
-          vercel deploy --prod \
+          vercel deploy --prod --yes \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --build-env DATABASE_URL="${DATABASE_URL}" \
             --build-env SECRET_KEY="${SECRET_KEY}" \
