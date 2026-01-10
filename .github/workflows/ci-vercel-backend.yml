@@ -63,6 +63,15 @@ jobs:
               echo "Response: $RESPONSE"
               if echo "$RESPONSE" | grep -q "healthy"; then
                 echo "✅ Backend is ready!"
+                
+                # Check seed status
+                echo ""
+                echo "Checking seed status..."
+                SEED_STATUS=$(curl -sf \
+                  -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
+                  ${{ needs.deploy-backend-preview.outputs.preview_url }}/api/v1/system/seed-status)
+                echo "Seed Status: $SEED_STATUS"
+                
                 exit 0
               fi
             fi

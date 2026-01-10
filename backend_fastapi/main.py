@@ -13,8 +13,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import multiprocessing
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from config import settings
+from app.core.limiter import limiter
 from app.database import engine, Base, create_direct_engine_for_schema
 from app.api.v1.router import api_router
 
@@ -106,6 +109,20 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+# Rate limiter - applied globally to all endpoints (100 requests per minute per IP)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request, exc):
+    """Handle rate limit exceeded errors."""
+    return JSONResponse(
+        status_code=429,
+        content={"error": "Rate limit exceeded",
+                 "detail": "Maximum 100 requests per minute allowed"}
+    )
+
+
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
@@ -114,6 +131,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# SlowAPI Rate Limiting Middleware (100 requests per minute per IP)
+app.add_middleware(SlowAPIMiddleware)
 
 
 # Health check endpoint

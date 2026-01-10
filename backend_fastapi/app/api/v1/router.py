@@ -16,9 +16,13 @@ from app.api.v1.endpoints import (
     amcs,
     roles_scopes,
 )
+from app.api.v1 import system
 from app.core.deps import get_current_active_user
 
 api_router = APIRouter()
+
+# Include system endpoints (health, seed-status) - no auth required
+api_router.include_router(system.router)
 
 # Include all endpoint routers
 # Auth router remains open for login/signup/password flows
