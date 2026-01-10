@@ -16,6 +16,8 @@ jobs:
       run:
         working-directory: backend_fastapi
     env:
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -32,8 +34,7 @@ jobs:
         id: deploy
         run: |
           URL=$(vercel deploy \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --project-id=${{ secrets.VERCEL_BACKEND_PROJECT_ID }} \
+            --token=$VERCEL_TOKEN \
             --build-env DATABASE_URL="${DATABASE_URL}" \
             --build-env SECRET_KEY="${SECRET_KEY}" \
             --build-env SMTP_HOST="${SMTP_HOST}" \
@@ -89,6 +90,8 @@ jobs:
       run:
         working-directory: backend_fastapi
     env:
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -112,8 +115,7 @@ jobs:
       - name: Deploy to Vercel (production)
         run: |
           vercel deploy --prod \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --project-id=${{ secrets.VERCEL_BACKEND_PROJECT_ID }} \
+            --token=$VERCEL_TOKEN \
             --build-env DATABASE_URL="${DATABASE_URL}" \
             --build-env SECRET_KEY="${SECRET_KEY}" \
             --build-env SMTP_HOST="${SMTP_HOST}" \
