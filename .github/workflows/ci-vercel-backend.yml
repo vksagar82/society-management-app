@@ -30,10 +30,15 @@ jobs:
 
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
       - name: Build Project Artifacts
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
         env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -47,6 +52,9 @@ jobs:
           DEPLOYMENT_URL=$(echo "$DEPLOYMENT_OUTPUT" | grep -oP 'https://[^\s]+' | tail -1)
           echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           echo "Deployed preview to: $DEPLOYMENT_URL"
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
   test-backend-preview:
     needs: deploy-backend-preview
@@ -109,6 +117,28 @@ jobs:
 
       - name: Pull Vercel Environment
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+
+      - name: Build for Production
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+
+      - name: Deploy to Production
+        run: |
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+          echo "✅ Successfully deployed to production!"
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
       - name: Build for Production
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
