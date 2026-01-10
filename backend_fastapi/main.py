@@ -134,20 +134,6 @@ async def root_redirect():
     return RedirectResponse(url="/api/docs")
 
 
-@app.get("/health", tags=["System"])
-async def health_check():
-    """
-    Health check endpoint.
-
-    Returns the current status of the API service.
-    """
-    return {
-        "status": "healthy",
-        "app_name": settings.app_name,
-        "version": settings.app_version,
-    }
-
-
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
