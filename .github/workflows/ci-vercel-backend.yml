@@ -83,6 +83,7 @@ jobs:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
       DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -105,6 +106,7 @@ jobs:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
       DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,6 +129,7 @@ jobs:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
       DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -149,6 +152,7 @@ jobs:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
       DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
