@@ -1,0 +1,43 @@
+name: Common Test Runner
+
+on:
+  workflow_call:
+    inputs:
+      test_file:
+        required: true
+        type: string
+        description: "Test file to run (e.g., test_auth.py)"
+      preview_url:
+        required: true
+        type: string
+        description: "Preview URL from deployment"
+    secrets:
+      BACKEND_STAGING_DATABASE_URL:
+        required: true
+      BACKEND_SECRET_KEY:
+        required: true
+      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET:
+        required: true
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: ${{ inputs.preview_url }}
+      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend_fastapi/requirements.txt
+
+      - name: Run ${{ inputs.test_file }} tests
+        run: cd backend_fastapi && pytest tests/${{ inputs.test_file }} -v --tb=short

@@ -87,95 +87,47 @@ jobs:
 
   test-auth:
     needs: [deploy-backend-preview, wait-for-deployment]
-    runs-on: ubuntu-latest
-    env:
-      APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r backend_fastapi/requirements.txt
-
-      - name: Run auth tests
-        run: cd backend_fastapi && pytest tests/test_auth.py -v --tb=short
+    uses: ./.github/workflows/common-for-run-tests.yml
+    with:
+      test_file: test_auth.py
+      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+    secrets:
+      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   test-role-scope:
     needs: [deploy-backend-preview, test-auth]
-    runs-on: ubuntu-latest
-    env:
-      APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r backend_fastapi/requirements.txt
-
-      - name: Run role_scope tests
-        run: cd backend_fastapi && pytest tests/test_role_scope.py -v --tb=short
+    uses: ./.github/workflows/common-for-run-tests.yml
+    with:
+      test_file: test_role_scope.py
+      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+    secrets:
+      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   test-users:
     needs: [deploy-backend-preview, test-role-scope]
-    runs-on: ubuntu-latest
-    env:
-      APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r backend_fastapi/requirements.txt
-
-      - name: Run users tests
-        run: cd backend_fastapi && pytest tests/test_users.py -v --tb=short
+    uses: ./.github/workflows/common-for-run-tests.yml
+    with:
+      test_file: test_users.py
+      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+    secrets:
+      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   test-societies:
     needs: [deploy-backend-preview, test-users]
-    runs-on: ubuntu-latest
-    env:
-      APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-      DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      VERCEL_BYPASS_TOKEN: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r backend_fastapi/requirements.txt
-
-      - name: Run societies tests
-        run: cd backend_fastapi && pytest tests/test_societies.py -v --tb=short
+    uses: ./.github/workflows/common-for-run-tests.yml
+    with:
+      test_file: test_societies.py
+      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+    secrets:
+      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   deploy-backend-production:
     needs: test-societies

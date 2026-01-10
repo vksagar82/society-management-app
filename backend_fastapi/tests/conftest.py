@@ -335,17 +335,13 @@ def pytest_sessionfinish(session, exitstatus):
     This hook runs after all tests are completed and provides a formatted
     summary of test results with statistics.
     """
-    # Get test statistics
-    passed = len([r for r in session.items if r.outcome ==
-                 "passed"]) if hasattr(session, "items") else 0
-    failed = len([r for r in session.items if r.outcome ==
-                 "failed"]) if hasattr(session, "items") else 0
-    skipped = len([r for r in session.items if r.outcome ==
-                  "skipped"]) if hasattr(session, "items") else 0
+    # Get info from the session's terminalreporter
+    passed = 0
+    failed = 0
+    skipped = 0
 
-    # Get info from the session's terminalreporter if available
-    if hasattr(session, "config") and hasattr(session.config, "pluginmanager"):
-        try:
+    try:
+        if hasattr(session, "config") and hasattr(session.config, "pluginmanager"):
             reporter = session.config.pluginmanager.get_plugin(
                 "terminalreporter")
             if reporter and hasattr(reporter, "stats"):
@@ -353,8 +349,8 @@ def pytest_sessionfinish(session, exitstatus):
                 passed = len(stats.get("passed", []))
                 failed = len(stats.get("failed", []))
                 skipped = len(stats.get("skipped", []))
-        except:
-            pass
+    except Exception:
+        pass
 
     total = passed + failed + skipped
 
