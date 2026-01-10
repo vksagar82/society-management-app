@@ -67,7 +67,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
-      name: production
+      name: backend_production
     defaults:
       run:
         working-directory: frontend
