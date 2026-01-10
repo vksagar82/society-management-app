@@ -54,6 +54,14 @@ async def lifespan(app: FastAPI):
         if ddl_engine is not engine:
             await ddl_engine.dispose()
 
+    # Seed default data
+    try:
+        from app.utils.default_data import seed_all_default_data
+        await seed_all_default_data()
+    except Exception as exc:
+        logger.exception("Default data seeding failed", exc_info=exc)
+        # Don't raise - allow app to start even if seeding fails
+
     yield
 
     # Shutdown
