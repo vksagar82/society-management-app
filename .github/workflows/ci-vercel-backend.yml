@@ -41,8 +41,43 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
-  test-auth:
+  wait-for-deployment:
     needs: deploy-backend-preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployment
+        run: |
+          echo "Testing preview URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}"
+          echo "Checking if URL is accessible..."
+
+          for i in {1..30}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
+              ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || echo "000")
+            echo "Attempt $i/30 - HTTP Status: $HTTP_CODE"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              RESPONSE=$(curl -sf \
+                -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
+                ${{ needs.deploy-backend-preview.outputs.preview_url }}/health)
+              echo "Response: $RESPONSE"
+              if echo "$RESPONSE" | grep -q "healthy"; then
+                echo "✅ Backend is ready!"
+                exit 0
+              fi
+            fi
+            
+            echo "Waiting for backend... ($i/30)"
+            sleep 5
+          done
+
+          echo "❌ Backend failed to respond after 150 seconds"
+          echo "Attempting direct curl to see error:"
+          curl -v -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
+            ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
+
+  test-auth:
+    needs: wait-for-deployment
     runs-on: ubuntu-latest
     env:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
@@ -60,37 +95,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend_fastapi/requirements.txt
 
-      - name: Wait for deployment
-        run: |
-          echo "Testing preview URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}"
-          echo "Checking if URL is accessible..."
+      - name: Run auth tests
+        run: cd backend_fastapi && pytest tests/test_auth.py -v --tb=short
 
-          for i in {1..30}; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
-              ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || echo "000")
-            echo "Attempt $i/30 - HTTP Status: $HTTP_CODE"
-            
-            if [ "$HTTP_CODE" = "200" ]; then
-              RESPONSE=$(curl -sf \
-                -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
-                ${{ needs.deploy-backend-preview.outputs.preview_url }}/health)
-              echo "Response: $RESPONSE"
-              if echo "$RESPONSE" | grep -q "healthy"; then
-                echo "✅ Backend is ready!"
-                exit 0
-              fi
-            fi
-            
-            echo "Waiting for backend... ($i/30)"
-            sleep 5
-          done
-          
-          echo "❌ Backend failed to respond after 150 seconds"
-          echo "Attempting direct curl to see error:"
-          curl -v -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
-            ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
-    needs: [deploy-backend-preview, test-auth]
+  test-role-scope:
+    needs: test-auth
     runs-on: ubuntu-latest
     env:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
@@ -112,7 +121,7 @@ jobs:
         run: cd backend_fastapi && pytest tests/test_role_scope.py -v --tb=short
 
   test-users:
-    needs: [deploy-backend-preview, test-role-scope]
+    needs: test-role-scope
     runs-on: ubuntu-latest
     env:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
@@ -134,7 +143,7 @@ jobs:
         run: cd backend_fastapi && pytest tests/test_users.py -v --tb=short
 
   test-societies:
-    needs: [deploy-backend-preview, test-users]
+    needs: test-users
     runs-on: ubuntu-latest
     env:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
