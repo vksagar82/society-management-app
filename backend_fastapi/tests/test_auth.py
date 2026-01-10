@@ -135,6 +135,20 @@ def _load_local_env():
 _load_local_env()
 
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+VERCEL_BYPASS_TOKEN = os.environ.get("VERCEL_BYPASS_TOKEN", "")
+
+
+def _get_headers() -> dict:
+    """Get default headers including Vercel bypass token if set."""
+    headers = {}
+    if VERCEL_BYPASS_TOKEN:
+        headers["x-vercel-protection-bypass"] = VERCEL_BYPASS_TOKEN
+    return headers
+
+
+def _get_client() -> httpx.AsyncClient:
+    """Create HTTP client with default headers including bypass token."""
+    return httpx.AsyncClient(base_url=APP_BASE_URL, headers=_get_headers(), timeout=15)
 
 
 def _make_dev_token() -> str:
@@ -206,7 +220,7 @@ async def _create_test_user(client: httpx.AsyncClient) -> tuple:
 @pytest.mark.asyncio
 async def test_auth_signup():
     """HAPPY PATH: User registration - POST /api/v1/auth/signup"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -232,7 +246,7 @@ async def test_auth_signup():
 @pytest.mark.asyncio
 async def test_auth_login():
     """HAPPY PATH: User authentication - POST /api/v1/auth/login"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -255,7 +269,7 @@ async def test_auth_login():
 @pytest.mark.asyncio
 async def test_token_refresh():
     """HAPPY PATH: Refresh access token - POST /api/v1/auth/refresh"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -280,7 +294,7 @@ async def test_token_refresh():
 @pytest.mark.asyncio
 async def test_get_me():
     """HAPPY PATH: Get current user profile - GET /api/v1/auth/me"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -302,7 +316,7 @@ async def test_get_me():
 @pytest.mark.asyncio
 async def test_change_password():
     """HAPPY PATH: Change user password - POST /api/v1/auth/change-password"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -328,7 +342,7 @@ async def test_change_password():
 @pytest.mark.asyncio
 async def test_forgot_password():
     """HAPPY PATH: Request password reset - POST /api/v1/auth/forgot-password"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -348,7 +362,7 @@ async def test_forgot_password():
 @pytest.mark.asyncio
 async def test_reset_password():
     """HAPPY PATH: Reset password with token - POST /api/v1/auth/reset-password"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -375,7 +389,7 @@ async def test_reset_password():
 @pytest.mark.asyncio
 async def test_signup_duplicate_email():
     """ERROR: 400 Bad Request - Duplicate email"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -404,7 +418,7 @@ async def test_signup_duplicate_email():
 @pytest.mark.asyncio
 async def test_signup_duplicate_phone():
     """ERROR: 400 Bad Request - Duplicate phone"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -433,7 +447,7 @@ async def test_signup_duplicate_phone():
 @pytest.mark.asyncio
 async def test_signup_weak_password():
     """ERROR: 422 Unprocessable Entity - Weak password"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         email_base = f"weak-{uuid.uuid4().hex[:8]}"
         # Missing digit or uppercase
         weak_passwords = ["weak", "123456", "abcDEF"]
@@ -451,7 +465,7 @@ async def test_signup_weak_password():
 @pytest.mark.asyncio
 async def test_signup_invalid_phone():
     """ERROR: 422 Unprocessable Entity - Invalid phone"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         email_base = f"invalid-{uuid.uuid4().hex[:8]}"
         invalid_phones = ["123", "abc", "phone"]
 
@@ -467,7 +481,7 @@ async def test_signup_invalid_phone():
 @pytest.mark.asyncio
 async def test_login_invalid_email():
     """ERROR: 401 Unauthorized - Invalid email"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.post("/api/v1/auth/login",
                                  json={"email": "nonexistent@example.com", "password": "TestPass123"})
         assert resp.status_code == 401, "Non-existent email rejected"
@@ -476,7 +490,7 @@ async def test_login_invalid_email():
 @pytest.mark.asyncio
 async def test_login_invalid_password():
     """ERROR: 401 Unauthorized - Invalid password"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -495,7 +509,7 @@ async def test_login_invalid_password():
 @pytest.mark.asyncio
 async def test_login_inactive_user():
     """ERROR: 403 Forbidden - Inactive user"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -520,7 +534,7 @@ async def test_login_inactive_user():
 @pytest.mark.asyncio
 async def test_change_password_wrong_current():
     """ERROR: 400 Bad Request - Wrong current password"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -541,7 +555,7 @@ async def test_change_password_wrong_current():
 @pytest.mark.asyncio
 async def test_reset_password_invalid_token():
     """ERROR: 400 Bad Request - Invalid reset token"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.post("/api/v1/auth/reset-password",
                                  json={"token": "invalid-token-xyz",
                                        "new_password": "NewPassword123"})
@@ -551,7 +565,7 @@ async def test_reset_password_invalid_token():
 @pytest.mark.asyncio
 async def test_refresh_invalid_token():
     """ERROR: 401 Unauthorized - Invalid refresh token"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.post("/api/v1/auth/refresh",
                                  json={"refresh_token": "invalid-refresh-token"})
         assert resp.status_code == 401, "Invalid refresh token rejected"
@@ -564,7 +578,7 @@ async def test_refresh_invalid_token():
 @pytest.mark.asyncio
 async def test_get_me_unauthenticated():
     """PERMISSION: 401/403 Forbidden - No authentication"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.get("/api/v1/auth/me")
         assert resp.status_code in [
             401, 403], "Unauthenticated request rejected"
@@ -573,7 +587,7 @@ async def test_get_me_unauthenticated():
 @pytest.mark.asyncio
 async def test_get_me_token_expired():
     """PERMISSION: 401/403 Unauthorized - Expired token"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         expired_token = _make_expired_token()
         resp = await client.get("/api/v1/auth/me",
                                 headers={"Authorization": f"Bearer {expired_token}"})
@@ -583,7 +597,7 @@ async def test_get_me_token_expired():
 @pytest.mark.asyncio
 async def test_refresh_expired_token():
     """ERROR: 401 Unauthorized - Expired refresh token"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         expired_token = _make_expired_token()
         resp = await client.post("/api/v1/auth/refresh",
                                  json={"refresh_token": expired_token})
@@ -593,7 +607,7 @@ async def test_refresh_expired_token():
 @pytest.mark.asyncio
 async def test_change_password_requires_auth():
     """PERMISSION: 401/403 Forbidden - Requires authentication"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.post("/api/v1/auth/change-password",
                                  json={"current_password": "Old123", "new_password": "New123"})
         assert resp.status_code in [
@@ -607,7 +621,7 @@ async def test_change_password_requires_auth():
 @pytest.mark.asyncio
 async def test_signup_with_society():
     """VALIDATION: Optional society_id parameter"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
@@ -628,7 +642,7 @@ async def test_signup_with_society():
 @pytest.mark.asyncio
 async def test_forgot_password_nonexistent_email():
     """VALIDATION: Security behavior for forgot-password"""
-    async with httpx.AsyncClient(base_url=APP_BASE_URL, timeout=15) as client:
+    async with _get_client() as client:
         resp = await client.post("/api/v1/auth/forgot-password",
                                  json={"email": "nonexistent@example.com"})
         assert resp.status_code == 200, "Non-existent email returns success"

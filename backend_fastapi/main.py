@@ -56,11 +56,14 @@ async def lifespan(app: FastAPI):
 
     # Seed default data
     try:
+        logger.info("Starting default data seeding...")
         from sqlalchemy.ext.asyncio import AsyncSession
         from app.utils.default_data.seed_db import seed_all_default_data
 
         async with AsyncSession(engine) as session:
-            await seed_all_default_data(session)
+            result = await seed_all_default_data(session)
+            logger.info(
+                f"Default data seeding completed successfully: {result}")
     except Exception as exc:
         logger.exception("Default data seeding failed", exc_info=exc)
         # Log but don't raise - allow app to start even if seeding fails
