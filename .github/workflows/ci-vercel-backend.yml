@@ -77,7 +77,7 @@ jobs:
             ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
 
   test-auth:
-    needs: [deploy-backend-preview, test-health]
+    needs: [deploy-backend-preview, wait-for-deployment]
     runs-on: ubuntu-latest
     env:
       APP_BASE_URL: ${{ needs.deploy-backend-preview.outputs.preview_url }}
