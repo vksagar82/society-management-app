@@ -14,9 +14,13 @@ from config import settings
 
 # Database URL - Convert to async PostgreSQL URL
 # Keep the URL simple, add pgbouncer-specific parameters in connect_args
-DATABASE_URL = settings.database_url.replace(
-    "postgres://", "postgresql+asyncpg://"
-).replace("?sslmode=require&pgbouncer=true", "").replace("?sslmode=require", "")
+DATABASE_URL = settings.database_url
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+DATABASE_URL = DATABASE_URL.replace("?sslmode=require&pgbouncer=true", "").replace("?sslmode=require", "")
 
 # Ensure asyncpg disables statement caching via URL params too.
 if "?" in DATABASE_URL:
