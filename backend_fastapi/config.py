@@ -5,7 +5,6 @@ This module defines all configuration variables used across the application,
 loaded from environment variables with sensible defaults.
 """
 
-import os
 from pydantic_settings import BaseSettings
 from typing import List
 

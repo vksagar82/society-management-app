@@ -110,7 +110,7 @@ import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, cast
+from typing import AsyncGenerator, Optional, cast
 
 import httpx
 import pytest
