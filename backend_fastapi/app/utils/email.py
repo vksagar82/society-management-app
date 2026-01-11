@@ -8,6 +8,7 @@ application events like password reset, notifications, etc.
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from typing import Optional
 from jinja2 import Template
 
 from config import settings

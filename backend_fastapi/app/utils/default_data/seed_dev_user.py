@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 from uuid import UUID
 from pathlib import Path
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jose import jwt
