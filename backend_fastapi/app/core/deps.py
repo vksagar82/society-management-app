@@ -70,18 +70,18 @@ async def get_current_user(
             detail="User account is disabled"
         )
 
-    return UserInDB(**{
-        "id": user.id,
-        "email": user.email,
-        "phone": user.phone,
-        "full_name": user.full_name,
-        "global_role": user.global_role,
-        "is_active": user.is_active,
-        "avatar_url": user.avatar_url,
-        "settings": user.settings,
-        "created_at": user.created_at,
-        "updated_at": user.updated_at,
-    })
+    return UserInDB(
+        id=user.id,
+        email=user.email,
+        phone=user.phone,
+        full_name=user.full_name,
+        global_role=user.global_role,
+        is_active=user.is_active,
+        avatar_url=user.avatar_url,
+        settings=user.settings,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
 
 
 async def get_current_active_user(

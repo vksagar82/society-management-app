@@ -121,7 +121,7 @@ def create_direct_engine_for_schema():
 
 # Async session factory
 AsyncSessionLocal = sessionmaker(
-    engine,
+    bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )

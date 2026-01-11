@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # Database
-    database_url: str
+    database_url: str = ""
 
     # Supabase Configuration
     supabase_url: str = ""
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = ""
 
     # Security
-    secret_key: str
+    secret_key: str = ""
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7

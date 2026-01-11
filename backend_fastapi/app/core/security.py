@@ -68,7 +68,10 @@ def create_access_token(
         str: Encoded JWT token
     """
     # Accept either a dict payload or a subject string; normalize to dict.
-    to_encode = {"sub": data} if isinstance(data, str) else data.copy()
+    if isinstance(data, str):
+        to_encode: Dict[str, Any] = {"sub": data}
+    else:
+        to_encode = data.copy()
 
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -96,7 +99,10 @@ def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
     Returns:
         str: Encoded JWT refresh token
     """
-    to_encode = {"sub": data} if isinstance(data, str) else data.copy()
+    if isinstance(data, str):
+        to_encode: Dict[str, Any] = {"sub": data}
+    else:
+        to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": int(expire.timestamp()), "type": "refresh"})
 
