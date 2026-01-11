@@ -130,7 +130,7 @@ jobs:
   #     BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   deploy-backend-production:
-    needs: test-societies
+    # needs: test-societies
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
