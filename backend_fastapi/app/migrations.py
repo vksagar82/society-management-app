@@ -5,8 +5,7 @@ Automatically syncs database schema with SQLAlchemy models on startup.
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, inspect
-from sqlalchemy.schema import CreateTable
+from sqlalchemy import text
 import logging
 
 logger = logging.getLogger(__name__)

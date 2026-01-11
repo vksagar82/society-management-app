@@ -107,7 +107,7 @@ In-Process Testing: Tests use httpx.AsyncClient(app=app, base_url="http://test")
 import os
 import uuid
 import asyncio
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -117,7 +117,6 @@ import pytest
 from jose import jwt
 
 from config import settings
-from main import app
 from tests.conftest import DEV_USER_ID
 
 
@@ -258,7 +257,7 @@ async def _create_test_society(client: httpx.AsyncClient, creator_token: str, au
         if society_status == "pending":
             dev_token = _make_dev_token()
             dev_headers = {"Authorization": f"Bearer {dev_token}"}
-            approve_resp = await client.post(
+            await client.post(
                 f"/api/v1/societies/{society_id}/approve-society",
                 headers=dev_headers,
                 json={"approved": True}

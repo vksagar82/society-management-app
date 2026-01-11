@@ -16,7 +16,7 @@ def run_command(cmd, description):
     print(f"🔧 {description}")
     print(f"{'='*60}")
     try:
-        result = subprocess.run(
+        subprocess.run(
             cmd, shell=True, check=True, capture_output=False)
         print(f"✅ {description} completed successfully")
         return True

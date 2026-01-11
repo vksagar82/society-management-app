@@ -5,12 +5,10 @@ This module provides endpoints for AMC and service history management.
 """
 
 from typing import List, Optional
-from uuid import UUID, uuid4
-from datetime import datetime
+from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_active_user, check_society_access
 from app.database import get_session

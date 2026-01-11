@@ -22,15 +22,13 @@ from datetime import datetime
 from app.core.deps import (
     get_current_active_user,
     require_admin,
-    check_society_access
 )
 from app.database import get_session
-from app.models import Society, User, UserSociety
+from app.models import Society, UserSociety
 from app.schemas.society import (
     SocietyResponse,
     SocietyCreate,
     SocietyUpdate,
-    UserSocietyBase,
     UserSocietyCreate,
     UserSocietyResponse,
     ApprovalRequest,
