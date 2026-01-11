@@ -120,14 +120,13 @@ import os
 import uuid
 import asyncio
 from pathlib import Path
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import httpx
 import pytest
 from jose import jwt
 
 from config import settings
+from main import app
 from tests.conftest import DEV_USER_ID
 
 
