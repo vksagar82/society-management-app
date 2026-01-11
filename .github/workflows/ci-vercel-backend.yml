@@ -53,13 +53,13 @@ jobs:
           for i in {1..30}; do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
               -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
-              ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || echo "000")
+              ${{ needs.deploy-backend-preview.outputs.preview_url }}/api/v1/system/health || echo "000")
             echo "Attempt $i/30 - HTTP Status: $HTTP_CODE"
             
             if [ "$HTTP_CODE" = "200" ]; then
               RESPONSE=$(curl -sf \
                 -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
-                ${{ needs.deploy-backend-preview.outputs.preview_url }}/health)
+                ${{ needs.deploy-backend-preview.outputs.preview_url }}/api/v1/system/health)
               echo "Response: $RESPONSE"
               if echo "$RESPONSE" | grep -q "healthy"; then
                 echo "✅ Backend is ready!"
@@ -83,7 +83,7 @@ jobs:
           echo "❌ Backend failed to respond after 150 seconds"
           echo "Attempting direct curl to see error:"
           curl -v -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
-            ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
+            ${{ needs.deploy-backend-preview.outputs.preview_url }}/api/v1/system/health || true
 
   # test-auth:
   #   needs: [deploy-backend-preview, wait-for-deployment]
