@@ -9,7 +9,7 @@ This module provides endpoints for user management including:
 - User settings
 """
 
-from typing import List, Optional, Dict, Any, cast
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, or_
@@ -23,7 +23,6 @@ from app.database import get_session
 from app.models import User
 from app.schemas.user import (
     UserResponse,
-    UserInDB,
     UserUpdate,
     UserSettings
 )
