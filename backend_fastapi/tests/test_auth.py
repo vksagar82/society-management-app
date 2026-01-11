@@ -188,7 +188,8 @@ def _make_expired_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": (datetime.utcnow() - timedelta(hours=1)).isoformat(),  # Already expired
+        # Already expired
+        "exp": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
