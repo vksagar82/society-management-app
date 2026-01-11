@@ -327,8 +327,6 @@ async def _create_test_asset(
         "category_id": category_id,
         "location": "Test Location",
         "purchase_cost": 10000.00,
-        "current_value": 9000.00,
-        "status": "active",
     }
 
     headers = {"Authorization": f"Bearer {auth_token}"}

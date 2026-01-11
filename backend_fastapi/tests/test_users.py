@@ -47,7 +47,7 @@ COVERAGE MATRIX (7/7 Endpoints)
     - Tested in: test_user_avatar, test_avatar_requires_authentication
 
 ================================================================================
-SCENARIO COVERAGE (20 Tests)
+SCENARIO COVERAGE (21 Tests)
 ================================================================================
 
 HAPPY PATH (6 tests):
