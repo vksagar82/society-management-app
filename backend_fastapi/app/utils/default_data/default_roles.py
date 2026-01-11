@@ -59,7 +59,7 @@ def _update_env_file(new_token: str) -> None:
 
     with open(env_path, 'w', encoding='utf-8') as f:
         f.writelines(lines)
-    print(f"[TOKEN] ✓ Updated .env file with new token")
+    print("[TOKEN] ✓ Updated .env file with new token")
 
 
 def _is_token_valid(token: str) -> bool:
@@ -148,7 +148,7 @@ async def seed_default_roles() -> dict:
                     )
                 print(
                     f"[ROLES] ✓ Created role '{name}' - Status: {resp.status_code}")
-                operations.append({"action": "POST", "endpoint": f"/api/v1/roles",
+                operations.append({"action": "POST", "endpoint": "/api/v1/roles",
                                   "role": name, "status": resp.status_code, "result": "Created"})
             elif current.get("description") != description:
                 print(f"[ROLES] Updating role '{name}'...")

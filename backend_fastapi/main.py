@@ -20,7 +20,7 @@ from app.api.v1.router import api_router
 from app.core.middleware import setup_middleware, setup_exception_handlers
 
 # Import all models to ensure they are registered with Base.metadata
-from app import models
+from app import models  # noqa: F401
 
 
 logger = logging.getLogger(__name__)
@@ -112,16 +112,16 @@ app = FastAPI(
     * Issue/Complaint management
     * Audit logging and system monitoring
     * Email notifications
-    
+
     ## Authentication
-    
+
     Most endpoints require JWT authentication. Include the token in the Authorization header:
     ```
     Authorization: Bearer <your-token>
     ```
-    
+
     ## Roles
-    
+
     * **Developer**: Full system access
     * **Admin**: Society-level administrative access
     * **Manager**: Limited administrative access

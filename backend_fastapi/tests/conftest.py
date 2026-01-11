@@ -6,19 +6,17 @@ This module provides reusable test fixtures for all test modules with automatic 
 
 import pytest
 import asyncio
-from typing import Generator, AsyncGenerator, List
+from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import delete
 from uuid import UUID, uuid4
 from datetime import datetime
 
 from main import app
 from app.database import AsyncSessionLocal, engine, get_session
 from app.core.security import create_access_token, hash_password
-from app.models import User, Society, UserSociety, Issue, IssueComment, Asset, AssetCategory, AMC, AMCServiceHistory
-from config import settings
+from app.models import User, Society
 
 
 # Bcrypt_sha256 hash for the password "password" using the app hasher (keeps 72-char limit)
