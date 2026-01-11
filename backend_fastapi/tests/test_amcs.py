@@ -118,7 +118,7 @@ import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import httpx
 import pytest
@@ -310,7 +310,7 @@ async def _create_test_asset(
     auth_token: str,
     society_id: str,
     category_id: str,
-    name: str = None
+    name: Optional[str] = None
 ) -> str:
     """
     Create asset and return ID.
@@ -348,7 +348,7 @@ async def _create_test_amc(
     client: httpx.AsyncClient,
     auth_token: str,
     society_id: str,
-    vendor_name: str = None
+    vendor_name: Optional[str] = None
 ) -> str:
     """
     Create AMC and return ID.

@@ -9,7 +9,7 @@ This module provides endpoints for user management including:
 - User settings
 """
 
-from typing import List, Optional
+from typing import List, Optional, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, or_
@@ -258,7 +258,7 @@ async def get_user_settings(
         )
 
     # Settings is a JSON column
-    settings = user.settings or {}
+    settings: dict[str, Any] = user.settings or {}
     return UserSettings(**settings)
 
 
@@ -289,7 +289,7 @@ async def update_user_settings(
         )
 
     # Update settings (merge with existing)
-    current_settings = user.settings or {}
+    current_settings: dict[str, Any] = user.settings or {}
     updated_settings = {**current_settings, **
                         settings_update.model_dump(exclude_unset=True)}
     user.settings = updated_settings

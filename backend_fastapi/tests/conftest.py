@@ -27,7 +27,7 @@ DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
 
 
 # Store created test data IDs for cleanup
-test_data_ids = {
+test_data_ids: dict[str, list] = {
     "users": [],
     "societies": [],
     "user_societies": [],

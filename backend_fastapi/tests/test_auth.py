@@ -174,7 +174,7 @@ def _make_dev_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() + timedelta(days=30),
+        "exp": (datetime.utcnow() + timedelta(days=30)).isoformat(),
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
@@ -188,7 +188,7 @@ def _make_expired_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() - timedelta(hours=1),  # Already expired
+        "exp": (datetime.utcnow() - timedelta(hours=1)).isoformat(),  # Already expired
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 

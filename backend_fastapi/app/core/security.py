@@ -93,7 +93,7 @@ def create_access_token(
             minutes=settings.access_token_expire_minutes
         )
 
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire.isoformat()})
     encoded_jwt = jwt.encode(
         to_encode,
         settings.secret_key,
@@ -114,7 +114,7 @@ def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
     """
     to_encode = {"sub": data} if isinstance(data, str) else data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({"exp": expire.isoformat(), "type": "refresh"})
 
     encoded_jwt = jwt.encode(
         to_encode,

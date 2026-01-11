@@ -165,7 +165,7 @@ async def seed_dev_user(session: AsyncSession) -> dict:
 async def update_dev_token_on_password_change(
     session: AsyncSession,
     user_id: UUID = DEV_USER_ID,
-) -> str:
+) -> Optional[str]:
     """
     Update APP_DEV_TOKEN after developer user password is changed.
 

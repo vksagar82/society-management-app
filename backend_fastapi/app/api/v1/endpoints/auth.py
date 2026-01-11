@@ -274,7 +274,7 @@ async def forgot_password(
     await db.commit()
 
     # Send email
-    await send_password_reset_email(user.email, reset_token)
+    await send_password_reset_email(user.email, user.full_name, reset_token)
 
     return {"message": "Password reset link sent to your email"}
 

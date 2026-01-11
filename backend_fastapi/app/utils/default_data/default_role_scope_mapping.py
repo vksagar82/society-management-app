@@ -38,7 +38,7 @@ def _generate_new_dev_token() -> str:
         'scope': 'developer admin'
     }
     expire = datetime.utcnow() + timedelta(days=30)
-    to_encode.update({'exp': expire})
+    to_encode.update({'exp': expire.isoformat()})
 
     token = jwt.encode(to_encode, settings.secret_key,
                        algorithm=settings.algorithm)

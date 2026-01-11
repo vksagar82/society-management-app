@@ -120,6 +120,7 @@ import os
 import uuid
 import asyncio
 from pathlib import Path
+from typing import Optional
 
 import httpx
 import pytest
@@ -278,7 +279,7 @@ async def _create_test_issue(
     client: httpx.AsyncClient,
     auth_token: str,
     society_id: str,
-    title: str = None,
+    title: Optional[str] = None,
     status: str = "open"
 ) -> str:
     """
