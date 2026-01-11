@@ -5,8 +5,7 @@ Automatically syncs database schema with SQLAlchemy models on startup.
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, inspect
-from sqlalchemy.schema import CreateTable
+from sqlalchemy import text
 import logging
 
 logger = logging.getLogger(__name__)
@@ -55,7 +54,7 @@ async def sync_table(db: AsyncSession, table):
         # Check if table exists
         check_table = text(f"""
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
+                SELECT FROM information_schema.tables
                 WHERE table_name = '{table_name}'
             )
         """)
@@ -128,7 +127,7 @@ async def add_column(db: AsyncSession, table_name: str, column):
 
         # Build and execute ALTER TABLE
         alter_sql = f"""
-            ALTER TABLE {table_name} 
+            ALTER TABLE {table_name}
             ADD COLUMN IF NOT EXISTS {column.name} {col_type}{nullable}{default}{fk_constraint}
         """
 
@@ -139,7 +138,7 @@ async def add_column(db: AsyncSession, table_name: str, column):
         if column.index:
             index_name = f"ix_{table_name}_{column.name}"
             create_index = f"""
-                CREATE INDEX IF NOT EXISTS {index_name} 
+                CREATE INDEX IF NOT EXISTS {index_name}
                 ON {table_name}({column.name})
             """
             await db.execute(text(create_index))
