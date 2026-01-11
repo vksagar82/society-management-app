@@ -23,6 +23,7 @@ from app.database import get_session
 from app.models import User
 from app.schemas.user import (
     UserResponse,
+    UserInDB,
     UserUpdate,
     UserSettings
 )
@@ -292,7 +293,7 @@ async def update_user_settings(
     current_settings: Dict[str, Any] = user.settings or {}
     updated_settings: Dict[str, Any] = {**current_settings, **
                                         settings_update.model_dump(exclude_unset=True)}
-    user.settings = cast(Dict[str, Any], updated_settings)
+    user.settings = updated_settings  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(user)
@@ -327,7 +328,7 @@ async def update_avatar(
             detail="User not found"
         )
 
-    user.avatar_url = cast(str, avatar_url)
+    user.avatar_url = avatar_url  # type: ignore[assignment]
     await db.commit()
     await db.refresh(user)
 

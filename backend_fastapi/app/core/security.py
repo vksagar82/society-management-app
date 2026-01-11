@@ -81,7 +81,7 @@ def create_access_token(
         )
 
     to_encode.update({"exp": int(expire.timestamp())})
-    return cast(str, jwt.encode(
+    return cast(str, jwt.encode(  # type: ignore[no-any-return]
         to_encode,
         settings.secret_key,
         algorithm=settings.algorithm

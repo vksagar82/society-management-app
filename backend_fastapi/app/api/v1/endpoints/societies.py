@@ -25,6 +25,7 @@ from app.core.deps import (
 )
 from app.database import get_session
 from app.models import Society, UserSociety
+from app.schemas.user import UserInDB
 from app.schemas.society import (
     SocietyResponse,
     SocietyCreate,
@@ -248,9 +249,9 @@ async def approve_society(
         )
 
     if approval.approved:
-        society.approval_status = cast(str, "approved")
-        society.approved_by = cast(UUID, current_user.id)
-        society.approved_at = cast(datetime, datetime.utcnow())
+        society.approval_status = "approved"  # type: ignore[assignment]
+        society.approved_by = current_user.id  # type: ignore[assignment]
+        society.approved_at = datetime.utcnow()  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(society)
@@ -266,7 +267,7 @@ async def approve_society(
 )
 async def get_society(
     society_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -305,7 +306,7 @@ async def get_society(
 async def update_society(
     society_id: UUID,
     society_update: SocietyUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -438,7 +439,7 @@ async def delete_society(
 async def join_society(
     society_id: UUID,
     join_request: Optional[UserSocietyCreate] = Body(default=None),
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -519,9 +520,9 @@ async def join_society(
             )
         elif existing.approval_status == "rejected":
             # Allow re-requesting
-            existing.approval_status = cast(str, "pending")
-            existing.rejected_at = cast(Optional[datetime], None)
-            existing.rejected_by = cast(Optional[UUID], None)
+            existing.approval_status = "pending"  # type: ignore[assignment]
+            existing.rejected_at = None  # type: ignore[assignment]
+            existing.rejected_by = None  # type: ignore[assignment]
             await db.commit()
             await db.refresh(existing)
             return UserSocietyResponse.model_validate(existing)
@@ -561,7 +562,7 @@ async def get_society_members(
     society_id: UUID,
     status_filter: Optional[str] = Query(
         None, description="Filter by status: 'pending', 'approved', or 'rejected'"),
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -613,7 +614,7 @@ async def get_society_members(
 async def approve_member(
     society_id: UUID,
     approval: ApprovalRequest,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
