@@ -204,7 +204,7 @@ async def test_roles_scopes_crud():
     Endpoints: POST/GET/PATCH/DELETE /api/v1/roles, POST/GET/PATCH/DELETE /api/v1/roles/scopes,
                PUT /api/v1/roles/{role_name}/scopes, GET /api/v1/roles/{role_name}/scopes
 
-    Verifies: Create role, list roles, update role, create scope, list scopes, 
+    Verifies: Create role, list roles, update role, create scope, list scopes,
               assign scopes to role, get role scopes, update scope, delete scope, delete role
     Permissions: Developer/Admin role required for all mutations
     Cleanup: Role and scope deleted at test end (204 No Content)

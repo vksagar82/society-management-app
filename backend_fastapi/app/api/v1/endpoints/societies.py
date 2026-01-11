@@ -21,16 +21,14 @@ from datetime import datetime
 
 from app.core.deps import (
     get_current_active_user,
-    require_admin,
-    check_society_access
+    require_admin
 )
 from app.database import get_session
-from app.models import Society, User, UserSociety
+from app.models import Society, UserSociety
 from app.schemas.society import (
     SocietyResponse,
     SocietyCreate,
     SocietyUpdate,
-    UserSocietyBase,
     UserSocietyCreate,
     UserSocietyResponse,
     ApprovalRequest,
@@ -225,8 +223,6 @@ async def approve_society(
     - 403: Not a developer
     - 400: Society already approved
     """
-    from app.core.deps import require_developer
-
     # Only developers can approve societies
     if current_user.global_role != "developer":
         raise HTTPException(

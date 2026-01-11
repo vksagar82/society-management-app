@@ -10,7 +10,6 @@ This module provides endpoints for user authentication including:
 """
 
 from datetime import datetime, timedelta
-from typing import Optional
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -23,7 +22,7 @@ from app.core.security import (
     create_refresh_token,
     decode_token
 )
-from app.core.deps import get_current_user, get_current_active_user
+from app.core.deps import get_current_active_user
 from app.database import get_session
 from app.models import User, UserSociety
 from app.schemas.auth import (

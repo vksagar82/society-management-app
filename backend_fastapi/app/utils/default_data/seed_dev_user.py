@@ -5,7 +5,6 @@ Creates a default developer user on application startup.
 Generates and stores TOKEN in APP_DEV_TOKEN environment variable.
 """
 
-import os
 import logging
 from datetime import datetime, timedelta
 from uuid import UUID
@@ -109,13 +108,13 @@ async def seed_dev_user(session: AsyncSession) -> dict:
         if existing_user:
             logger.info(
                 f"Developer user already exists: {existing_user.email}")
-            print(f"[SEED] ✓ Developer user already exists - SKIPPED")
+            print("[SEED] ✓ Developer user already exists - SKIPPED")
             action = "SKIPPED"
             user = existing_user
         else:
             # Create new dev user
             logger.info("Creating new developer user...")
-            print(f"[SEED] Creating developer user...")
+            print("[SEED] Creating developer user...")
 
             user = User(
                 id=DEV_USER_ID,
@@ -141,7 +140,7 @@ async def seed_dev_user(session: AsyncSession) -> dict:
         _update_env_dev_token(token)
 
         logger.info(f"Developer user {action} - TOKEN generated (365 days)")
-        print(f"[SEED] ✓ TOKEN generated (365 days)")
+        print("[SEED] ✓ TOKEN generated (365 days)")
 
         return {
             "action": action,
@@ -195,7 +194,7 @@ async def update_dev_token_on_password_change(
         _update_env_dev_token(token)
 
         logger.info(f"Token updated for user {user.email}")
-        print(f"[AUTH] ✓ APP_DEV_TOKEN updated after password change")
+        print("[AUTH] ✓ APP_DEV_TOKEN updated after password change")
 
         return token
 

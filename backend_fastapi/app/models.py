@@ -5,11 +5,10 @@ This module defines all database models using SQLAlchemy ORM for async operation
 """
 
 from datetime import datetime
-from typing import Optional, List
-from uuid import UUID, uuid4
+from uuid import uuid4
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Text, Date, Numeric,
-    ForeignKey, UniqueConstraint, JSON, CheckConstraint, Index
+    ForeignKey, UniqueConstraint, JSON, Index
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship

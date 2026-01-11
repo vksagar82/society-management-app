@@ -3,7 +3,6 @@ import asyncio
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
 import httpx
@@ -75,7 +74,7 @@ def _update_env_file(new_token: str) -> None:
     with open(env_path, 'w', encoding='utf-8') as f:
         f.writelines(lines)
 
-    print(f"[TOKEN] ✓ Updated .env file with new token")
+    print("[TOKEN] ✓ Updated .env file with new token")
 
 
 def _is_token_valid(token: str) -> bool:

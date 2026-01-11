@@ -12,17 +12,15 @@ This module provides endpoints for user management including:
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, update, delete, or_, func
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.deps import (
     get_current_active_user,
-    require_admin,
-    require_developer
+    require_admin
 )
 from app.database import get_session
-from app.models import User, UserSociety
+from app.models import User
 from app.schemas.user import (
     UserResponse,
     UserUpdate,

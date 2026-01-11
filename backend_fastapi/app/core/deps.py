@@ -158,7 +158,6 @@ async def check_society_access(
         HTTPException: If user doesn't have access
     """
     from app.models import UserSociety, Society
-    from uuid import UUID
     from sqlalchemy import and_
 
     # Developers have access to all societies
@@ -230,7 +229,6 @@ async def get_user_society_role(
         Optional[str]: User's role in society (admin, manager, member) or None
     """
     from app.models import UserSociety
-    from uuid import UUID
     from sqlalchemy import and_
 
     # Developers are treated as admins in all societies
