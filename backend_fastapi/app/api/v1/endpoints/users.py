@@ -59,7 +59,7 @@ async def list_users(
     - **role**: Filter by global role
     """
     stmt = select(User)
-    
+
     # Apply search filter
     if search:
         search_pattern = f"%{search}%"
@@ -67,17 +67,17 @@ async def list_users(
             User.full_name.ilike(search_pattern),
             User.email.ilike(search_pattern)
         ))
-    
+
     # Apply role filter
     if role:
         stmt = stmt.where(User.global_role == role)
-    
+
     # Order and pagination
     stmt = stmt.order_by(User.created_at.desc()).offset(skip).limit(limit)
-    
+
     result = await db.execute(stmt)
     users = result.scalars().all()
-    
+
     return [UserResponse.model_validate(user) for user in users]
 
 
@@ -103,17 +103,17 @@ async def get_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view your own profile"
         )
-    
+
     stmt = select(User).where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     return UserResponse.model_validate(user)
 
 
@@ -133,7 +133,7 @@ async def update_user(
     Update user details.
 
     Users can update their own profile. Admins/developers can update any user.
-    
+
     **Note**: Use dedicated endpoints for:
     - Changing password: `POST /api/auth/change-password`
     - Updating roles: `PUT /api/auth/update-role`
@@ -144,28 +144,35 @@ async def update_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only update your own profile"
         )
-    
+
     # Get existing user
     stmt = select(User).where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     # Update allowed fields
     update_data = user_update.model_dump(exclude_unset=True)
-    
+
     # Prevent non-admin users from changing their global_role
     if "global_role" in update_data and current_user.global_role not in ["admin", "developer"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You cannot change your own role"
         )
-    
+
+    # Only admins/developers can toggle activation status
+    if "is_active" in update_data and current_user.global_role not in ["admin", "developer"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You cannot change activation status"
+        )
+
     # Check email uniqueness if changing email
     if "email" in update_data and update_data["email"] != user.email:
         check_stmt = select(User).where(User.email == update_data["email"])
@@ -175,14 +182,14 @@ async def update_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
-    
+
     # Apply updates
     for field, value in update_data.items():
         setattr(user, field, value)
-    
+
     await db.commit()
     await db.refresh(user)
-    
+
     return UserResponse.model_validate(user)
 
 
@@ -201,7 +208,7 @@ async def delete_user(
     Delete a user permanently.
 
     **Permissions**: Admin or Developer
-    
+
     This will also delete all user_societies relationships.
     """
     # Prevent self-deletion
@@ -210,18 +217,18 @@ async def delete_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot delete your own account"
         )
-    
+
     # Check if user exists
     stmt = select(User).where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     # Delete user (cascade will handle user_societies)
     await db.delete(user)
     await db.commit()
@@ -239,19 +246,19 @@ async def get_user_settings(
 ):
     """
     Get the authenticated user's settings.
-    
+
     Returns notification preferences and other user-specific settings.
     """
     stmt = select(User).where(User.id == current_user.id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     # Settings is a JSON column
     settings = user.settings or {}
     return UserSettings(**settings)
@@ -270,27 +277,28 @@ async def update_user_settings(
 ):
     """
     Update the authenticated user's settings.
-    
+
     Allows updating notification preferences and other user-specific settings.
     """
     stmt = select(User).where(User.id == current_user.id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     # Update settings (merge with existing)
     current_settings = user.settings or {}
-    updated_settings = {**current_settings, **settings_update.model_dump(exclude_unset=True)}
+    updated_settings = {**current_settings, **
+                        settings_update.model_dump(exclude_unset=True)}
     user.settings = updated_settings
-    
+
     await db.commit()
     await db.refresh(user)
-    
+
     return UserSettings(**user.settings)
 
 
@@ -307,22 +315,22 @@ async def update_avatar(
 ):
     """
     Update the authenticated user's avatar URL.
-    
+
     **Note**: This endpoint expects the avatar to be uploaded separately
     (e.g., to cloud storage) and accepts the resulting URL.
     """
     stmt = select(User).where(User.id == current_user.id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     user.avatar_url = avatar_url
     await db.commit()
     await db.refresh(user)
-    
+
     return UserResponse.model_validate(user)

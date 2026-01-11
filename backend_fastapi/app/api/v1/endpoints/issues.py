@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_active_user, check_society_access
 from app.database import get_session
-from app.models import Issue, IssueComment, UserSociety
+from app.models import Issue, IssueComment, UserSociety, Society
 from app.schemas.issue import (
     IssueResponse,
     IssueCreate,
@@ -55,7 +55,7 @@ async def list_issues(
         stmt_societies = select(UserSociety.society_id).where(
             and_(
                 UserSociety.user_id == current_user.id,
-                UserSociety.status == "approved"
+                UserSociety.approval_status == "approved"
             )
         )
         result = await db.execute(stmt_societies)
@@ -102,6 +102,15 @@ async def create_issue(
 
     Requires user to be a member of the society (any role).
     """
+    # Check society exists first
+    stmt = select(Society).where(Society.id == issue.society_id)
+    result = await db.execute(stmt)
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Society not found"
+        )
+
     # Check user is member of society
     await check_society_access(current_user, str(issue.society_id), db)
 
@@ -115,11 +124,10 @@ async def create_issue(
         priority=issue.priority,
         status="open",
         reported_by=current_user.id,
-        assigned_to=issue.assigned_to,
         location=issue.location,
         images=issue.images or [],
         attachment_urls=issue.attachment_urls or [],
-        issue_date=issue.issue_date or datetime.utcnow(),
+        issue_date=datetime.utcnow(),
         target_resolution_date=issue.target_resolution_date
     )
 
@@ -297,7 +305,7 @@ async def add_comment(
         and_(
             UserSociety.user_id == current_user.id,
             UserSociety.society_id == issue.society_id,
-            UserSociety.status == "approved"
+            UserSociety.approval_status == "approved"
         )
     )
     result = await db.execute(stmt)
@@ -313,7 +321,7 @@ async def add_comment(
         issue_id=issue_id,
         user_id=current_user.id,
         comment=comment.comment,
-        attachment_urls=comment.attachment_urls or []
+        attachment_url=comment.attachment_url
     )
 
     db.add(new_comment)
@@ -331,6 +339,8 @@ async def add_comment(
 )
 async def get_comments(
     issue_id: UUID,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
     current_user: UserResponse = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
@@ -351,7 +361,7 @@ async def get_comments(
         and_(
             UserSociety.user_id == current_user.id,
             UserSociety.society_id == issue.society_id,
-            UserSociety.status == "approved"
+            UserSociety.approval_status == "approved"
         )
     )
     result = await db.execute(stmt)
@@ -361,10 +371,10 @@ async def get_comments(
             detail="You don't have access to this issue"
         )
 
-    # Get comments
+    # Get comments with pagination
     stmt = select(IssueComment).where(
         IssueComment.issue_id == issue_id
-    ).order_by(IssueComment.created_at.asc())
+    ).order_by(IssueComment.created_at.asc()).offset(skip).limit(limit)
 
     result = await db.execute(stmt)
     comments = result.scalars().all()

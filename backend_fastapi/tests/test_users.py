@@ -1,61 +1,62 @@
 """
-User Management API - Comprehensive Test Suite (100% Coverage)
+User Management API - Comprehensive Test Suite
 
 ================================================================================
-COVERAGE MATRIX (7/7 Endpoints = 100%)
+COVERAGE MATRIX (7/7 Endpoints)
 ================================================================================
 
 1. GET /api/v1/users
-   - Tests: Happy path (list all), search filter, pagination (skip/limit), role filter
-   - Error cases: 403 Forbidden (non-admin), 401 Unauthorized (no token)
-   - Tested in: test_users_crud, test_list_users_with_search, test_list_users_pagination,
-               test_list_requires_admin, test_list_requires_authentication
+    - Tests: Happy path (list all), search filter, pagination (skip/limit), role filter
+    - Error cases: 403 Forbidden (non-admin), 401 Unauthorized (no token)
+    - Tested in: test_users_crud, test_list_users_with_search, test_list_users_pagination,
+                    test_list_users_role_filter, test_list_requires_admin, test_list_requires_authentication
 
 2. GET /api/v1/users/{user_id}
-   - Tests: Happy path (self access), admin access to any user
-   - Error cases: 404 Not Found, 403 Forbidden (non-admin accessing other), 401 Unauthorized
-   - Tested in: test_users_crud, test_get_user_not_found, test_get_other_user_forbidden,
-               test_get_requires_authentication
+    - Tests: Happy path (self access), admin access to any user
+    - Error cases: 404 Not Found, 403 Forbidden (non-admin accessing other), 401 Unauthorized
+    - Tested in: test_users_crud, test_get_user_not_found, test_get_other_user_forbidden,
+                    test_get_requires_authentication
 
 3. PUT /api/v1/users/{user_id}
-   - Tests: Happy path (self update), admin update any user
-   - Error cases: 404 Not Found, 403 Forbidden (non-admin updating other), 401 Unauthorized,
-                 400 Bad Request (duplicate email, invalid data)
-   - Tested in: test_users_crud, test_update_user_not_found, test_update_other_user_forbidden,
-               test_update_duplicate_email, test_update_requires_authentication
+    - Tests: Happy path (self update), admin update any user
+    - Error cases: 404 Not Found, 403 Forbidden (non-admin updating other), 401 Unauthorized,
+                      400 Bad Request (duplicate email, invalid data)
+    - Tested in: test_users_crud, test_update_user_not_found, test_update_other_user_forbidden,
+                    test_update_duplicate_email, test_update_requires_authentication
 
 4. DELETE /api/v1/users/{user_id}
-   - Tests: Happy path (admin delete), cascade delete relationships
-   - Error cases: 404 Not Found, 403 Forbidden (non-admin), 400 Bad Request (self-delete),
-                 401 Unauthorized
-   - Tested in: test_users_crud, test_delete_user_not_found, test_delete_requires_admin,
-               test_delete_self_prevented, test_delete_requires_authentication
+    - Tests: Happy path (admin delete), cascade delete relationships
+    - Error cases: 404 Not Found, 403 Forbidden (non-admin), 400 Bad Request (self-delete),
+                      401 Unauthorized
+    - Tested in: test_users_crud, test_delete_user_not_found, test_delete_requires_admin,
+                    test_delete_self_prevented, test_delete_requires_authentication
 
 5. GET /api/v1/users/profile/settings
-   - Tests: Happy path (get settings)
-   - Error cases: 401 Unauthorized
-   - Tested in: test_user_settings, test_settings_requires_authentication
+    - Tests: Happy path (get settings)
+    - Error cases: 401 Unauthorized
+    - Tested in: test_user_settings, test_settings_requires_authentication
 
 6. PUT /api/v1/users/profile/settings
-   - Tests: Happy path (update settings), settings persistence
-   - Error cases: 401 Unauthorized
-   - Tested in: test_user_settings, test_settings_requires_authentication
+    - Tests: Happy path (update settings), settings persistence
+    - Error cases: 401 Unauthorized
+    - Tested in: test_user_settings, test_settings_requires_authentication
 
 7. POST /api/v1/users/profile/avatar
-   - Tests: Happy path (update avatar), avatar persistence, URL storage
-   - Error cases: 401 Unauthorized
-   - Tested in: test_user_avatar, test_avatar_requires_authentication
+    - Tests: Happy path (update avatar), avatar persistence, URL storage
+    - Error cases: 401 Unauthorized
+    - Tested in: test_user_avatar, test_avatar_requires_authentication
 
 ================================================================================
-SCENARIO COVERAGE (14 Tests)
+SCENARIO COVERAGE (20 Tests)
 ================================================================================
 
-HAPPY PATH (5 tests):
+HAPPY PATH (6 tests):
 ✅ test_users_crud - Full CRUD workflow (create, list, get, update, delete)
 ✅ test_user_settings - Settings get/update
 ✅ test_user_avatar - Avatar update and persistence
 ✅ test_list_users_with_search - Search filtering
 ✅ test_list_users_pagination - Pagination with skip/limit
+✅ test_list_users_role_filter - Role filter
 
 ERROR SCENARIOS (6 tests):
 ✅ test_get_user_not_found - 404 for non-existent user
@@ -65,7 +66,7 @@ ERROR SCENARIOS (6 tests):
 ✅ test_update_other_user_forbidden - 403 when non-admin updates other user
 ✅ test_delete_self_prevented - 400 when admin tries to delete self
 
-PERMISSION SCENARIOS (6 tests):
+PERMISSION SCENARIOS (8 tests):
 ✅ test_list_requires_admin - 403 when non-admin lists users
 ✅ test_delete_requires_admin - 403 when non-admin deletes user
 ✅ test_list_requires_authentication - 401 without token
@@ -79,7 +80,7 @@ DATA VALIDATION (1 test):
 ✅ test_update_duplicate_email - 400 when updating to existing email
 
 ================================================================================
-CLEANUP GUARANTEE (100%)
+CLEANUP GUARANTEE
 ================================================================================
 
 All tests that create users have explicit cleanup:
@@ -393,6 +394,34 @@ async def test_list_users_pagination():
         assert resp.status_code == 204, resp.text
 
 
+@pytest.mark.asyncio
+async def test_list_users_role_filter():
+    """
+    HAPPY PATH: Role filter
+    Endpoint: GET /api/v1/users?role=member
+
+    Verifies: Role filter returns only matching users and includes newly created member
+    Cleanup: User deleted at test end
+    """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with _get_client() as client:
+        user_id, _, _ = await _create_user_and_login(client)
+
+        resp = await client.get("/api/v1/users?role=member", headers=dev_headers)
+        assert resp.status_code == 200, "Role filter request succeeds"
+        users = resp.json()
+        assert any(
+            u["id"] == user_id for u in users), "Created member included"
+        assert all(u.get("global_role") ==
+                   "member" for u in users), "Only members returned"
+        await asyncio.sleep(2)
+
+        resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+
+
 # ============================================================================
 # ERROR SCENARIO TESTS (6 tests - 404, 403, 400 errors)
 # ============================================================================
@@ -441,18 +470,17 @@ async def test_update_user_not_found():
 
     Verifies: Updating non-existent user returns 404
     """
-    user_token = "fake_token"
-    user_headers = {"Authorization": f"Bearer {user_token}"}
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
     async with _get_client() as client:
         fake_id = str(uuid.uuid4())
         resp = await client.put(
             f"/api/v1/users/{fake_id}",
-            headers=user_headers,
+            headers=dev_headers,
             json={"full_name": "Updated"}
         )
-        # 401 from bad token, not 404
-        assert resp.status_code in [401, 404], "Bad request"
+        assert resp.status_code == 404, "Non-existent user returns 404"
 
 
 @pytest.mark.asyncio

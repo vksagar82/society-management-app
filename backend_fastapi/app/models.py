@@ -312,8 +312,6 @@ class Asset(Base):
     purchase_date = Column(Date, nullable=True)
     purchase_cost = Column(Numeric(12, 2), nullable=True)
     warranty_expiry_date = Column(Date, nullable=True)
-    amc_id = Column(PG_UUID(as_uuid=True),
-                    ForeignKey("amcs.id"), nullable=True)
     location = Column(String(255), nullable=True)
     asset_code = Column(String(100), unique=True, nullable=True)
     image_url = Column(Text, nullable=True)
@@ -335,7 +333,8 @@ class Asset(Base):
     category = relationship("AssetCategory", back_populates="assets")
     created_by_user = relationship(
         "User", back_populates="assets", foreign_keys=[created_by])
-    amc = relationship("AMC", foreign_keys=[amc_id])
+    amcs = relationship("AMC", back_populates="asset",
+                        foreign_keys="AMC.asset_id")
 
 
 class AMC(Base):
@@ -355,6 +354,8 @@ class AMC(Base):
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     society_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "societies.id", ondelete="CASCADE"), nullable=False)
+    asset_id = Column(PG_UUID(as_uuid=True), ForeignKey(
+        "assets.id", ondelete="CASCADE"), nullable=True)
     vendor_name = Column(String(255), nullable=False)
     vendor_code = Column(String(100), nullable=True)
     service_type = Column(String(255), nullable=False)
@@ -388,6 +389,8 @@ class AMC(Base):
 
     # Relationships
     society = relationship("Society", back_populates="amcs")
+    asset = relationship("Asset", back_populates="amcs",
+                         foreign_keys=[asset_id])
     created_by_user = relationship(
         "User", back_populates="amcs_created", foreign_keys=[created_by])
     service_history = relationship(

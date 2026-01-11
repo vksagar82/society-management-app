@@ -7,7 +7,6 @@ This module defines Pydantic models for AMC management operations.
 from datetime import datetime, date
 from typing import Optional
 from uuid import UUID
-from decimal import Decimal
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -27,7 +26,7 @@ class AMCBase(BaseModel):
         None, max_length=255, description="Purchase order number")
     contract_start_date: date = Field(..., description="Contract start date")
     contract_end_date: date = Field(..., description="Contract end date")
-    annual_cost: Optional[Decimal] = Field(
+    annual_cost: Optional[float] = Field(
         None, ge=0, description="Annual cost")
     currency: str = Field(default="INR", max_length=10,
                           description="Currency code")
@@ -54,6 +53,8 @@ class AMCBase(BaseModel):
     renewal_reminder_days: int = Field(
         default=30, ge=1, description="Renewal reminder days")
     notes: Optional[str] = Field(None, description="Additional notes")
+    asset_id: Optional[UUID] = Field(
+        None, description="Asset ID (optional, for asset-specific AMCs)")
 
 
 class AMCCreate(AMCBase):
@@ -73,7 +74,7 @@ class AMCUpdate(BaseModel):
     po_number: Optional[str] = Field(None, max_length=255)
     contract_start_date: Optional[date] = None
     contract_end_date: Optional[date] = None
-    annual_cost: Optional[Decimal] = Field(None, ge=0)
+    annual_cost: Optional[float] = Field(None, ge=0)
     currency: Optional[str] = Field(None, max_length=10)
     payment_terms: Optional[str] = None
     document_url: Optional[str] = None
@@ -93,6 +94,7 @@ class AMCUpdate(BaseModel):
         description="Status: active, expired, pending_renewal, cancelled"
     )
     notes: Optional[str] = None
+    asset_id: Optional[UUID] = None
 
 
 class AMCResponse(AMCBase):
@@ -100,6 +102,7 @@ class AMCResponse(AMCBase):
 
     id: UUID
     society_id: UUID
+    asset_id: Optional[UUID] = None
     last_service_date: Optional[date] = None
     next_service_date: Optional[date] = None
     service_reminder_days: int = 7
@@ -123,7 +126,7 @@ class AMCServiceHistoryBase(BaseModel):
         None, max_length=255, description="Technician name")
     work_performed: Optional[str] = Field(None, description="Work performed")
     issues_found: Optional[str] = Field(None, description="Issues found")
-    service_cost: Optional[Decimal] = Field(
+    service_cost: Optional[float] = Field(
         None, ge=0, description="Service cost")
     invoice_number: Optional[str] = Field(
         None, max_length=255, description="Invoice number")

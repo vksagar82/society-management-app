@@ -52,7 +52,7 @@ async def list_amcs(
         stmt_societies = select(UserSociety.society_id).where(
             and_(
                 UserSociety.user_id == current_user.id,
-                UserSociety.status == "approved"
+                UserSociety.approval_status == "approved"
             )
         )
         result = await db.execute(stmt_societies)
@@ -105,7 +105,7 @@ async def create_amc(
         action="create AMCs in this society"
     )
 
-    # Verify asset exists and belongs to same society
+    # Verify asset exists and belongs to same society (if asset_id provided)
     if amc.asset_id:
         stmt = select(Asset).where(
             and_(
@@ -123,24 +123,33 @@ async def create_amc(
     new_amc = AMC(
         id=uuid4(),
         society_id=amc.society_id,
-        asset_id=amc.asset_id,
         vendor_name=amc.vendor_name,
-        vendor_contact=amc.vendor_contact,
-        vendor_email=amc.vendor_email,
-        contract_type=amc.contract_type,
-        description=amc.description,
-        start_date=amc.start_date,
-        end_date=amc.end_date,
-        renewal_date=amc.renewal_date,
-        amount=amc.amount,
-        payment_frequency=amc.payment_frequency,
-        terms_and_conditions=amc.terms_and_conditions,
-        coverage_details=amc.coverage_details,
-        service_frequency=amc.service_frequency,
-        last_service_date=amc.last_service_date,
-        next_service_date=amc.next_service_date,
-        status=amc.status or "active",
-        document_urls=amc.document_urls or []
+        vendor_code=getattr(amc, "vendor_code", None),
+        service_type=amc.service_type,
+        work_order_number=getattr(amc, "work_order_number", None),
+        invoice_number=getattr(amc, "invoice_number", None),
+        po_number=getattr(amc, "po_number", None),
+        contract_start_date=amc.contract_start_date,
+        contract_end_date=amc.contract_end_date,
+        annual_cost=getattr(amc, "annual_cost", None),
+        currency=getattr(amc, "currency", "INR"),
+        payment_terms=getattr(amc, "payment_terms", None),
+        document_url=getattr(amc, "document_url", None),
+        contact_person=getattr(amc, "contact_person", None),
+        contact_phone=getattr(amc, "contact_phone", None),
+        email=getattr(amc, "email", None),
+        vendor_address=getattr(amc, "vendor_address", None),
+        gst_number=getattr(amc, "gst_number", None),
+        maintenance_frequency=getattr(amc, "maintenance_frequency", None),
+        maintenance_interval_months=getattr(
+            amc, "maintenance_interval_months", None),
+        last_service_date=getattr(amc, "last_service_date", None),
+        next_service_date=getattr(amc, "next_service_date", None),
+        service_reminder_days=getattr(amc, "service_reminder_days", 7),
+        renewal_reminder_days=getattr(amc, "renewal_reminder_days", 30),
+        status=getattr(amc, "status", "active"),
+        notes=getattr(amc, "notes", None),
+        created_by=current_user.id,
     )
 
     db.add(new_amc)
@@ -329,16 +338,18 @@ async def add_service_history(
         id=uuid4(),
         amc_id=amc_id,
         service_date=service.service_date,
-        performed_by=service.performed_by,
-        service_type=service.service_type,
-        description=service.description,
-        issues_found=service.issues_found,
-        actions_taken=service.actions_taken,
-        parts_replaced=service.parts_replaced or [],
-        next_service_date=service.next_service_date,
-        cost=service.cost,
-        remarks=service.remarks,
-        document_urls=service.document_urls or []
+        service_type=getattr(service, 'service_type', None),
+        technician_name=getattr(service, 'technician_name', None),
+        work_performed=getattr(service, 'work_performed', None),
+        issues_found=getattr(service, 'issues_found', None),
+        service_cost=getattr(service, 'service_cost', None),
+        invoice_number=getattr(service, 'invoice_number', None),
+        service_report_url=getattr(service, 'service_report_url', None),
+        next_service_date=getattr(service, 'next_service_date', None),
+        rating=getattr(service, 'rating', None),
+        feedback=getattr(service, 'feedback', None),
+        notes=getattr(service, 'notes', None),
+        created_by=current_user.id
     )
 
     db.add(new_service)

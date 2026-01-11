@@ -49,6 +49,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=2, max_length=255)
     avatar_url: Optional[str] = None
     settings: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
 
 
 class UserResponse(UserBase):

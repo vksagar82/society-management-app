@@ -75,7 +75,6 @@ class AssetCreate(AssetBase):
 
     society_id: UUID = Field(..., description="Society ID")
     category_id: Optional[UUID] = Field(None, description="Asset category ID")
-    amc_id: Optional[UUID] = Field(None, description="AMC ID")
 
 
 class AssetUpdate(BaseModel):
@@ -87,7 +86,6 @@ class AssetUpdate(BaseModel):
     purchase_date: Optional[date] = None
     purchase_cost: Optional[Decimal] = Field(None, ge=0)
     warranty_expiry_date: Optional[date] = None
-    amc_id: Optional[UUID] = None
     location: Optional[str] = Field(None, max_length=255)
     asset_code: Optional[str] = Field(None, max_length=100)
     image_url: Optional[str] = None
@@ -107,7 +105,6 @@ class AssetResponse(AssetBase):
     id: UUID
     society_id: UUID
     category_id: Optional[UUID] = None
-    amc_id: Optional[UUID] = None
     status: str = Field(default="active")
     last_maintenance_date: Optional[date] = None
     next_maintenance_date: Optional[date] = None

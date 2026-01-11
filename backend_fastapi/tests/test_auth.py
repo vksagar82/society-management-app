@@ -1,62 +1,64 @@
 """
-Authentication API - Comprehensive Test Suite (100% Coverage)
+Authentication API - Comprehensive Test Suite
 
 ================================================================================
-COVERAGE MATRIX (7/7 Endpoints = 100%)
+COVERAGE MATRIX (7/7 Endpoints)
 ================================================================================
 
 1. POST /api/v1/auth/signup
-   - Tests: Happy path (create user), validation (duplicate email/phone, weak password)
-   - Error cases: 400 Bad Request (duplicate), 422 Unprocessable Entity (invalid data)
-   - Tested in: test_auth_signup, test_signup_duplicate_email, test_signup_duplicate_phone,
-               test_signup_weak_password, test_signup_invalid_phone, test_signup_with_society
+    - Tests: Happy path (create user), validation (duplicate email/phone, weak/invalid data), optional society
+    - Error cases: 400 Bad Request (duplicate), 422 Unprocessable Entity (invalid data)
+    - Tested in: test_auth_signup, test_signup_duplicate_email, test_signup_duplicate_phone,
+                    test_signup_weak_password, test_signup_invalid_phone, test_signup_with_society
 
 2. POST /api/v1/auth/login
-   - Tests: Happy path (successful login), error cases (invalid email, wrong password, inactive user)
-   - Error cases: 401 Unauthorized (invalid credentials), 403 Forbidden (inactive user)
-   - Tested in: test_auth_login, test_login_invalid_email, test_login_invalid_password,
-               test_login_inactive_user
+    - Tests: Happy path (successful login), error cases (invalid email, wrong password, inactive user)
+    - Error cases: 401 Unauthorized (invalid credentials), 403 Forbidden (inactive user)
+    - Tested in: test_auth_login, test_login_invalid_email, test_login_invalid_password,
+                    test_login_inactive_user
 
 3. POST /api/v1/auth/refresh
-   - Tests: Happy path (token refresh), invalid/expired token handling
-   - Error cases: 401 Unauthorized (invalid token)
-   - Tested in: test_token_refresh, test_refresh_invalid_token, test_refresh_expired_token
+    - Tests: Happy path (token refresh), invalid/expired token handling
+    - Error cases: 401 Unauthorized (invalid token)
+    - Tested in: test_token_refresh, test_refresh_invalid_token, test_refresh_expired_token
 
 4. GET /api/v1/auth/me
-   - Tests: Happy path (get current user), unauthenticated access
-   - Error cases: 401/403 Forbidden (no auth)
-   - Tested in: test_get_me, test_get_me_unauthenticated, test_get_me_token_expired
+    - Tests: Happy path (get current user), unauthenticated access
+    - Error cases: 401/403 Forbidden (no auth)
+    - Tested in: test_get_me, test_get_me_unauthenticated, test_get_me_token_expired
 
 5. POST /api/v1/auth/change-password
-   - Tests: Happy path (change password), validation (wrong current password)
-   - Error cases: 400 Bad Request (wrong current password), 401 Unauthorized (no auth)
-   - Tested in: test_change_password, test_change_password_wrong_current,
-               test_change_password_requires_auth
+    - Tests: Happy path (change password), validation (wrong current password)
+    - Error cases: 400 Bad Request (wrong current password), 401 Unauthorized (no auth)
+    - Tested in: test_change_password, test_change_password_wrong_current,
+                    test_change_password_requires_auth
 
 6. POST /api/v1/auth/forgot-password
-   - Tests: Happy path (request reset), non-existent email (silent failure)
-   - Error cases: None (always returns 200 for security)
-   - Tested in: test_forgot_password, test_forgot_password_nonexistent_email
+    - Tests: Happy path (request reset), non-existent email (silent failure)
+    - Error cases: None (always returns 200 for security)
+    - Tested in: test_forgot_password, test_forgot_password_nonexistent_email
 
 7. POST /api/v1/auth/reset-password
-   - Tests: Happy path (reset password), invalid/expired token
-   - Error cases: 400 Bad Request (invalid token, expired token)
-   - Tested in: test_reset_password, test_reset_password_invalid_token
+    - Tests: Happy path (reset password), invalid/expired token handling, regression invalid-token path
+    - Error cases: 400 Bad Request (invalid token, expired token)
+    - Tested in: test_reset_password_success, test_reset_password_invalid_token,
+                    test_reset_password_expired_token, test_reset_password
 
 ================================================================================
-SCENARIO COVERAGE (23 Tests)
+SCENARIO COVERAGE (25 Tests)
 ================================================================================
 
-HAPPY PATH (7 tests):
+HAPPY PATH (8 tests):
 ✅ test_auth_signup - User registration with email, phone, name, password
 ✅ test_auth_login - User authentication returning access/refresh tokens
 ✅ test_token_refresh - Generate new access token from refresh token
 ✅ test_get_me - Retrieve current authenticated user profile
 ✅ test_change_password - Update password for authenticated user
-✅ test_forgot_password - Request password reset link
-✅ test_reset_password - Reset password with valid token
+✅ test_forgot_password - Request password reset link (200 even for unknown email)
+✅ test_reset_password_success - Reset password using a valid token
+✅ test_signup_with_society - Signup succeeds when optional society_id is provided
 
-ERROR SCENARIOS (10 tests):
+ERROR SCENARIOS (12 tests):
 ✅ test_signup_duplicate_email - 400 when email already exists
 ✅ test_signup_duplicate_phone - 400 when phone already exists
 ✅ test_signup_weak_password - 422 when password doesn't meet requirements
@@ -65,8 +67,10 @@ ERROR SCENARIOS (10 tests):
 ✅ test_login_invalid_password - 401 when password is wrong
 ✅ test_login_inactive_user - 403 when user account is disabled
 ✅ test_change_password_wrong_current - 400 when current password is wrong
+✅ test_reset_password - Regression coverage for invalid token path
 ✅ test_reset_password_invalid_token - 400 when reset token is invalid
 ✅ test_reset_password_expired_token - 400 when reset token expired
+✅ test_refresh_expired_token - 401 when refresh token expired
 
 PERMISSION/AUTHENTICATION (4 tests):
 ✅ test_get_me_unauthenticated - 403 without token
@@ -74,12 +78,11 @@ PERMISSION/AUTHENTICATION (4 tests):
 ✅ test_refresh_invalid_token - 401 with invalid refresh token
 ✅ test_change_password_requires_auth - 401/403 without token
 
-DATA VALIDATION (2 tests):
-✅ test_signup_with_society - Optional society_id parameter handling
+DATA VALIDATION (1 test):
 ✅ test_forgot_password_nonexistent_email - Security: non-existent email returns success
 
 ================================================================================
-CLEANUP GUARANTEE (100%)
+CLEANUP GUARANTEE
 ================================================================================
 
 All tests that create users have explicit cleanup:
@@ -93,7 +96,7 @@ Token Cleanup: Reset tokens and refresh tokens cleared in password operations
 TESTING APPROACH
 ================================================================================
 
-HTTP Client Testing: Tests use httpx.AsyncClient(base_url=APP_BASE_URL)
+HTTP Client Testing: Tests use httpx.AsyncClient(base_url=APP_BASE_URL) and httpx.AsyncClient(app=app)
 - Executes full request/response cycle
 - Tests actual API behavior including auth validation
 - Password hashing verified by login success/failure
@@ -111,8 +114,12 @@ import asyncio
 import httpx
 import pytest
 from jose import jwt
+from sqlalchemy import select
 
 from config import settings
+from main import app
+from app.database import AsyncSessionLocal
+from app.models import User
 from tests.conftest import DEV_USER_ID
 
 
@@ -389,6 +396,111 @@ async def test_reset_password():
         assert resp.status_code == 204, "User cleanup successful"
 
 
+@pytest.mark.asyncio
+async def test_reset_password_success(monkeypatch):
+    """HAPPY PATH: Reset password end-to-end with captured token."""
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    token_holder = {}
+
+    async def _stub_send_password_reset_email(email, reset_token, *_, **__):
+        token_holder["token"] = reset_token
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.send_password_reset_email",
+        _stub_send_password_reset_email,
+    )
+
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+        email = f"reset-success-{uuid.uuid4().hex[:8]}@example.com"
+        password = "ResetOld123!"
+
+        signup_resp = await client.post(
+            "/api/v1/auth/signup",
+            json={"email": email, "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                  "full_name": "Reset User", "password": password},
+        )
+        assert signup_resp.status_code == 201, signup_resp.text
+        user_id = signup_resp.json()["id"]
+
+        fp_resp = await client.post(
+            "/api/v1/auth/forgot-password", json={"email": email}
+        )
+        assert fp_resp.status_code == 200, fp_resp.text
+        assert token_holder.get("token"), "Reset token captured"
+
+        new_password = "ResetNew123!"
+        reset_resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": token_holder["token"],
+                  "new_password": new_password},
+        )
+        assert reset_resp.status_code == 200, reset_resp.text
+
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": new_password},
+        )
+        assert login_resp.status_code == 200, login_resp.text
+
+        cleanup_resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert cleanup_resp.status_code == 204, cleanup_resp.text
+
+
+@pytest.mark.asyncio
+async def test_reset_password_expired_token(monkeypatch):
+    """ERROR: 400 Bad Request - Expired reset token."""
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    token_holder = {}
+
+    async def _stub_send_password_reset_email(email, reset_token, *_, **__):
+        token_holder["token"] = reset_token
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.send_password_reset_email",
+        _stub_send_password_reset_email,
+    )
+
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+        email = f"reset-expired-{uuid.uuid4().hex[:8]}@example.com"
+        password = "ResetOld123!"
+
+        signup_resp = await client.post(
+            "/api/v1/auth/signup",
+            json={"email": email, "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                  "full_name": "Reset User", "password": password},
+        )
+        assert signup_resp.status_code == 201, signup_resp.text
+        user_id = signup_resp.json()["id"]
+
+        fp_resp = await client.post(
+            "/api/v1/auth/forgot-password", json={"email": email}
+        )
+        assert fp_resp.status_code == 200, fp_resp.text
+        assert token_holder.get("token"), "Reset token captured"
+
+        # Force expiry in the database
+        async with AsyncSessionLocal() as session:
+            user_obj = await session.scalar(select(User).where(User.email == email))
+            assert user_obj is not None
+            user_obj.reset_token_expiry = datetime.utcnow() - timedelta(hours=1)
+            await session.commit()
+
+        reset_resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": token_holder["token"],
+                  "new_password": "Expired123!"},
+        )
+        assert reset_resp.status_code == 400, reset_resp.text
+        assert "expired" in reset_resp.json().get("detail", "").lower()
+
+        cleanup_resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert cleanup_resp.status_code == 204, cleanup_resp.text
+
+
 # ============================================================================
 # ERROR SCENARIO TESTS (10 tests - 400, 401, 403, 422 errors)
 # ============================================================================
@@ -528,10 +640,11 @@ async def test_login_inactive_user():
         assert resp.status_code == 200
         await asyncio.sleep(1)
 
-        resp = await client.post("/api/v1/auth/login",
-                                 json={"email": email, "password": password})
-        assert resp.status_code in [
-            200, 403], f"Login returned {resp.status_code}"
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": password},
+        )
+        assert resp.status_code == 403, f"Inactive login should be forbidden, got {resp.status_code}"
         await asyncio.sleep(1)
 
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)

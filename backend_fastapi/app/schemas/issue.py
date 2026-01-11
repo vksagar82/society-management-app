@@ -80,9 +80,9 @@ class IssueCommentBase(BaseModel):
 
 
 class IssueCommentCreate(IssueCommentBase):
-    """Schema for creating issue comment."""
+    """Schema for creating issue comment (issue_id is in path)."""
 
-    issue_id: UUID = Field(..., description="Issue ID")
+    pass
 
 
 class IssueCommentResponse(IssueCommentBase):

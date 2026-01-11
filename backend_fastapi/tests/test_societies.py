@@ -1,69 +1,75 @@
 """
-Society Management API - Comprehensive Test Suite (100% Endpoint Coverage)
+Society Management API - Comprehensive Test Suite
 
 ================================================================================
-COVERAGE MATRIX (8/8 Endpoints = 100%)
+COVERAGE MATRIX (9/9 Endpoints)
 ================================================================================
 
 1. GET /api/v1/societies
-   - Tests: Happy path (list all - dev/user), search filter, pagination (skip/limit)
-   - Error cases: 403 Forbidden (no token)
-   - Tested in: test_societies_crud, test_list_societies_with_search,
-               test_list_societies_pagination, test_list_societies_as_regular_user,
-               test_list_requires_authentication
+    - Tests: Happy path (list all - dev/user), search filter, pagination (skip/limit)
+    - Error cases: 403 Forbidden (no token)
+    - Tested in: test_societies_crud, test_list_societies_with_search,
+                    test_list_societies_pagination, test_list_societies_as_regular_user,
+                    test_list_requires_authentication
 
 2. POST /api/v1/societies
-   - Tests: Happy path (create society), creator becomes admin
-   - Error cases: 400 Bad Request (invalid data), 403 Forbidden (no token)
-   - Tested in: test_societies_crud, test_create_duplicate_society,
-               test_create_requires_authentication, test_create_invalid_data,
-               test_update_society_info, test_join_society, test_approve_society_member,
-               test_reject_society_member, test_get_society_members
+    - Tests: Happy path (create society), creator becomes admin
+    - Error cases: 400 Bad Request (invalid data), 403 Forbidden (no token)
+    - Tested in: test_societies_crud, test_create_duplicate_society,
+                    test_create_requires_authentication, test_create_invalid_data,
+                    test_update_society_info, test_join_society, test_approve_society_member,
+                    test_reject_society_member, test_get_society_members,
+                    test_join_pending_society_requires_developer
 
 3. GET /api/v1/societies/{society_id}
-   - Tests: Happy path (view details)
-   - Error cases: 404 Not Found, 403 Forbidden (no token)
-   - Tested in: test_societies_crud, test_get_society_not_found,
-               test_get_requires_authentication
+    - Tests: Happy path (view details)
+    - Error cases: 404 Not Found, 403 Forbidden (no token)
+    - Tested in: test_societies_crud, test_get_society_not_found,
+                    test_get_requires_authentication
 
 4. PUT /api/v1/societies/{society_id}
-   - Tests: Happy path (update), admin-only validation, multiple fields
-   - Error cases: 404 Not Found, 403 Forbidden (non-admin/no token)
-   - Tested in: test_societies_crud, test_update_society_not_found,
-               test_update_requires_admin, test_update_multiple_fields,
-               test_update_requires_authentication
+    - Tests: Happy path (update), admin-only validation, multiple fields
+    - Error cases: 404 Not Found, 403 Forbidden (non-admin/no token)
+    - Tested in: test_societies_crud, test_update_society_not_found,
+                    test_update_requires_admin, test_update_multiple_fields,
+                    test_update_requires_authentication, test_get_society_members_status_filter
 
 5. DELETE /api/v1/societies/{society_id}
-   - Tests: Happy path (delete with cascade), admin-only validation
-   - Error cases: 404 Not Found, 403 Forbidden (non-admin/no token)
-   - Tested in: test_societies_crud, test_delete_society_not_found,
-               test_delete_requires_admin, test_delete_requires_authentication
+    - Tests: Happy path (delete with cascade), admin-only validation
+    - Error cases: 404 Not Found, 403 Forbidden (non-admin/no token)
+    - Tested in: test_societies_crud, test_delete_society_not_found,
+                    test_delete_requires_admin, test_delete_requires_authentication
 
 6. POST /api/v1/societies/{society_id}/join
-   - Tests: Happy path (user joins), prevents duplicate joins
-   - Error cases: 404 Not Found, 400 Conflict (duplicate join), 403 Forbidden (no token)
-   - Tested in: test_join_society, test_join_duplicate_prevented,
-               test_join_not_found, test_join_requires_authentication,
-               test_list_societies_as_regular_user
+    - Tests: Happy path (user joins), prevents duplicate joins
+    - Error cases: 404 Not Found, 400 Conflict (duplicate join), 403 Forbidden (no token/pending)
+    - Tested in: test_join_society, test_join_duplicate_prevented,
+                    test_join_not_found, test_join_requires_authentication,
+                    test_list_societies_as_regular_user, test_join_pending_society_requires_developer
 
 7. GET /api/v1/societies/{society_id}/members
-   - Tests: Happy path (list members), filter by status
-   - Error cases: 200 OK with empty list (non-existent society), 403 Forbidden (no token)
-   - Tested in: test_get_society_members, test_members_not_found,
-               test_members_requires_authentication
+    - Tests: Happy path (list members), filter by status
+    - Error cases: 200 OK with empty list (non-existent society), 403 Forbidden (no token)
+    - Tested in: test_get_society_members, test_members_not_found,
+                    test_members_requires_authentication, test_get_society_members_status_filter
 
 8. POST /api/v1/societies/{society_id}/approve
-   - Tests: Happy path (approve/reject membership), admin-only
-   - Error cases: 403 Forbidden (non-admin/no token)
-   - Tested in: test_approve_society_member, test_reject_society_member,
-               test_approve_requires_admin, test_approve_requires_authentication,
-               test_list_societies_as_regular_user
+    - Tests: Happy path (approve/reject membership), admin-only
+    - Error cases: 403 Forbidden (non-admin/no token)
+    - Tested in: test_approve_society_member, test_reject_society_member,
+                    test_approve_requires_admin, test_approve_requires_authentication,
+                    test_list_societies_as_regular_user, test_get_society_members_status_filter
+
+9. POST /api/v1/societies/{society_id}/approve-society
+    - Tests: Developer approves pending society
+    - Error cases: 403 Forbidden (non-developer)
+    - Tested in: test_approve_pending_society_by_developer
 
 ================================================================================
-SCENARIO COVERAGE (28 Tests)
+SCENARIO COVERAGE (31 Tests)
 ================================================================================
 
-HAPPY PATH (9 tests):
+HAPPY PATH (11 tests):
 ✅ test_societies_crud - Full CRUD workflow (create, list, get, update, delete)
 ✅ test_list_societies_with_search - Search filtering
 ✅ test_list_societies_pagination - Pagination with skip/limit
@@ -72,15 +78,18 @@ HAPPY PATH (9 tests):
 ✅ test_approve_society_member - Admin approves membership request
 ✅ test_reject_society_member - Admin rejects membership request
 ✅ test_get_society_members - List members with various statuses
+✅ test_get_society_members_status_filter - Status filter (pending/approved/rejected)
 ✅ test_update_society_info - Full update with multiple fields
+✅ test_approve_pending_society_by_developer - Developer approves pending society
 
-ERROR SCENARIOS (6 tests):
+ERROR SCENARIOS (7 tests):
 ✅ test_get_society_not_found - 404 for non-existent society
 ✅ test_delete_society_not_found - 404 when deleting non-existent society
 ✅ test_update_society_not_found - 404 when updating non-existent society
 ✅ test_members_not_found - 200 OK with empty list for non-existent society
 ✅ test_join_not_found - 404 when joining non-existent society
 ✅ test_create_invalid_data - 422 Unprocessable Entity when invalid data provided
+✅ test_join_pending_society_requires_developer - 403 when joining pending society as non-developer
 
 PERMISSION SCENARIOS (10 tests):
 ✅ test_update_requires_admin - 403 when non-admin updates society
@@ -100,7 +109,7 @@ DATA VALIDATION (3 tests):
 ✅ test_update_multiple_fields - Update with full field set
 
 ================================================================================
-CLEANUP GUARANTEE (100%)
+CLEANUP GUARANTEE
 ================================================================================
 
 All tests that create societies have explicit cleanup:
@@ -118,8 +127,8 @@ TESTING APPROACH
 
 In-Process Testing: Tests use httpx.AsyncClient(app=app, base_url="http://test")
 - Executes endpoint code in the same process as tests
-- Enables accurate code coverage tracking (47% line coverage achieved)
-- All 8 API endpoints covered with comprehensive scenarios
+- Enables accurate code coverage tracking
+- All 9 API endpoints covered with comprehensive scenarios
 - No external server required for coverage measurement
 """
 
@@ -249,6 +258,196 @@ async def _create_society(client: httpx.AsyncClient, headers: dict, name_prefix:
     assert resp.status_code == 201, resp.text
     society_id = resp.json()["id"]
     return society_id, society_data
+
+
+@pytest.mark.asyncio
+async def test_approve_pending_society_by_developer():
+    """
+    HAPPY PATH: Developer approves pending society
+    Endpoints: POST /api/v1/societies (member), POST /api/v1/societies/{id}/approve-society
+
+    Verifies: Pending society created by a member can be approved by developer
+    Cleanup: Deletes user and society
+    """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+        # Member creates pending society
+        member_id, member_token, _ = await _create_user_and_login(client)
+        member_headers = {"Authorization": f"Bearer {member_token}"}
+
+        create_resp = await client.post(
+            "/api/v1/societies",
+            json={
+                "name": f"PendingSociety-{uuid.uuid4().hex[:8]}",
+                "address": "12 Pending St",
+                "city": "Pending",
+                "state": "PN",
+                "pincode": "111111",
+            },
+            headers=member_headers,
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        society_id = create_resp.json()["id"]
+        assert create_resp.json()["approval_status"] == "pending"
+        await asyncio.sleep(1)
+
+        # Developer approves society
+        approve_resp = await client.post(
+            f"/api/v1/societies/{society_id}/approve-society",
+            json={"approved": True},
+            headers=dev_headers,
+        )
+        assert approve_resp.status_code == 200, approve_resp.text
+        assert approve_resp.json()["approval_status"] == "approved"
+        await asyncio.sleep(1)
+
+        # Cleanup
+        resp = await client.delete(f"/api/v1/users/{member_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+
+
+@pytest.mark.asyncio
+async def test_join_pending_society_requires_developer():
+    """
+    ERROR: 403 Forbidden
+    Endpoint: POST /api/v1/societies/{society_id}/join
+
+    Verifies: Non-developers cannot join a pending society
+    """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+        creator_id, creator_token, _ = await _create_user_and_login(client)
+        creator_headers = {"Authorization": f"Bearer {creator_token}"}
+
+        create_resp = await client.post(
+            "/api/v1/societies",
+            json={
+                "name": f"PendingGuard-{uuid.uuid4().hex[:8]}",
+                "address": "10 Guard St",
+                "city": "GuardCity",
+                "state": "GC",
+                "pincode": "222222",
+            },
+            headers=creator_headers,
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        society_id = create_resp.json()["id"]
+        assert create_resp.json()["approval_status"] == "pending"
+
+        joiner_id, joiner_token, _ = await _create_user_and_login(client)
+        joiner_headers = {"Authorization": f"Bearer {joiner_token}"}
+
+        join_resp = await client.post(
+            f"/api/v1/societies/{society_id}/join",
+            headers=joiner_headers,
+        )
+        assert join_resp.status_code == 403, "Pending societies block non-developers"
+        detail_text = join_resp.json().get("detail", "").lower()
+        assert "pending" in detail_text
+
+        # Cleanup
+        resp = await client.delete(f"/api/v1/users/{joiner_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+        resp = await client.delete(f"/api/v1/users/{creator_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
+
+
+@pytest.mark.asyncio
+async def test_get_society_members_status_filter():
+    """
+    HAPPY PATH: Filter members by approval status
+    Endpoint: GET /api/v1/societies/{society_id}/members?status_filter=approved|pending|rejected
+
+    Verifies: Each status filter returns the expected memberships
+    Cleanup: Deletes users and society
+    """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+        society_id, _ = await _create_society(client, dev_headers, "StatusFilter")
+
+        # Approved member
+        approved_user_id, approved_token, _ = await _create_user_and_login(client)
+        approved_headers = {"Authorization": f"Bearer {approved_token}"}
+        join_resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=approved_headers
+        )
+        assert join_resp.status_code == 201, join_resp.text
+        approved_membership_id = join_resp.json()["id"]
+        await asyncio.sleep(1)
+        approve_resp = await client.post(
+            f"/api/v1/societies/{society_id}/approve",
+            json={"user_society_id": approved_membership_id, "approved": True},
+            headers=dev_headers,
+        )
+        assert approve_resp.status_code == 200, approve_resp.text
+
+        # Pending member
+        pending_user_id, pending_token, _ = await _create_user_and_login(client)
+        pending_headers = {"Authorization": f"Bearer {pending_token}"}
+        pending_join = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=pending_headers
+        )
+        assert pending_join.status_code == 201, pending_join.text
+        pending_membership_id = pending_join.json()["id"]
+
+        # Rejected member
+        rejected_user_id, rejected_token, _ = await _create_user_and_login(client)
+        rejected_headers = {"Authorization": f"Bearer {rejected_token}"}
+        reject_join = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=rejected_headers
+        )
+        assert reject_join.status_code == 201, reject_join.text
+        rejected_membership_id = reject_join.json()["id"]
+        reject_resp = await client.post(
+            f"/api/v1/societies/{society_id}/approve",
+            json={"user_society_id": rejected_membership_id, "approved": False},
+            headers=dev_headers,
+        )
+        assert reject_resp.status_code == 200, reject_resp.text
+
+        # Filters
+        approved_resp = await client.get(
+            f"/api/v1/societies/{society_id}/members?status_filter=approved",
+            headers=dev_headers,
+        )
+        assert approved_resp.status_code == 200
+        approved_ids = {m["id"] for m in approved_resp.json()}
+        assert approved_membership_id in approved_ids
+
+        pending_resp = await client.get(
+            f"/api/v1/societies/{society_id}/members?status_filter=pending",
+            headers=dev_headers,
+        )
+        assert pending_resp.status_code == 200
+        pending_ids = {m["id"] for m in pending_resp.json()}
+        assert pending_membership_id in pending_ids
+
+        rejected_resp = await client.get(
+            f"/api/v1/societies/{society_id}/members?status_filter=rejected",
+            headers=dev_headers,
+        )
+        assert rejected_resp.status_code == 200
+        rejected_ids = {m["id"] for m in rejected_resp.json()}
+        assert rejected_membership_id in rejected_ids
+
+        # Cleanup
+        for uid in (approved_user_id, pending_user_id, rejected_user_id):
+            resp = await client.delete(f"/api/v1/users/{uid}", headers=dev_headers)
+            assert resp.status_code == 204, resp.text
+            await asyncio.sleep(1)
+
+        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
 
 
 # ============================================================================

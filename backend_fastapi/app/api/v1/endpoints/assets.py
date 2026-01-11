@@ -68,7 +68,12 @@ async def create_category(
         )
 
     # Check if category already exists
-    stmt = select(AssetCategory).where(AssetCategory.name == category.name)
+    stmt = select(AssetCategory).where(
+        and_(
+            AssetCategory.name == category.name,
+            AssetCategory.society_id == category.society_id
+        )
+    )
     result = await db.execute(stmt)
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -79,7 +84,9 @@ async def create_category(
     new_category = AssetCategory(
         id=uuid4(),
         name=category.name,
-        description=category.description
+        description=category.description,
+        society_id=category.society_id,
+        created_by=current_user.id
     )
 
     db.add(new_category)
@@ -116,7 +123,7 @@ async def list_assets(
         stmt_societies = select(UserSociety.society_id).where(
             and_(
                 UserSociety.user_id == current_user.id,
-                UserSociety.status == "approved"
+                UserSociety.approval_status == "approved"
             )
         )
         result = await db.execute(stmt_societies)
@@ -186,19 +193,19 @@ async def create_asset(
         category_id=asset.category_id,
         name=asset.name,
         description=asset.description,
-        location=asset.location,
         purchase_date=asset.purchase_date,
         purchase_cost=asset.purchase_cost,
-        current_value=asset.current_value,
-        warranty_expiry=asset.warranty_expiry,
-        maintenance_schedule=asset.maintenance_schedule,
-        last_maintenance_date=asset.last_maintenance_date,
-        next_maintenance_date=asset.next_maintenance_date,
-        status=asset.status or "active",
-        assigned_to=asset.assigned_to,
-        image_urls=asset.image_urls or [],
-        documents=asset.documents or [],
-        specifications=asset.specifications or {}
+        warranty_expiry_date=getattr(asset, "warranty_expiry_date", None),
+        amc_id=asset.amc_id,
+        location=asset.location,
+        asset_code=getattr(asset, "asset_code", None),
+        image_url=getattr(asset, "image_url", None),
+        status=getattr(asset, "status", None) or "active",
+        last_maintenance_date=getattr(asset, "last_maintenance_date", None),
+        next_maintenance_date=getattr(asset, "next_maintenance_date", None),
+        maintenance_frequency=getattr(asset, "maintenance_frequency", None),
+        notes=getattr(asset, "notes", None),
+        created_by=current_user.id,
     )
 
     db.add(new_asset)

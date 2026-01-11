@@ -1,8 +1,8 @@
 """
-Role & Scope Management API - Comprehensive Test Suite (100% Coverage)
+Role & Scope Management API - Comprehensive Test Suite
 
 ================================================================================
-COVERAGE MATRIX (10/10 Endpoints = 100%)
+COVERAGE MATRIX (10/10 Endpoints)
 ================================================================================
 
 1. GET /api/v1/roles
@@ -65,7 +65,7 @@ COVERAGE MATRIX (10/10 Endpoints = 100%)
                 test_delete_scope_requires_developer_or_admin
 
 ================================================================================
-SCENARIO COVERAGE (19 Tests)
+SCENARIO COVERAGE (20 Tests)
 ================================================================================
 
 HAPPY PATH (3 tests):
@@ -83,8 +83,8 @@ ERROR SCENARIOS (8 tests):
 ✅ test_update_scope_not_found - 404 when updating non-existent scope
 ✅ test_delete_role_in_use_prevented - 400 when deleting role referenced by users
 
-PERMISSION SCENARIOS (5 tests):
-✅ test_create_requires_developer_or_admin - 403 for regular users
+PERMISSION SCENARIOS (7 tests):
+✅ test_create_requires_developer_or_admin - 403 for member token (developer gate)
 ✅ test_update_role_requires_developer_or_admin - 403 for regular users
 ✅ test_delete_role_requires_developer_or_admin - 403 for regular users
 ✅ test_create_scope_requires_developer_or_admin - 403 for regular users
@@ -92,7 +92,7 @@ PERMISSION SCENARIOS (5 tests):
 ✅ test_delete_scope_requires_developer_or_admin - 403 for regular users
 ✅ test_assign_requires_developer_or_admin - 403 for regular users
 
-DATA VALIDATION (3 tests):
+DATA VALIDATION (2 tests):
 ✅ test_create_role_duplicate - 400 when creating duplicate role name
 ✅ test_create_scope_duplicate - 400 when creating duplicate scope name
 
@@ -579,14 +579,43 @@ async def test_create_requires_developer_or_admin():
     Verifies: Regular users cannot create roles
     Note: Using invalid/no token to simulate regular user (would need login)
     """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
     async with _get_client() as client:
+        # Create a member user to hit the gate with valid auth
+        email = f"member-{uuid.uuid4().hex[:8]}@example.com"
+        password = "MemberPass123"
+        signup_resp = await client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": email,
+                "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                "full_name": "Member User",
+                "password": password,
+            },
+        )
+        assert signup_resp.status_code == 201, signup_resp.text
+        user_id = signup_resp.json()["id"]
+
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": password},
+        )
+        assert login_resp.status_code == 200, login_resp.text
+        member_headers = {
+            "Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
         role_name = f"role-{uuid.uuid4().hex[:8]}"
-        # No auth header = 403
         resp = await client.post(
             "/api/v1/roles",
             json={"name": role_name, "description": "Test"},
+            headers=member_headers,
         )
-        assert resp.status_code in [401, 403], "Create without token rejected"
+        assert resp.status_code == 403, "Member token rejected by developer gate"
+
+        cleanup_resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert cleanup_resp.status_code == 204, cleanup_resp.text
 
 
 @pytest.mark.asyncio
