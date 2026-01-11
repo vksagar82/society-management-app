@@ -5,7 +5,6 @@ Creates a default developer user on application startup.
 Generates and stores TOKEN in APP_DEV_TOKEN environment variable.
 """
 
-import os
 import logging
 from datetime import datetime, timedelta
 from uuid import UUID

@@ -76,13 +76,13 @@ async def send_password_reset_email(email: str, name: str, reset_token: str):
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .button { 
-                display: inline-block; 
-                padding: 12px 24px; 
-                background-color: #4F46E5; 
-                color: white; 
-                text-decoration: none; 
-                border-radius: 5px; 
+            .button {
+                display: inline-block;
+                padding: 12px 24px;
+                background-color: #4F46E5;
+                color: white;
+                text-decoration: none;
+                border-radius: 5px;
                 margin: 20px 0;
             }
             .footer { margin-top: 30px; font-size: 12px; color: #666; }
@@ -110,18 +110,18 @@ async def send_password_reset_email(email: str, name: str, reset_token: str):
     html_content = html_template.render(name=name, reset_link=reset_link)
     text_content = f"""
     Password Reset Request
-    
+
     Hello {name},
-    
+
     We received a request to reset your password for your Society Management account.
-    
+
     Click this link to reset your password:
     {reset_link}
-    
+
     This link will expire in 1 hour.
-    
+
     If you didn't request a password reset, please ignore this email.
-    
+
     Thanks,
     Society Management Team
     """

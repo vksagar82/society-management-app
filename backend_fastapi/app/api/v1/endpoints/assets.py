@@ -5,7 +5,7 @@ This module provides endpoints for asset and asset category management.
 """
 
 from typing import List, Optional
-from uuid import uuid4
+from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession

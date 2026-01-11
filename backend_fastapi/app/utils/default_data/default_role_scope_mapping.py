@@ -3,7 +3,6 @@ import asyncio
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
 import httpx

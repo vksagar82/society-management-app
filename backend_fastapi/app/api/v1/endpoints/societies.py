@@ -223,8 +223,6 @@ async def approve_society(
     - 403: Not a developer
     - 400: Society already approved
     """
-    from app.core.deps import require_developer
-
     # Only developers can approve societies
     if current_user.global_role != "developer":
         raise HTTPException(
