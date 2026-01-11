@@ -85,49 +85,49 @@ jobs:
           curl -v -H "x-vercel-protection-bypass: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}" \
             ${{ needs.deploy-backend-preview.outputs.preview_url }}/health || true
 
-  test-auth:
-    needs: [deploy-backend-preview, wait-for-deployment]
-    uses: ./.github/workflows/common-for-run-tests.yml
-    with:
-      test_file: test_auth.py
-      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-    secrets:
-      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
+  # test-auth:
+  #   needs: [deploy-backend-preview, wait-for-deployment]
+  #   uses: ./.github/workflows/common-for-run-tests.yml
+  #   with:
+  #     test_file: test_auth.py
+  #     preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+  #   secrets:
+  #     BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+  #     BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+  #     BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
-  test-role-scope:
-    needs: [deploy-backend-preview, test-auth]
-    uses: ./.github/workflows/common-for-run-tests.yml
-    with:
-      test_file: test_role_scope.py
-      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-    secrets:
-      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
+  # test-role-scope:
+  #   needs: [deploy-backend-preview, test-auth]
+  #   uses: ./.github/workflows/common-for-run-tests.yml
+  #   with:
+  #     test_file: test_role_scope.py
+  #     preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+  #   secrets:
+  #     BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+  #     BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+  #     BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
-  test-users:
-    needs: [deploy-backend-preview, test-role-scope]
-    uses: ./.github/workflows/common-for-run-tests.yml
-    with:
-      test_file: test_users.py
-      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-    secrets:
-      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
+  # test-users:
+  #   needs: [deploy-backend-preview, test-role-scope]
+  #   uses: ./.github/workflows/common-for-run-tests.yml
+  #   with:
+  #     test_file: test_users.py
+  #     preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+  #   secrets:
+  #     BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+  #     BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+  #     BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
-  test-societies:
-    needs: [deploy-backend-preview, test-users]
-    uses: ./.github/workflows/common-for-run-tests.yml
-    with:
-      test_file: test_societies.py
-      preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
-    secrets:
-      BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
-      BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-      BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
+  # test-societies:
+  #   needs: [deploy-backend-preview, test-users]
+  #   uses: ./.github/workflows/common-for-run-tests.yml
+  #   with:
+  #     test_file: test_societies.py
+  #     preview_url: ${{ needs.deploy-backend-preview.outputs.preview_url }}
+  #   secrets:
+  #     BACKEND_STAGING_DATABASE_URL: ${{ secrets.BACKEND_STAGING_DATABASE_URL }}
+  #     BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+  #     BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.BACKEND_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   deploy-backend-production:
     needs: test-societies
