@@ -8,6 +8,7 @@ application events like password reset, notifications, etc.
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from typing import Optional
 from jinja2 import Template
 
 from config import settings
@@ -17,7 +18,7 @@ async def send_email(
     to_email: str,
     subject: str,
     html_content: str,
-    text_content: str = None
+    text_content: Optional[str] = None
 ):
     """
     Send an email.
