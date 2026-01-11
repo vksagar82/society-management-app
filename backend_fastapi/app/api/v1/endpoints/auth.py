@@ -10,7 +10,8 @@ This module provides endpoints for user authentication including:
 """
 
 from datetime import datetime, timedelta
-from uuid import uuid4
+from uuid import uuid4, UUID
+from typing import cast, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -136,7 +137,7 @@ async def login(
             detail="Invalid email or password"
         )
 
-    if not verify_password(login_data.password, user.password_hash):
+    if not verify_password(login_data.password, cast(str, user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -149,7 +150,7 @@ async def login(
         )
 
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = cast(datetime, datetime.utcnow())
     db.add(user)
     await db.commit()
 
@@ -268,13 +269,13 @@ async def forgot_password(
     reset_token = str(uuid4())
     reset_expiry = datetime.utcnow() + timedelta(hours=24)
 
-    user.reset_token = reset_token
-    user.reset_token_expiry = reset_expiry
+    user.reset_token = cast(str, reset_token)
+    user.reset_token_expiry = cast(datetime, reset_expiry)
     db.add(user)
     await db.commit()
 
     # Send email
-    await send_password_reset_email(user.email, reset_token)
+    await send_password_reset_email(cast(str, user.email), cast(str, user.full_name), reset_token)
 
     return {"message": "Password reset link sent to your email"}
 
@@ -312,9 +313,9 @@ async def reset_password(
         )
 
     # Update password
-    user.password_hash = hash_password(request.new_password)
-    user.reset_token = None
-    user.reset_token_expiry = None
+    user.password_hash = cast(str, hash_password(request.new_password))
+    user.reset_token = cast(Optional[str], None)
+    user.reset_token_expiry = cast(Optional[datetime], None)
     db.add(user)
     await db.commit()
 
@@ -349,22 +350,21 @@ async def change_password(
             detail="User not found"
         )
 
-    if not verify_password(request.current_password, user.password_hash):
+    if not verify_password(request.current_password, cast(str, user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect"
         )
 
-    user.password_hash = hash_password(request.new_password)
+    user.password_hash = cast(str, hash_password(request.new_password))
     db.add(user)
     await db.commit()
 
     # If this is the developer user, update the APP_DEV_TOKEN
-    from uuid import UUID
     from app.utils.default_data.seed_dev_user import update_dev_token_on_password_change
 
     DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
     if user.id == DEV_USER_ID:
-        await update_dev_token_on_password_change(db, user.id)
+        await update_dev_token_on_password_change(db, cast(UUID, user.id))
 
     return {"message": "Password changed successfully"}

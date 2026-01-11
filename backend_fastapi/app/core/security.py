@@ -6,26 +6,10 @@ utilities for secure authentication.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, cast
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from passlib.hash import pbkdf2_sha256
-
-# Ensure bcrypt exposes version metadata for passlib compatibility. Some bcrypt
-# builds omit the __about__ module expected by passlib, so we add a minimal
-# shim when needed.
-try:  # pragma: no cover - defensive patch
-    import bcrypt as _bcrypt
-
-    if not hasattr(_bcrypt, "__about__") and hasattr(_bcrypt, "__version__"):
-        class _About:
-            __version__ = _bcrypt.__version__
-
-        _bcrypt.__about__ = _About()
-except Exception:
-    # If bcrypt is missing or behaves unexpectedly, let passlib raise its own
-    # error later; the patch is purely best-effort.
-    pass
 
 from config import settings
 
@@ -66,7 +50,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         bool: True if password matches, False otherwise
     """
     # Verify using pbkdf2_sha256; legacy bcrypt hashes should be re-hashed.
-    return pwd_context.verify(plain_password[:10], hashed_password)
+    return cast(bool, pwd_context.verify(plain_password[:10], hashed_password))
 
 
 def create_access_token(
@@ -93,13 +77,13 @@ def create_access_token(
             minutes=settings.access_token_expire_minutes
         )
 
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(
         to_encode,
         settings.secret_key,
         algorithm=settings.algorithm
     )
-    return encoded_jwt
+    return cast(str, encoded_jwt)
 
 
 def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
@@ -114,14 +98,14 @@ def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
     """
     to_encode = {"sub": data} if isinstance(data, str) else data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({"exp": int(expire.timestamp()), "type": "refresh"})
 
     encoded_jwt = jwt.encode(
         to_encode,
         settings.secret_key,
         algorithm=settings.algorithm
     )
-    return encoded_jwt
+    return cast(str, encoded_jwt)
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
@@ -140,6 +124,6 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
             settings.secret_key,
             algorithms=[settings.algorithm]
         )
-        return payload
+        return cast(Dict[str, Any], payload)
     except JWTError:
         return None

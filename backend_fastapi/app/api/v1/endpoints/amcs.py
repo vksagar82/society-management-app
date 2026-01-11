@@ -4,8 +4,9 @@ AMC (Annual Maintenance Contract) API endpoints using SQLAlchemy ORM.
 This module provides endpoints for AMC and service history management.
 """
 
-from typing import List, Optional
+from typing import List, Optional, cast
 from uuid import UUID, uuid4
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -353,9 +354,9 @@ async def add_service_history(
     db.add(new_service)
 
     # Update AMC last_service_date and next_service_date
-    amc.last_service_date = service.service_date
+    amc.last_service_date = cast(date, service.service_date)
     if service.next_service_date:
-        amc.next_service_date = service.next_service_date
+        amc.next_service_date = cast(Optional[date], service.next_service_date)
 
     await db.commit()
     await db.refresh(new_service)

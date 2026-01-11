@@ -7,6 +7,7 @@ Generates and stores TOKEN in APP_DEV_TOKEN environment variable.
 
 import logging
 from datetime import datetime, timedelta
+from typing import Optional
 from uuid import UUID
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,16 +30,17 @@ DEV_USER_PASSWORD = "Dev@12345"  # Default password
 
 def _generate_dev_token(user_id: UUID, expires_days: int = 365) -> str:
     """Generate a long-lived dev token for the developer user."""
+    from typing import cast
     expire = datetime.utcnow() + timedelta(days=expires_days)
     to_encode = {
         "sub": str(user_id),
         "scope": "developer admin",
-        "exp": expire,
+        "exp": int(expire.timestamp()),
     }
     encoded_jwt = jwt.encode(
         to_encode, settings.secret_key, algorithm=settings.algorithm
     )
-    return encoded_jwt
+    return cast(str, encoded_jwt)
 
 
 def _update_env_dev_token(token: str) -> None:
@@ -165,7 +167,7 @@ async def seed_dev_user(session: AsyncSession) -> dict:
 async def update_dev_token_on_password_change(
     session: AsyncSession,
     user_id: UUID = DEV_USER_ID,
-) -> str:
+) -> Optional[str]:
     """
     Update APP_DEV_TOKEN after developer user password is changed.
 
@@ -174,7 +176,7 @@ async def update_dev_token_on_password_change(
         user_id: User ID (defaults to dev user)
 
     Returns:
-        str: New generated token
+        str: New generated token, or None if update failed
     """
     try:
         # Verify user exists

@@ -11,7 +11,7 @@ This module provides endpoints for society management including:
 - Approval workflows
 """
 
-from typing import List, Optional
+from typing import List, Optional, cast
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, or_, and_
@@ -248,9 +248,9 @@ async def approve_society(
         )
 
     if approval.approved:
-        society.approval_status = "approved"
-        society.approved_by = current_user.id
-        society.approved_at = datetime.utcnow()
+        society.approval_status = cast(str, "approved")
+        society.approved_by = cast(UUID, current_user.id)
+        society.approved_at = cast(datetime, datetime.utcnow())
 
     await db.commit()
     await db.refresh(society)
@@ -519,9 +519,9 @@ async def join_society(
             )
         elif existing.approval_status == "rejected":
             # Allow re-requesting
-            existing.approval_status = "pending"
-            existing.rejected_at = None
-            existing.rejected_by = None
+            existing.approval_status = cast(str, "pending")
+            existing.rejected_at = cast(Optional[datetime], None)
+            existing.rejected_by = cast(Optional[UUID], None)
             await db.commit()
             await db.refresh(existing)
             return UserSocietyResponse.model_validate(existing)
@@ -697,15 +697,15 @@ async def approve_member(
 
     # Update membership based on approval flag
     if approval.approved:
-        membership.approval_status = "approved"
-        membership.approved_by = current_user.id
-        membership.approved_at = datetime.utcnow()
+        membership.approval_status = cast(str, "approved")
+        membership.approved_by = cast(UUID, current_user.id)
+        membership.approved_at = cast(datetime, datetime.utcnow())
     else:
-        membership.approval_status = "rejected"
-        membership.rejected_by = current_user.id
-        membership.rejected_at = datetime.utcnow()
+        membership.approval_status = cast(str, "rejected")
+        membership.rejected_by = cast(UUID, current_user.id)
+        membership.rejected_at = cast(datetime, datetime.utcnow())
         if approval.rejection_reason:
-            membership.rejection_reason = approval.rejection_reason
+            membership.rejection_reason = cast(str, approval.rejection_reason)
 
     await db.commit()
     await db.refresh(membership)

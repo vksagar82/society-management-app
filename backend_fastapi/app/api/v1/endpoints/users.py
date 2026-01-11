@@ -9,7 +9,7 @@ This module provides endpoints for user management including:
 - User settings
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, cast
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, or_
@@ -258,7 +258,7 @@ async def get_user_settings(
         )
 
     # Settings is a JSON column
-    settings = user.settings or {}
+    settings: Dict[str, Any] = user.settings or {}
     return UserSettings(**settings)
 
 
@@ -289,10 +289,10 @@ async def update_user_settings(
         )
 
     # Update settings (merge with existing)
-    current_settings = user.settings or {}
-    updated_settings = {**current_settings, **
-                        settings_update.model_dump(exclude_unset=True)}
-    user.settings = updated_settings
+    current_settings: Dict[str, Any] = user.settings or {}
+    updated_settings: Dict[str, Any] = {**current_settings, **
+                                        settings_update.model_dump(exclude_unset=True)}
+    user.settings = cast(Dict[str, Any], updated_settings)
 
     await db.commit()
     await db.refresh(user)
@@ -327,7 +327,7 @@ async def update_avatar(
             detail="User not found"
         )
 
-    user.avatar_url = avatar_url
+    user.avatar_url = cast(str, avatar_url)
     await db.commit()
     await db.refresh(user)
 

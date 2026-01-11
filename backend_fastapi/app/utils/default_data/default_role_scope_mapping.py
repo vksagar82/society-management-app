@@ -27,8 +27,11 @@ def _get_base_url() -> str:
 
 def _generate_new_dev_token() -> str:
     """Generate a new development token with 30-day expiration."""
-    from config import Settings
-    settings = Settings()
+    from typing import cast
+    # Get secret key from environment, use hardcoded fallback for tests
+    secret_key = os.getenv(
+        "SECRET_KEY", "Hy07HivWRcrnAbOQ+Or9xsDEv89cKIWmFVLSzvVqbmzGPhXJk6x+o5vaTuyTbCxQl0g8GMyqJbgJy4c3MJyJ0w==")
+    algorithm = "HS256"
 
     # Use fixed UUID for dev user
     dev_user_id = str(UUID('00000000-0000-0000-0000-000000000001'))
@@ -38,12 +41,12 @@ def _generate_new_dev_token() -> str:
         'scope': 'developer admin'
     }
     expire = datetime.utcnow() + timedelta(days=30)
-    to_encode.update({'exp': expire})
+    to_encode.update({'exp': int(expire.timestamp())})
 
-    token = jwt.encode(to_encode, settings.secret_key,
-                       algorithm=settings.algorithm)
+    token = jwt.encode(to_encode, secret_key,
+                       algorithm=algorithm)
     print(f"[TOKEN] Generated new dev token (expires: {expire.isoformat()})")
-    return token
+    return cast(str, token)
 
 
 def _update_env_file(new_token: str) -> None:
@@ -80,12 +83,13 @@ def _update_env_file(new_token: str) -> None:
 def _is_token_valid(token: str) -> bool:
     """Check if a JWT token is valid and not expired."""
     try:
-        from config import Settings
-        settings = Settings()
+        secret_key = os.getenv(
+            "SECRET_KEY", "Hy07HivWRcrnAbOQ+Or9xsDEv89cKIWmFVLSzvVqbmzGPhXJk6x+o5vaTuyTbCxQl0g8GMyqJbgJy4c3MJyJ0w==")
+        algorithm = "HS256"
 
         # Decode and verify token
-        payload = jwt.decode(token, settings.secret_key,
-                             algorithms=[settings.algorithm])
+        payload = jwt.decode(token, secret_key,
+                             algorithms=[algorithm])
 
         # Check expiration
         exp = payload.get('exp')
@@ -191,8 +195,8 @@ async def seed_all_default_data() -> dict:
                 "action": "PUT",
                 "endpoint": f"/api/v1/roles/{role_name}/scopes",
                 "role": role_name,
-                "scope_count": scope_count,
-                "status": resp.status_code,
+                "scope_count": str(scope_count),
+                "status": str(resp.status_code),
                 "result": "Mapped"
             })
 
@@ -208,7 +212,7 @@ async def seed_all_default_data() -> dict:
         mapping_operations.append({
             "action": "GET",
             "endpoint": "/api/v1/roles",
-            "status": resp.status_code,
+            "status": str(resp.status_code),
             "result": f"Verified {len(final_roles)} roles"
         })
 

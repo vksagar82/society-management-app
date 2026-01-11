@@ -55,7 +55,4 @@ class Settings(BaseSettings):
         extra = "ignore"  # Ignore extra fields from env
 
 
-settings = Settings(
-    database_url=os.getenv("DATABASE_URL", ""),
-    secret_key=os.getenv("SECRET_KEY", "dev-secret-key")
-)
+settings = Settings()

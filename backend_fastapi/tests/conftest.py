@@ -6,7 +6,7 @@ This module provides reusable test fixtures for all test modules with automatic 
 
 import pytest
 import asyncio
-from typing import Generator, AsyncGenerator
+from typing import Generator, AsyncGenerator, Dict, List
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete
@@ -27,7 +27,7 @@ DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
 
 
 # Store created test data IDs for cleanup
-test_data_ids = {
+test_data_ids: Dict[str, List] = {
     "users": [],
     "societies": [],
     "user_societies": [],

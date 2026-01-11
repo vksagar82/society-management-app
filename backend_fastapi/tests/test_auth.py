@@ -108,7 +108,7 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, cast
 
 import asyncio
 import httpx
@@ -174,9 +174,9 @@ def _make_dev_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() + timedelta(days=30),
+        "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm))
 
 
 def _make_expired_token() -> str:
@@ -188,9 +188,10 @@ def _make_expired_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() - timedelta(hours=1),  # Already expired
+        # Already expired
+        "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm))
 
 
 async def _create_test_user(client: httpx.AsyncClient) -> tuple:

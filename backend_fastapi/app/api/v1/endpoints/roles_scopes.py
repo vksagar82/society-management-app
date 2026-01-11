@@ -1,4 +1,6 @@
-from typing import List
+from typing import List, cast, Optional
+from datetime import datetime
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,7 +77,7 @@ async def update_role(
         raise HTTPException(status_code=404, detail="Role not found")
 
     if payload.description is not None:
-        role.description = payload.description
+        role.description = cast(str, payload.description)
 
     await db.commit()
     await db.refresh(role)
@@ -124,11 +126,11 @@ async def get_role_scopes(role_name: str, db: AsyncSession = Depends(get_session
     scopes = [ScopeResponse.model_validate(
         rs.scope) for rs in role.role_scopes]
     return RoleWithScopes(
-        id=role.id,
-        name=role.name,
-        description=role.description,
-        created_at=role.created_at,
-        updated_at=role.updated_at,
+        id=cast(UUID, role.id),
+        name=cast(str, role.name),
+        description=cast(Optional[str], role.description),
+        created_at=cast(datetime, role.created_at),
+        updated_at=cast(datetime, role.updated_at),
         scopes=scopes,
     )
 
@@ -154,7 +156,7 @@ async def set_role_scopes(
     scopes = result.scalars().all()
 
     if len(scopes) != len(scope_names):
-        missing = scope_names - {s.name for s in scopes}
+        missing = scope_names - cast(set, {cast(str, s.name) for s in scopes})
         raise HTTPException(
             status_code=400,
             detail=f"Scopes not found: {', '.join(sorted(missing))}",
@@ -178,11 +180,11 @@ async def set_role_scopes(
         rs.scope) for rs in role.role_scopes]
 
     return RoleWithScopes(
-        id=role.id,
-        name=role.name,
-        description=role.description,
-        created_at=role.created_at,
-        updated_at=role.updated_at,
+        id=cast(UUID, role.id),
+        name=cast(str, role.name),
+        description=cast(Optional[str], role.description),
+        created_at=cast(datetime, role.created_at),
+        updated_at=cast(datetime, role.updated_at),
         scopes=scopes_resp,
     )
 
@@ -230,7 +232,7 @@ async def update_scope(
         raise HTTPException(status_code=404, detail="Scope not found")
 
     if payload.description is not None:
-        scope.description = payload.description
+        scope.description = cast(str, payload.description)
 
     await db.commit()
     await db.refresh(scope)

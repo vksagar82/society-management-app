@@ -16,6 +16,6 @@ to_encode = {
     'scope': 'developer admin'
 }
 expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-to_encode.update({'exp': expire})
+to_encode.update({'exp': int(expire.timestamp())})
 token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 print(token)

@@ -5,7 +5,7 @@ This module provides FastAPI dependencies for authenticating requests
 and checking user permissions based on roles and scopes.
 """
 
-from typing import Optional, List
+from typing import Optional, List, cast
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
@@ -71,7 +71,7 @@ async def get_current_user(
         )
 
     return UserInDB(**{
-        "id": str(user.id),
+        "id": user.id,
         "email": user.email,
         "phone": user.phone,
         "full_name": user.full_name,
@@ -245,7 +245,7 @@ async def get_user_society_role(
     result = await db.execute(stmt)
     mapping = result.scalar_one_or_none()
 
-    return mapping.role if mapping else None
+    return cast(Optional[str], mapping.role if mapping else None)
 
 
 async def require_society_permission(

@@ -4,7 +4,7 @@ Asset Management API endpoints using SQLAlchemy ORM.
 This module provides endpoints for asset and asset category management.
 """
 
-from typing import List, Optional
+from typing import List, Optional, cast
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, and_

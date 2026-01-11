@@ -110,7 +110,7 @@ import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, cast
 
 import httpx
 import pytest
@@ -171,9 +171,9 @@ def _make_dev_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() + timedelta(days=30),
+        "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm))
 
 
 async def _create_test_user(client: httpx.AsyncClient, role: str = "member") -> tuple:
@@ -269,7 +269,7 @@ async def _create_test_society(client: httpx.AsyncClient, creator_token: str, au
     return society_id
 
 
-async def _create_test_category(client: httpx.AsyncClient, dev_token: str, society_id: str, name: str = None) -> str:
+async def _create_test_category(client: httpx.AsyncClient, dev_token: str, society_id: str, name: Optional[str] = None) -> str:
     """
     Create asset category and return ID.
 
@@ -303,7 +303,7 @@ async def _create_test_asset(
     auth_token: str,
     society_id: str,
     category_id: str,
-    name: str = None
+    name: Optional[str] = None
 ) -> str:
     """
     Create asset and return ID.

@@ -120,6 +120,7 @@ import os
 import uuid
 import asyncio
 from pathlib import Path
+from typing import Optional, cast
 
 import httpx
 import pytest
@@ -156,11 +157,14 @@ def _make_dev_token():
 
     Returns: JWT token string that identifies as developer
     """
-    return jwt.encode(
-        {"sub": str(DEV_USER_ID), "scopes": ["develop"]},
+    from datetime import datetime, timedelta
+    expire = datetime.utcnow() + timedelta(days=30)
+    return cast(str, jwt.encode(
+        {"sub": str(DEV_USER_ID), "scopes": [
+            "develop"], "exp": int(expire.timestamp())},
         settings.secret_key,
         algorithm="HS256"
-    )
+    ))
 
 
 @pytest.fixture
@@ -278,7 +282,7 @@ async def _create_test_issue(
     client: httpx.AsyncClient,
     auth_token: str,
     society_id: str,
-    title: str = None,
+    title: Optional[str] = None,
     status: str = "open"
 ) -> str:
     """

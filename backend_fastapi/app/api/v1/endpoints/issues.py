@@ -4,7 +4,7 @@ Issues/Complaints API endpoints using SQLAlchemy ORM.
 This module provides endpoints for issue/complaint management.
 """
 
-from typing import List, Optional
+from typing import List, Optional, cast
 from uuid import UUID, uuid4
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
