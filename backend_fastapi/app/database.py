@@ -8,8 +8,7 @@ for async operations with PostgreSQL.
 from urllib.parse import urlparse, urlunparse
 from typing import cast
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from config import settings
 
@@ -121,8 +120,8 @@ def create_direct_engine_for_schema():
 
 
 # Async session factory
-AsyncSessionLocal = sessionmaker(
-    bind=cast(AsyncEngine, engine),
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )

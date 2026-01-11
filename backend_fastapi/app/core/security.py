@@ -81,12 +81,11 @@ def create_access_token(
         )
 
     to_encode.update({"exp": int(expire.timestamp())})
-    encoded_jwt: str = cast(str, jwt.encode(
+    return cast(str, jwt.encode(
         to_encode,
         settings.secret_key,
         algorithm=settings.algorithm
     ))
-    return encoded_jwt
 
 
 def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
