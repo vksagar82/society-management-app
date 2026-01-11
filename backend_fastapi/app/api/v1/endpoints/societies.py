@@ -13,7 +13,7 @@ This module provides endpoints for society management including:
 
 from typing import List, Optional
 from uuid import UUID, uuid4
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -441,7 +441,7 @@ async def delete_society(
 )
 async def join_society(
     society_id: UUID,
-    join_request: UserSocietyCreate,
+    join_request: Optional[UserSocietyCreate] = Body(default=None),
     current_user: UserResponse = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
@@ -531,7 +531,7 @@ async def join_society(
             return UserSocietyResponse.model_validate(existing)
 
     # Validate role
-    requested_role = join_request.role or "member"
+    requested_role = join_request.role if join_request else "member"
     if requested_role not in ["admin", "manager", "member"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -543,8 +543,8 @@ async def join_society(
         user_id=current_user.id,
         society_id=society_id,
         role=requested_role,
-        flat_no=join_request.flat_no,
-        wing=join_request.wing,
+        flat_no=join_request.flat_no if join_request else None,
+        wing=join_request.wing if join_request else None,
         approval_status="pending"
     )
 

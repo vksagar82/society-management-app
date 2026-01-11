@@ -69,6 +69,19 @@ async def lifespan(app: FastAPI):
         logger.exception("Default data seeding failed", exc_info=exc)
         # Log but don't raise - allow app to start even if seeding fails
 
+    # Seed developer user on startup
+    try:
+        logger.info("Setting up developer user...")
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from app.utils.default_data.seed_dev_user import seed_dev_user
+
+        async with AsyncSession(engine) as session:
+            result = await seed_dev_user(session)
+            logger.info(f"Developer user setup completed: {result}")
+    except Exception as exc:
+        logger.exception("Developer user setup failed", exc_info=exc)
+        # Log but don't raise - allow app to start even if seeding fails
+
     # Run database migrations
     try:
         logger.info("Running database migrations...")

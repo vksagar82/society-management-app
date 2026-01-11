@@ -77,7 +77,6 @@ class UserSocietyBase(BaseModel):
 class UserSocietyCreate(UserSocietyBase):
     """Schema for joining a society."""
 
-    society_id: UUID = Field(..., description="Society ID to join")
     role: Optional[str] = Field(
         "member",
         description="Desired role: admin, manager, or member (default: member)"

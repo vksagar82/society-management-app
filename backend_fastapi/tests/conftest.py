@@ -358,16 +358,16 @@ def pytest_sessionfinish(session, exitstatus):
     print("\n" + "=" * 80)
     print("TEST EXECUTION SUMMARY".center(80))
     print("=" * 80)
-    print(f"\n📊 Total Tests: {total}")
-    print(f"✅ Passed: {passed}")
+    print(f"\nTotal Tests: {total}")
+    print(f"Passed: {passed}")
     if failed > 0:
-        print(f"❌ Failed: {failed}")
+        print(f"Failed: {failed}")
     if skipped > 0:
-        print(f"⏭️  Skipped: {skipped}")
+        print(f"Skipped: {skipped}")
 
     if total > 0:
         pass_rate = (passed / total) * 100
-        print(f"\n📈 Pass Rate: {pass_rate:.1f}%")
+        print(f"\nPass Rate: {pass_rate:.1f}%")
 
-    print(f"\n⏱️  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\nTimestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80 + "\n")

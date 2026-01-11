@@ -360,4 +360,12 @@ async def change_password(
     db.add(user)
     await db.commit()
 
+    # If this is the developer user, update the APP_DEV_TOKEN
+    from uuid import UUID
+    from app.utils.default_data.seed_dev_user import update_dev_token_on_password_change
+
+    DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
+    if user.id == DEV_USER_ID:
+        await update_dev_token_on_password_change(db, user.id)
+
     return {"message": "Password changed successfully"}

@@ -166,7 +166,7 @@ async def check_society_access(
         return True
 
     # Check if society is approved first
-    society_stmt = select(Society).where(Society.id == UUID(society_id))
+    society_stmt = select(Society).where(Society.id == society_id)
     society_result = await db.execute(society_stmt)
     society = society_result.scalar_one_or_none()
 
@@ -185,8 +185,8 @@ async def check_society_access(
     # Check user-society mapping
     stmt = select(UserSociety).where(
         and_(
-            UserSociety.user_id == UUID(user.id),
-            UserSociety.society_id == UUID(society_id)
+            UserSociety.user_id == user.id,
+            UserSociety.society_id == society_id
         )
     )
     result = await db.execute(stmt)
@@ -239,8 +239,8 @@ async def get_user_society_role(
 
     stmt = select(UserSociety).where(
         and_(
-            UserSociety.user_id == UUID(user.id),
-            UserSociety.society_id == UUID(society_id),
+            UserSociety.user_id == user.id,
+            UserSociety.society_id == society_id,
             UserSociety.approval_status == "approved"
         )
     )

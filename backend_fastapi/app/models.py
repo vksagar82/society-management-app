@@ -121,7 +121,7 @@ class Society(Base):
     # pending, approved - only developers can approve societies
     approval_status = Column(String(50), default="pending")
     approved_by = Column(PG_UUID(as_uuid=True),
-                         ForeignKey("users.id"), nullable=True)
+                         ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     approved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow,
@@ -163,7 +163,7 @@ class UserSociety(Base):
     # pending, approved, rejected
     approval_status = Column(String(50), default="pending")
     approved_by = Column(PG_UUID(as_uuid=True),
-                         ForeignKey("users.id"), nullable=True)
+                         ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     approved_at = Column(DateTime, nullable=True)
     rejection_reason = Column(Text, nullable=True)
     flat_no = Column(String(50), nullable=True)
@@ -249,7 +249,7 @@ class IssueComment(Base):
     issue_id = Column(PG_UUID(as_uuid=True), ForeignKey(
         "issues.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(PG_UUID(as_uuid=True),
-                     ForeignKey("users.id"), nullable=False)
+                     ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     comment = Column(Text, nullable=False)
     attachment_url = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -278,7 +278,7 @@ class AssetCategory(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     created_by = Column(PG_UUID(as_uuid=True),
-                        ForeignKey("users.id"), nullable=True)
+                        ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
@@ -328,12 +328,13 @@ class Asset(Base):
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
     created_by = Column(PG_UUID(as_uuid=True),
-                        ForeignKey("users.id"), nullable=True)
+                        ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
 
     # Relationships
     society = relationship("Society", back_populates="assets")
     category = relationship("AssetCategory", back_populates="assets")
-    created_by_user = relationship("User", back_populates="assets")
+    created_by_user = relationship(
+        "User", back_populates="assets", foreign_keys=[created_by])
     amc = relationship("AMC", foreign_keys=[amc_id])
 
 
@@ -383,11 +384,12 @@ class AMC(Base):
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
     created_by = Column(PG_UUID(as_uuid=True),
-                        ForeignKey("users.id"), nullable=True)
+                        ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
 
     # Relationships
     society = relationship("Society", back_populates="amcs")
-    created_by_user = relationship("User", back_populates="amcs_created")
+    created_by_user = relationship(
+        "User", back_populates="amcs_created", foreign_keys=[created_by])
     service_history = relationship(
         "AMCServiceHistory", back_populates="amc", cascade="all, delete-orphan")
 
@@ -421,7 +423,7 @@ class AMCServiceHistory(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(PG_UUID(as_uuid=True),
-                        ForeignKey("users.id"), nullable=True)
+                        ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
 
     # Relationships
     amc = relationship("AMC", back_populates="service_history")
