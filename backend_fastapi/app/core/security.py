@@ -23,7 +23,7 @@ pwd_context = CryptContext(
 )
 
 
-def hash_password(password: str) -> any:
+def hash_password(password: str) -> Any:
     """
     Hash a password using bcrypt.
 
