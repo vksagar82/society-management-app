@@ -289,6 +289,7 @@ async def update_user_settings(
         )
 
     # Update settings (merge with existing)
+    # type: ignore[assignment]
     current_settings: Dict[str, Any] = user.settings or {}
     updated_settings: Dict[str, Any] = {**current_settings, **
                                         settings_update.model_dump(exclude_unset=True)}

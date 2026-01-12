@@ -150,7 +150,7 @@ async def login(
         )
 
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.utcnow()  # type: ignore[assignment]
     db.add(user)
     await db.commit()
 
@@ -269,8 +269,8 @@ async def forgot_password(
     reset_token = str(uuid4())
     reset_expiry = datetime.utcnow() + timedelta(hours=24)
 
-    user.reset_token = reset_token
-    user.reset_token_expiry = reset_expiry
+    user.reset_token = reset_token  # type: ignore[assignment]
+    user.reset_token_expiry = reset_expiry  # type: ignore[assignment]
     db.add(user)
     await db.commit()
 
@@ -314,8 +314,8 @@ async def reset_password(
 
     # Update password
     user.password_hash = hash_password(request.new_password)
-    user.reset_token = None
-    user.reset_token_expiry = None
+    user.reset_token = None  # type: ignore[assignment]
+    user.reset_token_expiry = None  # type: ignore[assignment]
     db.add(user)
     await db.commit()
 

@@ -77,7 +77,7 @@ async def update_role(
         raise HTTPException(status_code=404, detail="Role not found")
 
     if payload.description is not None:
-        role.description = payload.description
+        role.description = payload.description  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(role)
@@ -232,7 +232,7 @@ async def update_scope(
         raise HTTPException(status_code=404, detail="Scope not found")
 
     if payload.description is not None:
-        scope.description = payload.description
+        scope.description = payload.description  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(scope)

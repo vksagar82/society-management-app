@@ -20,7 +20,7 @@ from app.schemas.asset import (
     AssetCategoryResponse,
     AssetCategoryCreate
 )
-from app.schemas.user import UserResponse
+from app.schemas.user import UserInDB
 
 router = APIRouter(prefix="/assets", tags=["Assets"])
 
@@ -107,7 +107,7 @@ async def list_assets(
     status_filter: Optional[str] = Query(None, description="Filter by status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """List assets with filtering options."""
@@ -157,7 +157,7 @@ async def list_assets(
 )
 async def create_asset(
     asset: AssetCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -220,7 +220,7 @@ async def create_asset(
 )
 async def get_asset(
     asset_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """Get asset by ID."""
@@ -249,7 +249,7 @@ async def get_asset(
 async def update_asset(
     asset_id: UUID,
     asset_update: AssetUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -310,7 +310,7 @@ async def update_asset(
 )
 async def delete_asset(
     asset_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """

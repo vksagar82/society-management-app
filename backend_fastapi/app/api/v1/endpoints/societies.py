@@ -698,14 +698,15 @@ async def approve_member(
 
     # Update membership based on approval flag
     if approval.approved:
-        membership.approval_status = "approved"
-        membership.approved_by = current_user.id
-        membership.approved_at = datetime.utcnow()
+        membership.approval_status = "approved"  # type: ignore[assignment]
+        membership.approved_by = current_user.id  # type: ignore[assignment]
+        membership.approved_at = datetime.utcnow()  # type: ignore[assignment]
     else:
-        membership.approval_status = "rejected"
+        membership.approval_status = "rejected"  # type: ignore[assignment]
         membership.rejected_by = current_user.id
         membership.rejected_at = datetime.utcnow()
         if approval.rejection_reason:
+            # type: ignore[assignment]
             membership.rejection_reason = approval.rejection_reason
 
     await db.commit()
