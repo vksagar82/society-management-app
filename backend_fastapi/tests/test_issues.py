@@ -275,7 +275,7 @@ async def _create_test_society(client: httpx.AsyncClient, creator_token: str, au
             await asyncio.sleep(1)
 
     await asyncio.sleep(1)
-    return society_id
+    return str(society_id)
 
 
 async def _create_test_issue(
@@ -316,7 +316,7 @@ async def _create_test_issue(
     issue_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return issue_id
+    return str(issue_id)
 
 
 # ============================================================================

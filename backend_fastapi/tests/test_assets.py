@@ -266,7 +266,7 @@ async def _create_test_society(client: httpx.AsyncClient, creator_token: str, au
             await asyncio.sleep(1)
 
     await asyncio.sleep(1)
-    return society_id
+    return str(society_id)
 
 
 async def _create_test_category(client: httpx.AsyncClient, dev_token: str, society_id: str, name: Optional[str] = None) -> str:
@@ -295,7 +295,7 @@ async def _create_test_category(client: httpx.AsyncClient, dev_token: str, socie
     category_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return category_id
+    return str(category_id)
 
 
 async def _create_test_asset(
@@ -334,7 +334,7 @@ async def _create_test_asset(
     asset_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return asset_id
+    return str(asset_id)
 
 
 # ============================================================================
