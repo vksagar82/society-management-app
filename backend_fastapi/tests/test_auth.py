@@ -103,23 +103,23 @@ HTTP Client Testing: Tests use httpx.AsyncClient(base_url=APP_BASE_URL) and http
 - Token expiry handled via JWT payload manipulation
 """
 
+import asyncio
 import os
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from contextlib import asynccontextmanager
 from typing import AsyncGenerator, cast
 
-import asyncio
 import httpx
+import jwt
 import pytest
-from jose import jwt
 from sqlalchemy import select
 
-from config import settings
-from main import app
 from app.database import AsyncSessionLocal
 from app.models import User
+from config import settings
+from main import app
 from tests.conftest import DEV_USER_ID
 
 
@@ -176,7 +176,9 @@ def _make_dev_token() -> str:
         "scope": "developer admin",
         "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm))
+    return cast(
+        str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    )
 
 
 def _make_expired_token() -> str:
@@ -191,7 +193,9 @@ def _make_expired_token() -> str:
         # Already expired
         "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp()),
     }
-    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm))
+    return cast(
+        str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    )
 
 
 async def _create_test_user(client: httpx.AsyncClient) -> tuple:
@@ -219,8 +223,7 @@ async def _create_test_user(client: httpx.AsyncClient) -> tuple:
 
     # Login to get token
     login_resp = await client.post(
-        "/api/v1/auth/login",
-        json={"email": email, "password": password}
+        "/api/v1/auth/login", json={"email": email, "password": password}
     )
     assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
     access_token = login_resp.json()["access_token"]
@@ -231,6 +234,7 @@ async def _create_test_user(client: httpx.AsyncClient) -> tuple:
 # ============================================================================
 # HAPPY PATH TESTS (7 tests - Core functionality)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_auth_signup():
@@ -243,10 +247,15 @@ async def test_auth_signup():
         password = "TestPass123"
         phone = f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10]
 
-        resp = await client.post("/api/v1/auth/signup", json={
-            "email": email, "phone": phone,
-            "full_name": "Test User", "password": password,
-        })
+        resp = await client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": email,
+                "phone": phone,
+                "full_name": "Test User",
+                "password": password,
+            },
+        )
         assert resp.status_code == 201, f"Signup failed: {resp.text}"
         user_data = resp.json()
         user_id = user_data["id"]
@@ -268,8 +277,9 @@ async def test_auth_login():
         user_id, email, password, _ = await _create_test_user(client)
         await asyncio.sleep(1)
 
-        resp = await client.post("/api/v1/auth/login",
-                                 json={"email": email, "password": password})
+        resp = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": password}
+        )
         assert resp.status_code == 200, f"Login failed: {resp.text}"
         login_resp = resp.json()
         assert "access_token" in login_resp
@@ -291,13 +301,15 @@ async def test_token_refresh():
         user_id, email, password, _ = await _create_test_user(client)
         await asyncio.sleep(1)
 
-        login_resp = await client.post("/api/v1/auth/login",
-                                       json={"email": email, "password": password})
+        login_resp = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": password}
+        )
         refresh_token = login_resp.json()["refresh_token"]
         await asyncio.sleep(1)
 
-        resp = await client.post("/api/v1/auth/refresh",
-                                 json={"refresh_token": refresh_token})
+        resp = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
+        )
         assert resp.status_code == 200, f"Refresh failed: {resp.text}"
         assert "access_token" in resp.json()
         await asyncio.sleep(1)
@@ -340,13 +352,17 @@ async def test_change_password():
         new_pwd = "NewTestPass123"
         await asyncio.sleep(1)
 
-        resp = await client.post("/api/v1/auth/change-password", headers=user_headers,
-                                 json={"current_password": old_pwd, "new_password": new_pwd})
+        resp = await client.post(
+            "/api/v1/auth/change-password",
+            headers=user_headers,
+            json={"current_password": old_pwd, "new_password": new_pwd},
+        )
         assert resp.status_code == 200, f"Change password failed: {resp.text}"
         await asyncio.sleep(1)
 
-        login_resp = await client.post("/api/v1/auth/login",
-                                       json={"email": email, "password": new_pwd})
+        login_resp = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": new_pwd}
+        )
         assert login_resp.status_code == 200, "Login with new password successful"
         await asyncio.sleep(1)
 
@@ -364,8 +380,10 @@ async def test_forgot_password():
         user_id, email, _, _ = await _create_test_user(client)
         await asyncio.sleep(1)
 
-        resp = await client.post("/api/v1/auth/forgot-password",
-                                 json={"email": "nonexistent-test@example.com"})
+        resp = await client.post(
+            "/api/v1/auth/forgot-password",
+            json={"email": "nonexistent-test@example.com"},
+        )
         assert resp.status_code == 200, f"Forgot password failed: {resp.text}"
         assert "message" in resp.json()
         await asyncio.sleep(1)
@@ -388,9 +406,10 @@ async def test_reset_password():
         await asyncio.sleep(1)
 
         # Test with invalid token (actual token extraction requires DB access)
-        resp = await client.post("/api/v1/auth/reset-password",
-                                 json={"token": "invalid-token-xyz",
-                                       "new_password": "ResettedPass123"})
+        resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": "invalid-token-xyz", "new_password": "ResettedPass123"},
+        )
         await asyncio.sleep(1)
 
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -413,14 +432,20 @@ async def test_reset_password_success(monkeypatch):
         _stub_send_password_reset_email,
     )
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         email = f"reset-success-{uuid.uuid4().hex[:8]}@example.com"
         password = "ResetOld123!"
 
         signup_resp = await client.post(
             "/api/v1/auth/signup",
-            json={"email": email, "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
-                  "full_name": "Reset User", "password": password},
+            json={
+                "email": email,
+                "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                "full_name": "Reset User",
+                "password": password,
+            },
         )
         assert signup_resp.status_code == 201, signup_resp.text
         user_id = signup_resp.json()["id"]
@@ -434,8 +459,7 @@ async def test_reset_password_success(monkeypatch):
         new_password = "ResetNew123!"
         reset_resp = await client.post(
             "/api/v1/auth/reset-password",
-            json={"token": token_holder["token"],
-                  "new_password": new_password},
+            json={"token": token_holder["token"], "new_password": new_password},
         )
         assert reset_resp.status_code == 200, reset_resp.text
 
@@ -445,7 +469,9 @@ async def test_reset_password_success(monkeypatch):
         )
         assert login_resp.status_code == 200, login_resp.text
 
-        cleanup_resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        cleanup_resp = await client.delete(
+            f"/api/v1/users/{user_id}", headers=dev_headers
+        )
         assert cleanup_resp.status_code == 204, cleanup_resp.text
 
 
@@ -465,14 +491,20 @@ async def test_reset_password_expired_token(monkeypatch):
         _stub_send_password_reset_email,
     )
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         email = f"reset-expired-{uuid.uuid4().hex[:8]}@example.com"
         password = "ResetOld123!"
 
         signup_resp = await client.post(
             "/api/v1/auth/signup",
-            json={"email": email, "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
-                  "full_name": "Reset User", "password": password},
+            json={
+                "email": email,
+                "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                "full_name": "Reset User",
+                "password": password,
+            },
         )
         assert signup_resp.status_code == 201, signup_resp.text
         user_id = signup_resp.json()["id"]
@@ -492,19 +524,21 @@ async def test_reset_password_expired_token(monkeypatch):
 
         reset_resp = await client.post(
             "/api/v1/auth/reset-password",
-            json={"token": token_holder["token"],
-                  "new_password": "Expired123!"},
+            json={"token": token_holder["token"], "new_password": "Expired123!"},
         )
         assert reset_resp.status_code == 400, reset_resp.text
         assert "expired" in reset_resp.json().get("detail", "").lower()
 
-        cleanup_resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        cleanup_resp = await client.delete(
+            f"/api/v1/users/{user_id}", headers=dev_headers
+        )
         assert cleanup_resp.status_code == 204, cleanup_resp.text
 
 
 # ============================================================================
 # ERROR SCENARIO TESTS (10 tests - 400, 401, 403, 422 errors)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_signup_duplicate_email():
@@ -516,18 +550,28 @@ async def test_signup_duplicate_email():
         email = f"dup-test-{uuid.uuid4().hex[:8]}@example.com"
         pwd = "TestPass123"
 
-        resp1 = await client.post("/api/v1/auth/signup", json={
-            "email": email, "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
-            "full_name": "Test User", "password": pwd,
-        })
+        resp1 = await client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": email,
+                "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                "full_name": "Test User",
+                "password": pwd,
+            },
+        )
         assert resp1.status_code == 201
         user_id = resp1.json()["id"]
         await asyncio.sleep(1)
 
-        resp2 = await client.post("/api/v1/auth/signup", json={
-            "email": email, "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
-            "full_name": "Test User 2", "password": pwd,
-        })
+        resp2 = await client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": email,
+                "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                "full_name": "Test User 2",
+                "password": pwd,
+            },
+        )
         assert resp2.status_code == 400, "Duplicate email rejected"
         await asyncio.sleep(1)
 
@@ -545,18 +589,28 @@ async def test_signup_duplicate_phone():
         phone = f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10]
         pwd = "TestPass123"
 
-        resp1 = await client.post("/api/v1/auth/signup", json={
-            "email": f"phone-1-{uuid.uuid4().hex[:8]}@example.com",
-            "phone": phone, "full_name": "Test User 1", "password": pwd,
-        })
+        resp1 = await client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": f"phone-1-{uuid.uuid4().hex[:8]}@example.com",
+                "phone": phone,
+                "full_name": "Test User 1",
+                "password": pwd,
+            },
+        )
         assert resp1.status_code == 201
         user_id = resp1.json()["id"]
         await asyncio.sleep(1)
 
-        resp2 = await client.post("/api/v1/auth/signup", json={
-            "email": f"phone-2-{uuid.uuid4().hex[:8]}@example.com",
-            "phone": phone, "full_name": "Test User 2", "password": pwd,
-        })
+        resp2 = await client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": f"phone-2-{uuid.uuid4().hex[:8]}@example.com",
+                "phone": phone,
+                "full_name": "Test User 2",
+                "password": pwd,
+            },
+        )
         assert resp2.status_code == 400, "Duplicate phone rejected"
         await asyncio.sleep(1)
 
@@ -573,11 +627,15 @@ async def test_signup_weak_password():
         weak_passwords = ["weak", "123456", "abcDEF"]
 
         for idx, pwd in enumerate(weak_passwords):
-            resp = await client.post("/api/v1/auth/signup", json={
-                "email": f"{email_base}-{idx}@example.com",
-                "phone": f"9{(uuid.uuid4().int + idx) % 10_000_000_000:010d}"[:10],
-                "full_name": "Test User", "password": pwd,
-            })
+            resp = await client.post(
+                "/api/v1/auth/signup",
+                json={
+                    "email": f"{email_base}-{idx}@example.com",
+                    "phone": f"9{(uuid.uuid4().int + idx) % 10_000_000_000:010d}"[:10],
+                    "full_name": "Test User",
+                    "password": pwd,
+                },
+            )
             assert resp.status_code == 422, f"Weak password '{pwd}' rejected"
             await asyncio.sleep(0.5)
 
@@ -590,10 +648,15 @@ async def test_signup_invalid_phone():
         invalid_phones = ["123", "abc", "phone"]
 
         for idx, phone in enumerate(invalid_phones):
-            resp = await client.post("/api/v1/auth/signup", json={
-                "email": f"{email_base}-{idx}@example.com", "phone": phone,
-                "full_name": "Test User", "password": "TestPass123",
-            })
+            resp = await client.post(
+                "/api/v1/auth/signup",
+                json={
+                    "email": f"{email_base}-{idx}@example.com",
+                    "phone": phone,
+                    "full_name": "Test User",
+                    "password": "TestPass123",
+                },
+            )
             assert resp.status_code == 422, f"Invalid phone '{phone}' rejected"
             await asyncio.sleep(0.5)
 
@@ -602,8 +665,10 @@ async def test_signup_invalid_phone():
 async def test_login_invalid_email():
     """ERROR: 401 Unauthorized - Invalid email"""
     async with _get_client() as client:
-        resp = await client.post("/api/v1/auth/login",
-                                 json={"email": "nonexistent@example.com", "password": "TestPass123"})
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "nonexistent@example.com", "password": "TestPass123"},
+        )
         assert resp.status_code == 401, "Non-existent email rejected"
 
 
@@ -617,8 +682,9 @@ async def test_login_invalid_password():
         user_id, email, _, _ = await _create_test_user(client)
         await asyncio.sleep(1)
 
-        resp = await client.post("/api/v1/auth/login",
-                                 json={"email": email, "password": "WrongPassword123"})
+        resp = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": "WrongPassword123"}
+        )
         assert resp.status_code == 401, "Wrong password rejected"
         await asyncio.sleep(1)
 
@@ -636,8 +702,9 @@ async def test_login_inactive_user():
         user_id, email, password, _ = await _create_test_user(client)
         await asyncio.sleep(1)
 
-        resp = await client.put(f"/api/v1/users/{user_id}", headers=dev_headers,
-                                json={"is_active": False})
+        resp = await client.put(
+            f"/api/v1/users/{user_id}", headers=dev_headers, json={"is_active": False}
+        )
         assert resp.status_code == 200
         await asyncio.sleep(1)
 
@@ -645,7 +712,9 @@ async def test_login_inactive_user():
             "/api/v1/auth/login",
             json={"email": email, "password": password},
         )
-        assert resp.status_code == 403, f"Inactive login should be forbidden, got {resp.status_code}"
+        assert (
+            resp.status_code == 403
+        ), f"Inactive login should be forbidden, got {resp.status_code}"
         await asyncio.sleep(1)
 
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -663,9 +732,14 @@ async def test_change_password_wrong_current():
         user_headers = {"Authorization": f"Bearer {access_token}"}
         await asyncio.sleep(1)
 
-        resp = await client.post("/api/v1/auth/change-password", headers=user_headers,
-                                 json={"current_password": "WrongPassword123",
-                                       "new_password": "NewPassword123"})
+        resp = await client.post(
+            "/api/v1/auth/change-password",
+            headers=user_headers,
+            json={
+                "current_password": "WrongPassword123",
+                "new_password": "NewPassword123",
+            },
+        )
         assert resp.status_code == 400, "Wrong current password rejected"
         await asyncio.sleep(1)
 
@@ -677,9 +751,10 @@ async def test_change_password_wrong_current():
 async def test_reset_password_invalid_token():
     """ERROR: 400 Bad Request - Invalid reset token"""
     async with _get_client() as client:
-        resp = await client.post("/api/v1/auth/reset-password",
-                                 json={"token": "invalid-token-xyz",
-                                       "new_password": "NewPassword123"})
+        resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": "invalid-token-xyz", "new_password": "NewPassword123"},
+        )
         assert resp.status_code == 400, "Invalid token rejected"
 
 
@@ -687,8 +762,9 @@ async def test_reset_password_invalid_token():
 async def test_refresh_invalid_token():
     """ERROR: 401 Unauthorized - Invalid refresh token"""
     async with _get_client() as client:
-        resp = await client.post("/api/v1/auth/refresh",
-                                 json={"refresh_token": "invalid-refresh-token"})
+        resp = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": "invalid-refresh-token"}
+        )
         assert resp.status_code == 401, "Invalid refresh token rejected"
 
 
@@ -696,13 +772,13 @@ async def test_refresh_invalid_token():
 # AUTHENTICATION/PERMISSION TESTS (4 tests)
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_me_unauthenticated():
     """PERMISSION: 401/403 Forbidden - No authentication"""
     async with _get_client() as client:
         resp = await client.get("/api/v1/auth/me")
-        assert resp.status_code in [
-            401, 403], "Unauthenticated request rejected"
+        assert resp.status_code in [401, 403], "Unauthenticated request rejected"
 
 
 @pytest.mark.asyncio
@@ -710,8 +786,9 @@ async def test_get_me_token_expired():
     """PERMISSION: 401/403 Unauthorized - Expired token"""
     async with _get_client() as client:
         expired_token = _make_expired_token()
-        resp = await client.get("/api/v1/auth/me",
-                                headers={"Authorization": f"Bearer {expired_token}"})
+        resp = await client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {expired_token}"}
+        )
         assert resp.status_code in [401, 403], "Expired token rejected"
 
 
@@ -720,8 +797,9 @@ async def test_refresh_expired_token():
     """ERROR: 401 Unauthorized - Expired refresh token"""
     async with _get_client() as client:
         expired_token = _make_expired_token()
-        resp = await client.post("/api/v1/auth/refresh",
-                                 json={"refresh_token": expired_token})
+        resp = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": expired_token}
+        )
         assert resp.status_code == 401, "Expired refresh token rejected"
 
 
@@ -729,15 +807,17 @@ async def test_refresh_expired_token():
 async def test_change_password_requires_auth():
     """PERMISSION: 401/403 Forbidden - Requires authentication"""
     async with _get_client() as client:
-        resp = await client.post("/api/v1/auth/change-password",
-                                 json={"current_password": "Old123", "new_password": "New123"})
-        assert resp.status_code in [
-            401, 403], "Unauthenticated request rejected"
+        resp = await client.post(
+            "/api/v1/auth/change-password",
+            json={"current_password": "Old123", "new_password": "New123"},
+        )
+        assert resp.status_code in [401, 403], "Unauthenticated request rejected"
 
 
 # ============================================================================
 # DATA VALIDATION TESTS (2 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_signup_with_society():
@@ -746,12 +826,15 @@ async def test_signup_with_society():
         dev_token = _make_dev_token()
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-        resp = await client.post("/api/v1/auth/signup", json={
-            "email": f"society-{uuid.uuid4().hex[:8]}@example.com",
-            "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
-            "full_name": "Test User", "password": "TestPass123",
-
-        })
+        resp = await client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": f"society-{uuid.uuid4().hex[:8]}@example.com",
+                "phone": f"9{uuid.uuid4().int % 10_000_000_000:010d}"[:10],
+                "full_name": "Test User",
+                "password": "TestPass123",
+            },
+        )
         assert resp.status_code == 201
         user_id = resp.json()["id"]
         await asyncio.sleep(1)
@@ -764,7 +847,8 @@ async def test_signup_with_society():
 async def test_forgot_password_nonexistent_email():
     """VALIDATION: Security behavior for forgot-password"""
     async with _get_client() as client:
-        resp = await client.post("/api/v1/auth/forgot-password",
-                                 json={"email": "nonexistent@example.com"})
+        resp = await client.post(
+            "/api/v1/auth/forgot-password", json={"email": "nonexistent@example.com"}
+        )
         assert resp.status_code == 200, "Non-existent email returns success"
         assert "message" in resp.json()

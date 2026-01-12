@@ -9,24 +9,17 @@ This module provides endpoints for user management including:
 - User settings
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, or_
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import (
-    get_current_active_user,
-    require_admin
-)
+from app.core.deps import get_current_active_user, require_admin
 from app.database import get_session
 from app.models import User
-from app.schemas.user import (
-    UserResponse,
-    UserInDB,
-    UserUpdate,
-    UserSettings
-)
+from app.schemas.user import UserInDB, UserResponse, UserSettings, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -35,16 +28,15 @@ router = APIRouter(prefix="/users", tags=["Users"])
     "",
     response_model=List[UserResponse],
     summary="List Users",
-    description="Get a list of all users (admin/developer only)."
+    description="Get a list of all users (admin/developer only).",
 )
 async def list_users(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        50, ge=1, le=100, description="Number of records to return"),
+    limit: int = Query(50, ge=1, le=100, description="Number of records to return"),
     search: Optional[str] = Query(None, description="Search by name or email"),
     role: Optional[str] = Query(None, description="Filter by global role"),
     current_user: UserResponse = Depends(require_admin),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     List all users with pagination and filtering.
@@ -62,10 +54,9 @@ async def list_users(
     # Apply search filter
     if search:
         search_pattern = f"%{search}%"
-        stmt = stmt.where(or_(
-            User.full_name.ilike(search_pattern),
-            User.email.ilike(search_pattern)
-        ))
+        stmt = stmt.where(
+            or_(User.full_name.ilike(search_pattern), User.email.ilike(search_pattern))
+        )
 
     # Apply role filter
     if role:
@@ -84,12 +75,12 @@ async def list_users(
     "/{user_id}",
     response_model=UserResponse,
     summary="Get User",
-    description="Get details of a specific user."
+    description="Get details of a specific user.",
 )
 async def get_user(
     user_id: UUID,
     current_user: UserInDB = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Get user by ID.
@@ -97,10 +88,13 @@ async def get_user(
     Users can view their own profile. Admins/developers can view any user.
     """
     # Allow users to view their own profile or admins/developers to view any
-    if str(current_user.id) != str(user_id) and current_user.global_role not in ["admin", "developer"]:
+    if str(current_user.id) != str(user_id) and current_user.global_role not in [
+        "admin",
+        "developer",
+    ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only view your own profile"
+            detail="You can only view your own profile",
         )
 
     stmt = select(User).where(User.id == user_id)
@@ -109,8 +103,7 @@ async def get_user(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     return UserResponse.model_validate(user)
@@ -120,13 +113,13 @@ async def get_user(
     "/{user_id}",
     response_model=UserResponse,
     summary="Update User",
-    description="Update user details."
+    description="Update user details.",
 )
 async def update_user(
     user_id: UUID,
     user_update: UserUpdate,
     current_user: UserInDB = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Update user details.
@@ -138,10 +131,13 @@ async def update_user(
     - Updating roles: `PUT /api/auth/update-role`
     """
     # Allow users to update their own profile or admins/developers to update any
-    if str(current_user.id) != str(user_id) and current_user.global_role not in ["admin", "developer"]:
+    if str(current_user.id) != str(user_id) and current_user.global_role not in [
+        "admin",
+        "developer",
+    ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only update your own profile"
+            detail="You can only update your own profile",
         )
 
     # Get existing user
@@ -151,25 +147,30 @@ async def update_user(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     # Update allowed fields
     update_data = user_update.model_dump(exclude_unset=True)
 
     # Prevent non-admin users from changing their global_role
-    if "global_role" in update_data and current_user.global_role not in ["admin", "developer"]:
+    if "global_role" in update_data and current_user.global_role not in [
+        "admin",
+        "developer",
+    ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You cannot change your own role"
+            detail="You cannot change your own role",
         )
 
     # Only admins/developers can toggle activation status
-    if "is_active" in update_data and current_user.global_role not in ["admin", "developer"]:
+    if "is_active" in update_data and current_user.global_role not in [
+        "admin",
+        "developer",
+    ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You cannot change activation status"
+            detail="You cannot change activation status",
         )
 
     # Check email uniqueness if changing email
@@ -179,7 +180,7 @@ async def update_user(
         if check_result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                detail="Email already registered",
             )
 
     # Apply updates
@@ -196,12 +197,12 @@ async def update_user(
     "/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete User",
-    description="Delete a user (admin/developer only)."
+    description="Delete a user (admin/developer only).",
 )
 async def delete_user(
     user_id: UUID,
     current_user: UserResponse = Depends(require_admin),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Delete a user permanently.
@@ -214,7 +215,7 @@ async def delete_user(
     if str(current_user.id) == str(user_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You cannot delete your own account"
+            detail="You cannot delete your own account",
         )
 
     # Check if user exists
@@ -224,8 +225,7 @@ async def delete_user(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     # Delete user (cascade will handle user_societies)
@@ -237,11 +237,11 @@ async def delete_user(
     "/profile/settings",
     response_model=UserSettings,
     summary="Get User Settings",
-    description="Get current user's settings."
+    description="Get current user's settings.",
 )
 async def get_user_settings(
     current_user: UserInDB = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Get the authenticated user's settings.
@@ -254,8 +254,7 @@ async def get_user_settings(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     # Settings is a JSON column
@@ -267,12 +266,12 @@ async def get_user_settings(
     "/profile/settings",
     response_model=UserSettings,
     summary="Update User Settings",
-    description="Update current user's settings."
+    description="Update current user's settings.",
 )
 async def update_user_settings(
     settings_update: UserSettings,
     current_user: UserInDB = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Update the authenticated user's settings.
@@ -285,14 +284,17 @@ async def update_user_settings(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     # Update settings (merge with existing)
+    # fmt: off
     current_settings: Dict[str, Any] = user.settings or {}  # type: ignore[assignment]
-    updated_settings: Dict[str, Any] = {**current_settings, **
-                                        settings_update.model_dump(exclude_unset=True)}
+    # fmt: on
+    updated_settings: Dict[str, Any] = {
+        **current_settings,
+        **settings_update.model_dump(exclude_unset=True),
+    }
     user.settings = updated_settings  # type: ignore[assignment]
 
     await db.commit()
@@ -305,12 +307,12 @@ async def update_user_settings(
     "/profile/avatar",
     response_model=UserResponse,
     summary="Update Avatar",
-    description="Update current user's avatar URL."
+    description="Update current user's avatar URL.",
 )
 async def update_avatar(
     avatar_url: str,
     current_user: UserInDB = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Update the authenticated user's avatar URL.
@@ -324,8 +326,7 @@ async def update_avatar(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     user.avatar_url = avatar_url  # type: ignore[assignment]

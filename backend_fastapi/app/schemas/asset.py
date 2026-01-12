@@ -4,20 +4,19 @@ Asset and Asset Category schemas for request/response validation.
 This module defines Pydantic models for asset management operations.
 """
 
-from datetime import datetime, date
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID
-from decimal import Decimal
+
 from pydantic import BaseModel, Field
 
 
 class AssetCategoryBase(BaseModel):
     """Base asset category schema."""
 
-    name: str = Field(..., min_length=2, max_length=100,
-                      description="Category name")
-    description: Optional[str] = Field(
-        None, description="Category description")
+    name: str = Field(..., min_length=2, max_length=100, description="Category name")
+    description: Optional[str] = Field(None, description="Category description")
 
 
 class AssetCategoryCreate(AssetCategoryBase):
@@ -44,28 +43,27 @@ class AssetCategoryResponse(AssetCategoryBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True
 
 
 class AssetBase(BaseModel):
     """Base asset schema."""
 
-    name: str = Field(..., min_length=2, max_length=255,
-                      description="Asset name")
+    name: str = Field(..., min_length=2, max_length=255, description="Asset name")
     description: Optional[str] = Field(None, description="Asset description")
     purchase_date: Optional[date] = Field(None, description="Purchase date")
-    purchase_cost: Optional[Decimal] = Field(
-        None, ge=0, description="Purchase cost")
+    purchase_cost: Optional[Decimal] = Field(None, ge=0, description="Purchase cost")
     warranty_expiry_date: Optional[date] = Field(
-        None, description="Warranty expiry date")
-    location: Optional[str] = Field(
-        None, max_length=255, description="Asset location")
+        None, description="Warranty expiry date"
+    )
+    location: Optional[str] = Field(None, max_length=255, description="Asset location")
     asset_code: Optional[str] = Field(
-        None, max_length=100, description="Unique asset code")
+        None, max_length=100, description="Unique asset code"
+    )
     image_url: Optional[str] = Field(None, description="Asset image URL")
     maintenance_frequency: Optional[str] = Field(
-        None,
-        description="Maintenance frequency: monthly, quarterly, annually"
+        None, description="Maintenance frequency: monthly, quarterly, annually"
     )
     notes: Optional[str] = Field(None, description="Additional notes")
 
@@ -90,8 +88,7 @@ class AssetUpdate(BaseModel):
     asset_code: Optional[str] = Field(None, max_length=100)
     image_url: Optional[str] = None
     status: Optional[str] = Field(
-        None,
-        description="Status: active, inactive, maintenance, decommissioned"
+        None, description="Status: active, inactive, maintenance, decommissioned"
     )
     last_maintenance_date: Optional[date] = None
     next_maintenance_date: Optional[date] = None
@@ -114,4 +111,5 @@ class AssetResponse(AssetBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True

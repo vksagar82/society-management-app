@@ -7,30 +7,31 @@ This module defines Pydantic models for society-related API operations.
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
+
 from pydantic import BaseModel, EmailStr, Field
 
 
 class SocietyBase(BaseModel):
     """Base society schema with common fields."""
 
-    name: str = Field(..., min_length=2, max_length=255,
-                      description="Society name")
+    name: str = Field(..., min_length=2, max_length=255, description="Society name")
     address: str = Field(..., description="Society address")
     city: Optional[str] = Field(None, max_length=100, description="City")
     state: Optional[str] = Field(None, max_length=100, description="State")
-    pincode: Optional[str] = Field(
-        None, max_length=10, description="Postal code")
+    pincode: Optional[str] = Field(None, max_length=10, description="Postal code")
     contact_person: Optional[str] = Field(
-        None, max_length=255, description="Contact person name")
-    contact_email: Optional[EmailStr] = Field(
-        None, description="Contact email")
+        None, max_length=255, description="Contact person name"
+    )
+    contact_email: Optional[EmailStr] = Field(None, description="Contact email")
     contact_phone: Optional[str] = Field(
-        None, max_length=20, description="Contact phone")
+        None, max_length=20, description="Contact phone"
+    )
     logo_url: Optional[str] = Field(None, description="Society logo URL")
 
 
 class SocietyCreate(SocietyBase):
     """Schema for society creation."""
+
     pass
 
 
@@ -53,24 +54,27 @@ class SocietyResponse(SocietyBase):
 
     id: UUID
     approval_status: str = Field(
-        default="pending", description="Society approval status: pending, approved")
+        default="pending", description="Society approval status: pending, approved"
+    )
     approved_by: Optional[UUID] = Field(
-        None, description="Developer who approved the society")
+        None, description="Developer who approved the society"
+    )
     approved_at: Optional[datetime] = Field(
-        None, description="When society was approved")
+        None, description="When society was approved"
+    )
     created_at: datetime
     updated_at: datetime
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True
 
 
 class UserSocietyBase(BaseModel):
     """Base user-society mapping schema."""
 
-    flat_no: Optional[str] = Field(
-        None, max_length=50, description="Flat/Unit number")
+    flat_no: Optional[str] = Field(None, max_length=50, description="Flat/Unit number")
     wing: Optional[str] = Field(None, max_length=50, description="Wing/Block")
 
 
@@ -79,7 +83,7 @@ class UserSocietyCreate(UserSocietyBase):
 
     role: Optional[str] = Field(
         "member",
-        description="Desired role: admin, manager, or member (default: member)"
+        description="Desired role: admin, manager, or member (default: member)",
     )
 
 
@@ -98,8 +102,7 @@ class UserSocietyResponse(UserSocietyBase):
     user_id: UUID
     society_id: UUID
     role: str = Field(..., description="Role: admin, manager, member")
-    approval_status: str = Field(...,
-                                 description="Status: pending, approved, rejected")
+    approval_status: str = Field(..., description="Status: pending, approved, rejected")
     approved_by: Optional[UUID] = None
     approved_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
@@ -110,6 +113,7 @@ class UserSocietyResponse(UserSocietyBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True
 
 
@@ -118,13 +122,11 @@ class ApprovalRequest(BaseModel):
 
     user_society_id: UUID = Field(..., description="User-society mapping ID")
     approved: bool = Field(..., description="Approve or reject")
-    rejection_reason: Optional[str] = Field(
-        None, description="Reason for rejection")
+    rejection_reason: Optional[str] = Field(None, description="Reason for rejection")
 
 
 class SocietyApprovalRequest(BaseModel):
     """Schema for society approval by developer."""
 
     approved: bool = Field(..., description="Approve or reject the society")
-    rejection_reason: Optional[str] = Field(
-        None, description="Reason if rejected")
+    rejection_reason: Optional[str] = Field(None, description="Reason if rejected")

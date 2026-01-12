@@ -5,20 +5,18 @@ This module provides email sending functionality for various
 application events like password reset, notifications, etc.
 """
 
-import aiosmtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Optional
+
+import aiosmtplib
 from jinja2 import Template
 
 from config import settings
 
 
 async def send_email(
-    to_email: str,
-    subject: str,
-    html_content: str,
-    text_content: Optional[str] = None
+    to_email: str, subject: str, html_content: str, text_content: Optional[str] = None
 ):
     """
     Send an email.
@@ -51,7 +49,7 @@ async def send_email(
             port=settings.smtp_port,
             username=settings.smtp_user,
             password=settings.smtp_password,
-            start_tls=True
+            start_tls=True,
         )
     except Exception as e:
         print(f"Error sending email: {e}")
@@ -70,7 +68,8 @@ async def send_password_reset_email(email: str, name: str, reset_token: str):
     """
     reset_link = f"http://localhost:3000/auth/reset-password?token={reset_token}"
 
-    html_template = Template("""
+    html_template = Template(
+        """
     <!DOCTYPE html>
     <html>
     <head>
@@ -106,7 +105,8 @@ async def send_password_reset_email(email: str, name: str, reset_token: str):
         </div>
     </body>
     </html>
-    """)
+    """
+    )
 
     html_content = html_template.render(name=name, reset_link=reset_link)
     text_content = f"""
@@ -131,7 +131,7 @@ async def send_password_reset_email(email: str, name: str, reset_token: str):
         to_email=email,
         subject="Password Reset Request - Society Management",
         html_content=html_content,
-        text_content=text_content
+        text_content=text_content,
     )
 
 
@@ -143,7 +143,8 @@ async def send_welcome_email(email: str, name: str):
         email: User's email address
         name: User's name
     """
-    html_template = Template("""
+    html_template = Template(
+        """
     <!DOCTYPE html>
     <html>
     <head>
@@ -172,12 +173,13 @@ async def send_welcome_email(email: str, name: str):
         </div>
     </body>
     </html>
-    """)
+    """
+    )
 
     html_content = html_template.render(name=name)
 
     await send_email(
         to_email=email,
         subject="Welcome to Society Management!",
-        html_content=html_content
+        html_content=html_content,
     )

@@ -5,8 +5,9 @@ This module defines Pydantic models for user-related API operations.
 """
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 from uuid import UUID
+
 from pydantic import BaseModel, EmailStr, Field, validator
 
 
@@ -14,18 +15,15 @@ class UserBase(BaseModel):
     """Base user schema with common fields."""
 
     email: EmailStr = Field(..., description="User email address")
-    phone: str = Field(..., min_length=10, max_length=20,
-                       description="Phone number")
-    full_name: str = Field(..., min_length=2,
-                           max_length=255, description="Full name")
+    phone: str = Field(..., min_length=10, max_length=20, description="Phone number")
+    full_name: str = Field(..., min_length=2, max_length=255, description="Full name")
     avatar_url: Optional[str] = Field(None, description="Avatar image URL")
 
 
 class UserCreate(UserBase):
     """Schema for user creation."""
 
-    password: str = Field(..., min_length=8,
-                          description="Password (min 8 characters)")
+    password: str = Field(..., min_length=8, description="Password (min 8 characters)")
 
     @validator("password")
     def validate_password(cls, v):
@@ -33,11 +31,9 @@ class UserCreate(UserBase):
         if not any(char.isdigit() for char in v):
             raise ValueError("Password must contain at least one digit")
         if not any(char.isupper() for char in v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter")
+            raise ValueError("Password must contain at least one uppercase letter")
         if not any(char.islower() for char in v):
-            raise ValueError(
-                "Password must contain at least one lowercase letter")
+            raise ValueError("Password must contain at least one lowercase letter")
         return v
 
 
@@ -56,8 +52,9 @@ class UserResponse(UserBase):
     """Schema for user response."""
 
     id: UUID
-    global_role: str = Field(...,
-                             description="Global role: developer, admin, manager, member")
+    global_role: str = Field(
+        ..., description="Global role: developer, admin, manager, member"
+    )
     is_active: bool
     settings: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
@@ -65,6 +62,7 @@ class UserResponse(UserBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True
 
 
@@ -92,11 +90,9 @@ class PasswordChange(BaseModel):
         if not any(char.isdigit() for char in v):
             raise ValueError("Password must contain at least one digit")
         if not any(char.isupper() for char in v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter")
+            raise ValueError("Password must contain at least one uppercase letter")
         if not any(char.islower() for char in v):
-            raise ValueError(
-                "Password must contain at least one lowercase letter")
+            raise ValueError("Password must contain at least one lowercase letter")
         return v
 
 
@@ -118,11 +114,9 @@ class PasswordResetConfirm(BaseModel):
         if not any(char.isdigit() for char in v):
             raise ValueError("Password must contain at least one digit")
         if not any(char.isupper() for char in v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter")
+            raise ValueError("Password must contain at least one uppercase letter")
         if not any(char.islower() for char in v):
-            raise ValueError(
-                "Password must contain at least one lowercase letter")
+            raise ValueError("Password must contain at least one lowercase letter")
         return v
 
 
@@ -131,8 +125,11 @@ class UserSettings(BaseModel):
 
     timezone: Optional[str] = Field("UTC", description="User timezone")
     date_format: Optional[str] = Field(
-        "YYYY-MM-DD", description="Date format preference")
+        "YYYY-MM-DD", description="Date format preference"
+    )
     notifications_enabled: Optional[bool] = Field(
-        True, description="Enable notifications")
+        True, description="Enable notifications"
+    )
     email_notifications: Optional[bool] = Field(
-        True, description="Enable email notifications")
+        True, description="Enable email notifications"
+    )

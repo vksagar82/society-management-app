@@ -1,25 +1,26 @@
-from typing import List, cast, Optional
 from datetime import datetime
+from typing import List, Optional, cast
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, delete, func
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_active_user
 from app.database import get_session
-from app.models import Role, Scope, RoleScope, User
+from app.models import Role, RoleScope, Scope, User
 from app.schemas.role_scope import (
     RoleCreate,
-    RoleUpdate,
     RoleResponse,
+    RoleScopesUpdate,
+    RoleUpdate,
     RoleWithScopes,
     ScopeCreate,
-    ScopeUpdate,
     ScopeResponse,
-    RoleScopesUpdate,
+    ScopeUpdate,
 )
-from app.schemas.user import UserResponse, UserInDB
+from app.schemas.user import UserInDB, UserResponse
 
 router = APIRouter(prefix="/roles", tags=["Roles & Scopes"])
 
@@ -40,7 +41,12 @@ async def list_roles(db: AsyncSession = Depends(get_session)):
     return [RoleResponse.model_validate(r) for r in roles]
 
 
-@router.post("", response_model=RoleResponse, status_code=status.HTTP_201_CREATED, summary="Create role")
+@router.post(
+    "",
+    response_model=RoleResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create role",
+)
 async def create_role(
     payload: RoleCreate,
     current_user: UserInDB = Depends(get_current_active_user),
@@ -84,7 +90,9 @@ async def update_role(
     return RoleResponse.model_validate(role)
 
 
-@router.delete("/{role_name}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete role")
+@router.delete(
+    "/{role_name}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete role"
+)
 async def delete_role(
     role_name: str,
     current_user: UserInDB = Depends(get_current_active_user),
@@ -99,11 +107,14 @@ async def delete_role(
         raise HTTPException(status_code=404, detail="Role not found")
 
     # Prevent deletion if users reference this role
-    count_result = await db.execute(select(func.count()).select_from(User).where(User.global_role == name))
+    count_result = await db.execute(
+        select(func.count()).select_from(User).where(User.global_role == name)
+    )
     user_count = count_result.scalar_one()
     if user_count:
         raise HTTPException(
-            status_code=400, detail="Cannot delete role in use by users")
+            status_code=400, detail="Cannot delete role in use by users"
+        )
 
     await db.execute(delete(RoleScope).where(RoleScope.role_id == role.id))
     await db.execute(delete(Role).where(Role.id == role.id))
@@ -111,7 +122,11 @@ async def delete_role(
     return None
 
 
-@router.get("/{role_name}/scopes", response_model=RoleWithScopes, summary="List scopes for a role")
+@router.get(
+    "/{role_name}/scopes",
+    response_model=RoleWithScopes,
+    summary="List scopes for a role",
+)
 async def get_role_scopes(role_name: str, db: AsyncSession = Depends(get_session)):
     name = role_name.strip().lower()
     result = await db.execute(
@@ -123,8 +138,7 @@ async def get_role_scopes(role_name: str, db: AsyncSession = Depends(get_session
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    scopes = [ScopeResponse.model_validate(
-        rs.scope) for rs in role.role_scopes]
+    scopes = [ScopeResponse.model_validate(rs.scope) for rs in role.role_scopes]
     return RoleWithScopes(
         id=cast(UUID, role.id),
         name=cast(str, role.name),
@@ -135,7 +149,11 @@ async def get_role_scopes(role_name: str, db: AsyncSession = Depends(get_session
     )
 
 
-@router.put("/{role_name}/scopes", response_model=RoleWithScopes, summary="Replace scopes for a role")
+@router.put(
+    "/{role_name}/scopes",
+    response_model=RoleWithScopes,
+    summary="Replace scopes for a role",
+)
 async def set_role_scopes(
     role_name: str,
     payload: RoleScopesUpdate,
@@ -176,8 +194,7 @@ async def set_role_scopes(
         .options(selectinload(Role.role_scopes).selectinload(RoleScope.scope))
     )
     role = result.scalar_one()
-    scopes_resp = [ScopeResponse.model_validate(
-        rs.scope) for rs in role.role_scopes]
+    scopes_resp = [ScopeResponse.model_validate(rs.scope) for rs in role.role_scopes]
 
     return RoleWithScopes(
         id=cast(UUID, role.id),
@@ -196,7 +213,12 @@ async def list_scopes(db: AsyncSession = Depends(get_session)):
     return [ScopeResponse.model_validate(s) for s in scopes]
 
 
-@router.post("/scopes", response_model=ScopeResponse, status_code=status.HTTP_201_CREATED, summary="Create scope")
+@router.post(
+    "/scopes",
+    response_model=ScopeResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create scope",
+)
 async def create_scope(
     payload: ScopeCreate,
     current_user: UserInDB = Depends(get_current_active_user),
@@ -216,7 +238,9 @@ async def create_scope(
     return ScopeResponse.model_validate(scope)
 
 
-@router.patch("/scopes/{scope_name}", response_model=ScopeResponse, summary="Update scope")
+@router.patch(
+    "/scopes/{scope_name}", response_model=ScopeResponse, summary="Update scope"
+)
 async def update_scope(
     scope_name: str,
     payload: ScopeUpdate,
@@ -239,7 +263,11 @@ async def update_scope(
     return ScopeResponse.model_validate(scope)
 
 
-@router.delete("/scopes/{scope_name}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete scope")
+@router.delete(
+    "/scopes/{scope_name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete scope",
+)
 async def delete_scope(
     scope_name: str,
     current_user: UserInDB = Depends(get_current_active_user),

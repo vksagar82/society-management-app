@@ -2,8 +2,8 @@
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.limiter import limiter
 
@@ -28,6 +28,6 @@ def setup_exception_handlers(app: FastAPI):
             status_code=429,
             content={
                 "error": "Rate limit exceeded",
-                "detail": "Maximum 100 requests per minute allowed"
-            }
+                "detail": "Maximum 100 requests per minute allowed",
+            },
         )

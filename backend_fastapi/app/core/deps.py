@@ -5,9 +5,10 @@ This module provides FastAPI dependencies for authenticating requests
 and checking user permissions based on roles and scopes.
 """
 
-from typing import Optional, List, cast, Any
+from typing import Any, List, Optional, cast
+
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,14 +61,12 @@ async def get_current_user(
 
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
 
     return UserInDB(
@@ -86,7 +85,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: UserInDB = Depends(get_current_user),
 ) -> UserInDB:
     """
     Get current active user.
@@ -102,8 +101,7 @@ async def get_current_active_user(
     """
     if not current_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user"
         )
     return current_user
 
@@ -118,13 +116,14 @@ def require_roles(allowed_roles: List[str]):
     Returns:
         Dependency function that checks user role
     """
+
     async def role_checker(
-        current_user: UserInDB = Depends(get_current_active_user)
+        current_user: UserInDB = Depends(get_current_active_user),
     ) -> UserInDB:
         if current_user.global_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient permissions. Required roles: {', '.join(allowed_roles)}"
+                detail=f"Insufficient permissions. Required roles: {', '.join(allowed_roles)}",
             )
         return current_user
 
@@ -141,7 +140,7 @@ async def check_society_access(
     user: UserInDB,
     society_id: str,
     db: AsyncSession,
-    required_role: Optional[str] = None
+    required_role: Optional[str] = None,
 ) -> bool:
     """
     Check if user has access to a specific society.
@@ -158,8 +157,9 @@ async def check_society_access(
     Raises:
         HTTPException: If user doesn't have access
     """
-    from app.models import UserSociety, Society
     from sqlalchemy import and_
+
+    from app.models import Society, UserSociety
 
     # Developers have access to all societies
     if user.global_role == "developer":
@@ -172,51 +172,44 @@ async def check_society_access(
 
     if not society:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Society not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Society not found"
         )
 
     if society.approval_status != "approved":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Society is not approved yet. Only developers can access pending societies."
+            detail="Society is not approved yet. Only developers can access pending societies.",
         )
 
     # Check user-society mapping
     stmt = select(UserSociety).where(
-        and_(
-            UserSociety.user_id == user.id,
-            UserSociety.society_id == society_id
-        )
+        and_(UserSociety.user_id == user.id, UserSociety.society_id == society_id)
     )
     result = await db.execute(stmt)
     mapping = result.scalar_one_or_none()
 
     if not mapping:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No access to this society"
+            status_code=status.HTTP_403_FORBIDDEN, detail="No access to this society"
         )
 
     if mapping.approval_status != "approved":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Society membership not approved"
+            detail="Society membership not approved",
         )
 
     if required_role and mapping.role != required_role:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Required role '{required_role}' within society"
+            detail=f"Required role '{required_role}' within society",
         )
 
     return True
 
 
 async def get_user_society_role(
-    user: UserInDB,
-    society_id: str,
-    db: AsyncSession
+    user: UserInDB, society_id: str, db: AsyncSession
 ) -> Optional[str]:
     """
     Get user's role in a specific society.
@@ -229,8 +222,9 @@ async def get_user_society_role(
     Returns:
         Optional[str]: User's role in society (admin, manager, member) or None
     """
-    from app.models import UserSociety
     from sqlalchemy import and_
+
+    from app.models import UserSociety
 
     # Developers are treated as admins in all societies
     if user.global_role == "developer":
@@ -240,7 +234,7 @@ async def get_user_society_role(
         and_(
             UserSociety.user_id == user.id,
             UserSociety.society_id == society_id,
-            UserSociety.approval_status == "approved"
+            UserSociety.approval_status == "approved",
         )
     )
     result = await db.execute(stmt)
@@ -254,7 +248,7 @@ async def require_society_permission(
     society_id: str,
     db: AsyncSession,
     allowed_roles: List[str] = ["admin", "manager", "member"],
-    action: str = "access"
+    action: str = "access",
 ) -> str:
     """
     Check if user has required permission in a society.
@@ -281,7 +275,7 @@ async def require_society_permission(
     if not role or role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Insufficient permissions to {action}. Required roles: {', '.join(allowed_roles)}"
+            detail=f"Insufficient permissions to {action}. Required roles: {', '.join(allowed_roles)}",
         )
 
     return role

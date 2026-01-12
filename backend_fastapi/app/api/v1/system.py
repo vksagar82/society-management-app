@@ -1,11 +1,11 @@
 """System endpoints for health checks and status."""
 
 from fastapi import APIRouter
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import engine
-from app.models import Role, Scope, RoleScope
+from app.models import Role, RoleScope, Scope
 from config import settings
 
 router = APIRouter(prefix="/system", tags=["System"])
@@ -35,7 +35,9 @@ async def seed_status():
     async with AsyncSession(engine) as session:
         roles_count = await session.scalar(select(func.count()).select_from(Role))
         scopes_count = await session.scalar(select(func.count()).select_from(Scope))
-        mappings_count = await session.scalar(select(func.count()).select_from(RoleScope))
+        mappings_count = await session.scalar(
+            select(func.count()).select_from(RoleScope)
+        )
 
         return {
             "seeded": roles_count > 0 and scopes_count > 0,

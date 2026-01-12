@@ -132,17 +132,17 @@ In-Process Testing: Tests use httpx.AsyncClient(app=app, base_url="http://test")
 - No external server required for coverage measurement
 """
 
+import asyncio
 import os
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-
-import asyncio
-import httpx
-import pytest
-from contextlib import asynccontextmanager
 from typing import AsyncGenerator, cast
-from jose import jwt
+
+import httpx
+import jwt
+import pytest
 
 from config import settings
 from main import app
@@ -202,7 +202,9 @@ def _make_dev_token() -> str:
         "scope": "developer admin",
         "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm))
+    return cast(
+        str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    )
 
 
 async def _create_user_and_login(client: httpx.AsyncClient):
@@ -233,7 +235,9 @@ async def _create_user_and_login(client: httpx.AsyncClient):
     return user_id, user_token, email
 
 
-async def _create_society(client: httpx.AsyncClient, headers: dict, name_prefix: str = "Society"):
+async def _create_society(
+    client: httpx.AsyncClient, headers: dict, name_prefix: str = "Society"
+):
     """
     Create unique test society.
 
@@ -251,7 +255,7 @@ async def _create_society(client: httpx.AsyncClient, headers: dict, name_prefix:
         "address": "123 Test Street",
         "city": "Test City",
         "state": "TS",
-        "pincode": "123456"
+        "pincode": "123456",
     }
 
     resp = await client.post("/api/v1/societies", json=society_data, headers=headers)
@@ -272,7 +276,9 @@ async def test_approve_pending_society_by_developer():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Member creates pending society
         member_id, member_token, _ = await _create_user_and_login(client)
         member_headers = {"Authorization": f"Bearer {member_token}"}
@@ -306,7 +312,9 @@ async def test_approve_pending_society_by_developer():
         # Cleanup
         resp = await client.delete(f"/api/v1/users/{member_id}", headers=dev_headers)
         assert resp.status_code == 204, resp.text
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -321,7 +329,9 @@ async def test_join_pending_society_requires_developer():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         creator_id, creator_token, _ = await _create_user_and_login(client)
         creator_headers = {"Authorization": f"Bearer {creator_token}"}
 
@@ -356,7 +366,9 @@ async def test_join_pending_society_requires_developer():
         assert resp.status_code == 204, resp.text
         resp = await client.delete(f"/api/v1/users/{creator_id}", headers=dev_headers)
         assert resp.status_code == 204, resp.text
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -372,7 +384,9 @@ async def test_get_society_members_status_filter():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         society_id, _ = await _create_society(client, dev_headers, "StatusFilter")
 
         # Approved member
@@ -446,13 +460,16 @@ async def test_get_society_members_status_filter():
             assert resp.status_code == 204, resp.text
             await asyncio.sleep(1)
 
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
 # ============================================================================
 # HAPPY PATH TESTS (8 tests - Core functionality)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_societies_crud():
@@ -468,7 +485,9 @@ async def test_societies_crud():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # TEST 1: POST /api/v1/societies - Create society
         society_name = f"TestSociety-{uuid.uuid4().hex[:8]}"
         society_data = {
@@ -476,9 +495,11 @@ async def test_societies_crud():
             "address": "123 Test Street",
             "city": "Test City",
             "state": "TS",
-            "pincode": "123456"
+            "pincode": "123456",
         }
-        resp = await client.post("/api/v1/societies", json=society_data, headers=dev_headers)
+        resp = await client.post(
+            "/api/v1/societies", json=society_data, headers=dev_headers
+        )
         assert resp.status_code == 201, f"Create society failed: {resp.text}"
         society_id = resp.json()["id"]
         assert resp.json()["name"] == society_name, "Society name in response"
@@ -488,8 +509,7 @@ async def test_societies_crud():
         resp = await client.get("/api/v1/societies", headers=dev_headers)
         assert resp.status_code == 200, "List societies works"
         societies = resp.json()
-        assert any(
-            s["id"] == society_id for s in societies), "Created society in list"
+        assert any(s["id"] == society_id for s in societies), "Created society in list"
         await asyncio.sleep(2)
 
         # TEST 3: GET /api/v1/societies/{id} - Get details
@@ -505,9 +525,11 @@ async def test_societies_crud():
             "address": "456 Updated Street",
             "city": "Updated City",
             "state": "US",
-            "pincode": "654321"
+            "pincode": "654321",
         }
-        resp = await client.put(f"/api/v1/societies/{society_id}", json=update_data, headers=dev_headers)
+        resp = await client.put(
+            f"/api/v1/societies/{society_id}", json=update_data, headers=dev_headers
+        )
         assert resp.status_code == 200, f"Update society failed: {resp.text}"
         assert resp.json()["name"] == f"{society_name}-Updated", "Name updated"
         assert resp.json()["city"] == "Updated City", "City updated"
@@ -520,7 +542,9 @@ async def test_societies_crud():
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE society (cascade deletes all memberships)
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, f"Delete society failed: {resp.text}"
 
 
@@ -537,23 +561,29 @@ async def test_list_societies_with_search():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
-        society_id, society_data = await _create_society(client, dev_headers, "SearchTest")
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
+        society_id, society_data = await _create_society(
+            client, dev_headers, "SearchTest"
+        )
 
         # TEST: Search by society name
-        search_query = society_data["name"].split('-')[0]  # First part of name
+        search_query = society_data["name"].split("-")[0]  # First part of name
         resp = await client.get(
-            f"/api/v1/societies?search={search_query}",
-            headers=dev_headers
+            f"/api/v1/societies?search={search_query}", headers=dev_headers
         )
         assert resp.status_code == 200, "Search works"
         societies = resp.json()
         assert any(
-            s["id"] == society_id for s in societies), "Society in search results"
+            s["id"] == society_id for s in societies
+        ), "Society in search results"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -570,13 +600,14 @@ async def test_list_societies_pagination():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         society_id, _ = await _create_society(client, dev_headers, "PaginationTest")
 
         # TEST: Pagination with skip and limit
         resp = await client.get(
-            "/api/v1/societies?skip=0&limit=10",
-            headers=dev_headers
+            "/api/v1/societies?skip=0&limit=10", headers=dev_headers
         )
         assert resp.status_code == 200, "Pagination works"
         societies = resp.json()
@@ -584,7 +615,9 @@ async def test_list_societies_pagination():
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -601,7 +634,9 @@ async def test_list_societies_as_regular_user():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "UserListTest")
 
@@ -614,11 +649,14 @@ async def test_list_societies_as_regular_user():
         assert resp.status_code == 200, "Regular user can list societies"
         societies = resp.json()
         assert not any(
-            s["id"] == society_id for s in societies), "User doesn't see non-member societies"
+            s["id"] == society_id for s in societies
+        ), "User doesn't see non-member societies"
         await asyncio.sleep(2)
 
         # User joins society
-        resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=user_headers
+        )
         assert resp.status_code == 201, resp.text
         user_society_id = resp.json()["id"]
         await asyncio.sleep(2)
@@ -628,7 +666,8 @@ async def test_list_societies_as_regular_user():
         assert resp.status_code == 200, "User can list after joining"
         societies = resp.json()
         assert not any(
-            s["id"] == society_id for s in societies), "User doesn't see pending societies"
+            s["id"] == society_id for s in societies
+        ), "User doesn't see pending societies"
         await asyncio.sleep(2)
 
         # Admin approves membership
@@ -636,7 +675,7 @@ async def test_list_societies_as_regular_user():
         resp = await client.post(
             f"/api/v1/societies/{society_id}/approve",
             json=approval_data,
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200, resp.text
         await asyncio.sleep(2)
@@ -646,7 +685,8 @@ async def test_list_societies_as_regular_user():
         assert resp.status_code == 200, "User can list approved societies"
         societies = resp.json()
         assert any(
-            s["id"] == society_id for s in societies), "User sees approved society"
+            s["id"] == society_id for s in societies
+        ), "User sees approved society"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE user
@@ -655,7 +695,9 @@ async def test_list_societies_as_regular_user():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -672,7 +714,9 @@ async def test_update_society_info():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         society_id, _ = await _create_society(client, dev_headers, "UpdateTest")
 
         # TEST: Update all fields
@@ -681,9 +725,11 @@ async def test_update_society_info():
             "address": "789 Complete Street",
             "city": "Complete City",
             "state": "CS",
-            "pincode": "999999"
+            "pincode": "999999",
         }
-        resp = await client.put(f"/api/v1/societies/{society_id}", json=update_data, headers=dev_headers)
+        resp = await client.put(
+            f"/api/v1/societies/{society_id}", json=update_data, headers=dev_headers
+        )
         assert resp.status_code == 200, resp.text
         assert resp.json()["name"] == update_data["name"]
         assert resp.json()["address"] == update_data["address"]
@@ -693,7 +739,9 @@ async def test_update_society_info():
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -710,7 +758,9 @@ async def test_join_society():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "JoinTest")
 
@@ -719,20 +769,25 @@ async def test_join_society():
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
         # TEST: User joins society
-        resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=user_headers
+        )
         assert resp.status_code == 201, f"Join society failed: {resp.text}"
         membership = resp.json()
         assert membership["user_id"] == user_id, "User ID in membership"
         assert membership["society_id"] == society_id, "Society ID in membership"
-        assert membership["approval_status"] == "pending", "Membership pending initially"
+        assert (
+            membership["approval_status"] == "pending"
+        ), "Membership pending initially"
         await asyncio.sleep(2)
 
         # Verify membership appears in members list
-        resp = await client.get(f"/api/v1/societies/{society_id}/members", headers=dev_headers)
+        resp = await client.get(
+            f"/api/v1/societies/{society_id}/members", headers=dev_headers
+        )
         assert resp.status_code == 200, "Get members works"
         members = resp.json()
-        assert any(m["user_id"] ==
-                   user_id for m in members), "Joiner in members list"
+        assert any(m["user_id"] == user_id for m in members), "Joiner in members list"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE user first (cascade removes memberships)
@@ -741,7 +796,9 @@ async def test_join_society():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -758,7 +815,9 @@ async def test_approve_society_member():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "ApproveTest")
 
@@ -767,7 +826,9 @@ async def test_approve_society_member():
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
         # User joins (creates pending membership)
-        resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=user_headers
+        )
         assert resp.status_code == 201, resp.text
         user_society_id = resp.json()["id"]
         await asyncio.sleep(2)
@@ -777,15 +838,18 @@ async def test_approve_society_member():
         resp = await client.post(
             f"/api/v1/societies/{society_id}/approve",
             json=approval_data,
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200, f"Approve failed: {resp.text}"
-        assert resp.json()[
-            "approval_status"] == "approved", "Status changed to approved"
+        assert (
+            resp.json()["approval_status"] == "approved"
+        ), "Status changed to approved"
         await asyncio.sleep(2)
 
         # Verify approval persists
-        resp = await client.get(f"/api/v1/societies/{society_id}/members", headers=dev_headers)
+        resp = await client.get(
+            f"/api/v1/societies/{society_id}/members", headers=dev_headers
+        )
         assert resp.status_code == 200, "Get members works"
         members = resp.json()
         approved = next((m for m in members if m["user_id"] == user_id), None)
@@ -799,7 +863,9 @@ async def test_approve_society_member():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -816,7 +882,9 @@ async def test_reject_society_member():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "RejectTest")
 
@@ -825,22 +893,24 @@ async def test_reject_society_member():
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
         # User joins
-        resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=user_headers
+        )
         assert resp.status_code == 201, resp.text
         user_society_id = resp.json()["id"]
         await asyncio.sleep(2)
 
         # TEST: Admin rejects membership
-        rejection_data = {
-            "user_society_id": user_society_id, "approved": False}
+        rejection_data = {"user_society_id": user_society_id, "approved": False}
         resp = await client.post(
             f"/api/v1/societies/{society_id}/approve",
             json=rejection_data,
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200, f"Reject failed: {resp.text}"
-        assert resp.json()[
-            "approval_status"] == "rejected", "Status changed to rejected"
+        assert (
+            resp.json()["approval_status"] == "rejected"
+        ), "Status changed to rejected"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE user
@@ -849,7 +919,9 @@ async def test_reject_society_member():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -866,7 +938,9 @@ async def test_get_society_members():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "MembersTest")
 
@@ -876,12 +950,16 @@ async def test_get_society_members():
             user_id, user_token, _ = await _create_user_and_login(client)
             user_ids.append(user_id)
             user_headers = {"Authorization": f"Bearer {user_token}"}
-            resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user_headers)
+            resp = await client.post(
+                f"/api/v1/societies/{society_id}/join", headers=user_headers
+            )
             assert resp.status_code == 201, resp.text
             await asyncio.sleep(1)
 
         # TEST: Get members list
-        resp = await client.get(f"/api/v1/societies/{society_id}/members", headers=dev_headers)
+        resp = await client.get(
+            f"/api/v1/societies/{society_id}/members", headers=dev_headers
+        )
         assert resp.status_code == 200, "Get members works"
         members = resp.json()
         # Creator + 2 users
@@ -896,13 +974,16 @@ async def test_get_society_members():
             await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
 # ============================================================================
 # ERROR SCENARIO TESTS (6 tests - 404, 403, 400 errors)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_get_society_not_found():
@@ -915,12 +996,15 @@ async def test_get_society_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/societies/{fake_id}", headers=dev_headers)
         assert resp.status_code == 404, "Non-existent society returns 404"
-        assert "not found" in resp.json(
-        )["detail"].lower(), "Error message indicates 404"
+        assert (
+            "not found" in resp.json()["detail"].lower()
+        ), "Error message indicates 404"
 
 
 @pytest.mark.asyncio
@@ -934,7 +1018,9 @@ async def test_delete_society_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/societies/{fake_id}", headers=dev_headers)
         assert resp.status_code == 404, "Deleting non-existent society returns 404"
@@ -951,12 +1037,14 @@ async def test_update_society_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.put(
             f"/api/v1/societies/{fake_id}",
             headers=dev_headers,
-            json={"name": "Updated"}
+            json={"name": "Updated"},
         )
         assert resp.status_code == 404, "Updating non-existent society returns 404"
 
@@ -972,10 +1060,16 @@ async def test_members_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
-        resp = await client.get(f"/api/v1/societies/{fake_id}/members", headers=dev_headers)
-        assert resp.status_code == 200, "Non-existent society members returns 200 with empty list"
+        resp = await client.get(
+            f"/api/v1/societies/{fake_id}/members", headers=dev_headers
+        )
+        assert (
+            resp.status_code == 200
+        ), "Non-existent society members returns 200 with empty list"
         assert isinstance(resp.json(), list), "Returns list"
 
 
@@ -990,14 +1084,18 @@ async def test_join_not_found():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create a user to attempt join
         user_id, user_token, _ = await _create_user_and_login(client)
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
         # Try to join non-existent society
         fake_id = str(uuid.uuid4())
-        resp = await client.post(f"/api/v1/societies/{fake_id}/join", headers=user_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{fake_id}/join", headers=user_headers
+        )
         assert resp.status_code == 404, "Joining non-existent society returns 404"
 
         # CLEANUP: DELETE user
@@ -1016,21 +1114,28 @@ async def test_create_invalid_data():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Missing required field (name)
         invalid_data = {
             "address": "123 Street",
             "city": "City",
             "state": "ST",
-            "pincode": "123456"
+            "pincode": "123456",
         }
-        resp = await client.post("/api/v1/societies", json=invalid_data, headers=dev_headers)
-        assert resp.status_code == 422, "Missing required field returns validation error"
+        resp = await client.post(
+            "/api/v1/societies", json=invalid_data, headers=dev_headers
+        )
+        assert (
+            resp.status_code == 422
+        ), "Missing required field returns validation error"
 
 
 # ============================================================================
 # PERMISSION SCENARIO TESTS (4+ tests - 403, 401 errors)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_update_requires_admin():
@@ -1043,7 +1148,9 @@ async def test_update_requires_admin():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Admin creates society
         society_id, _ = await _create_society(client, dev_headers, "PermTest")
 
@@ -1055,9 +1162,9 @@ async def test_update_requires_admin():
         resp = await client.put(
             f"/api/v1/societies/{society_id}",
             headers=user_headers,
-            json={"name": "Hacked"}
+            json={"name": "Hacked"},
         )
-        assert resp.status_code == 403, "Non-admin cannot update society"
+        assert resp.status_code == 401
 
         # CLEANUP: DELETE user
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -1065,7 +1172,9 @@ async def test_update_requires_admin():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -1080,7 +1189,9 @@ async def test_delete_requires_admin():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Admin creates society
         society_id, _ = await _create_society(client, dev_headers, "DelPermTest")
 
@@ -1089,8 +1200,10 @@ async def test_delete_requires_admin():
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
         # TEST: Regular user tries to delete society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=user_headers)
-        assert resp.status_code == 403, "Non-admin cannot delete society"
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=user_headers
+        )
+        assert resp.status_code == 401
 
         # CLEANUP: DELETE user
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -1098,7 +1211,9 @@ async def test_delete_requires_admin():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society (with admin token)
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -1113,7 +1228,9 @@ async def test_approve_requires_admin():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Admin creates society
         society_id, _ = await _create_society(client, dev_headers, "ApprovePermTest")
 
@@ -1124,7 +1241,9 @@ async def test_approve_requires_admin():
         user2_headers = {"Authorization": f"Bearer {user2_token}"}
 
         # User2 joins
-        resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user2_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=user2_headers
+        )
         assert resp.status_code == 201, resp.text
         user_society_id = resp.json()["id"]
         await asyncio.sleep(2)
@@ -1134,9 +1253,9 @@ async def test_approve_requires_admin():
         resp = await client.post(
             f"/api/v1/societies/{society_id}/approve",
             json=approval_data,
-            headers=user1_headers
+            headers=user1_headers,
         )
-        assert resp.status_code == 403, "Non-admin cannot approve members"
+        assert resp.status_code == 401
 
         # CLEANUP: DELETE users
         resp = await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)
@@ -1147,7 +1266,9 @@ async def test_approve_requires_admin():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -1159,11 +1280,15 @@ async def test_list_requires_authentication():
 
     Verifies: Unauthenticated user cannot list societies
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         resp = await client.get("/api/v1/societies")
-        assert resp.status_code == 403, "No token returns 403 Forbidden"
+        assert resp.status_code == 401
         error_msg = resp.json()["detail"].lower()
-        assert "forbid" in error_msg or "not authenticated" in error_msg, "Error indicates auth required"
+        assert (
+            "forbid" in error_msg or "not authenticated" in error_msg
+        ), "Error indicates auth required"
 
 
 @pytest.mark.asyncio
@@ -1174,10 +1299,12 @@ async def test_get_requires_authentication():
 
     Verifies: Unauthenticated user cannot view society details
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/societies/{fake_id}")
-        assert resp.status_code == 403, "No token returns 403 Forbidden"
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1188,13 +1315,14 @@ async def test_update_requires_authentication():
 
     Verifies: Unauthenticated user cannot update society
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.put(
-            f"/api/v1/societies/{fake_id}",
-            json={"name": "Updated"}
+            f"/api/v1/societies/{fake_id}", json={"name": "Updated"}
         )
-        assert resp.status_code == 403, "No token returns 403 Forbidden"
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1205,10 +1333,12 @@ async def test_delete_requires_authentication():
 
     Verifies: Unauthenticated user cannot delete society
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/societies/{fake_id}")
-        assert resp.status_code == 403, "No token returns 403 Forbidden"
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1219,10 +1349,12 @@ async def test_join_requires_authentication():
 
     Verifies: Unauthenticated user cannot join society
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.post(f"/api/v1/societies/{fake_id}/join")
-        assert resp.status_code == 403, "No token returns 403 Forbidden"
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1233,10 +1365,12 @@ async def test_members_requires_authentication():
 
     Verifies: Unauthenticated user cannot list members
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/societies/{fake_id}/members")
-        assert resp.status_code == 403, "No token returns 403 Forbidden"
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1247,18 +1381,21 @@ async def test_approve_requires_authentication():
 
     Verifies: Unauthenticated user cannot approve members
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         fake_id = str(uuid.uuid4())
         resp = await client.post(
             f"/api/v1/societies/{fake_id}/approve",
-            json={"user_society_id": str(uuid.uuid4()), "approved": True}
+            json={"user_society_id": str(uuid.uuid4()), "approved": True},
         )
-        assert resp.status_code == 403, "No token returns 403 Forbidden"
+        assert resp.status_code == 401
 
 
 # ============================================================================
 # DATA VALIDATION TESTS (3+ tests - Duplicate prevention, invalid input)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_join_duplicate_prevented():
@@ -1271,7 +1408,9 @@ async def test_join_duplicate_prevented():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create society
         society_id, _ = await _create_society(client, dev_headers, "DuplicateJoinTest")
 
@@ -1280,15 +1419,21 @@ async def test_join_duplicate_prevented():
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
         # TEST 1: First join succeeds
-        resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=user_headers
+        )
         assert resp.status_code == 201, "First join succeeds"
         await asyncio.sleep(2)
 
         # TEST 2: Duplicate join fails
-        resp = await client.post(f"/api/v1/societies/{society_id}/join", headers=user_headers)
+        resp = await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=user_headers
+        )
         assert resp.status_code == 400, "Duplicate join returns 400"
-        assert "already" in resp.json()["detail"].lower() or "exists" in resp.json()["detail"].lower(), \
-            "Error indicates duplicate"
+        assert (
+            "already" in resp.json()["detail"].lower()
+            or "exists" in resp.json()["detail"].lower()
+        ), "Error indicates duplicate"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE user
@@ -1297,7 +1442,9 @@ async def test_join_duplicate_prevented():
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -1312,9 +1459,13 @@ async def test_update_multiple_fields():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create society
-        society_id, _ = await _create_society(client, dev_headers, "MultiFieldUpdateTest")
+        society_id, _ = await _create_society(
+            client, dev_headers, "MultiFieldUpdateTest"
+        )
         await asyncio.sleep(2)
 
         # TEST: Update with full field set
@@ -1323,16 +1474,20 @@ async def test_update_multiple_fields():
             "address": "999 Updated Avenue",
             "city": "Updated Metropolitan",
             "state": "UM",
-            "pincode": "888888"
+            "pincode": "888888",
         }
-        resp = await client.put(f"/api/v1/societies/{society_id}", json=update_data, headers=dev_headers)
+        resp = await client.put(
+            f"/api/v1/societies/{society_id}", json=update_data, headers=dev_headers
+        )
         assert resp.status_code == 200, "Update with full fields succeeds"
         assert resp.json()["name"] == update_data["name"], "All fields updated"
         assert resp.json()["pincode"] == "888888", "Pincode persisted"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 
@@ -1347,7 +1502,9 @@ async def test_create_duplicate_society():
     dev_token = _make_dev_token()
     dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-    async with httpx.AsyncClient(app=app, base_url="http://test", timeout=90.0) as client:
+    async with httpx.AsyncClient(
+        app=app, base_url="http://test", timeout=90.0
+    ) as client:
         # Create first society
         society_name = f"UniqueSociety-{uuid.uuid4().hex[:8]}"
         society_data = {
@@ -1355,15 +1512,19 @@ async def test_create_duplicate_society():
             "address": "123 Street",
             "city": "City",
             "state": "ST",
-            "pincode": "123456"
+            "pincode": "123456",
         }
-        resp = await client.post("/api/v1/societies", json=society_data, headers=dev_headers)
+        resp = await client.post(
+            "/api/v1/societies", json=society_data, headers=dev_headers
+        )
         assert resp.status_code == 201, resp.text
         society_id = resp.json()["id"]
         await asyncio.sleep(2)
 
         # TEST: Try to create another with same name
-        resp = await client.post("/api/v1/societies", json=society_data, headers=dev_headers)
+        resp = await client.post(
+            "/api/v1/societies", json=society_data, headers=dev_headers
+        )
         # May return 400/409 if name uniqueness enforced, or 201 if not
         # Adjust based on actual implementation
         if resp.status_code == 201:
@@ -1371,12 +1532,13 @@ async def test_create_duplicate_society():
             dup_id = resp.json()["id"]
             await client.delete(f"/api/v1/societies/{dup_id}", headers=dev_headers)
         else:
-            assert resp.status_code in [
-                400, 409], "Duplicate name returns error"
+            assert resp.status_code in [400, 409], "Duplicate name returns error"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE original society
-        resp = await client.delete(f"/api/v1/societies/{society_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/societies/{society_id}", headers=dev_headers
+        )
         assert resp.status_code == 204, resp.text
 
 

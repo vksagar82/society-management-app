@@ -10,30 +10,37 @@ This module provides endpoints for user authentication including:
 """
 
 from datetime import datetime, timedelta
-from uuid import uuid4, UUID
 from typing import cast
+from uuid import UUID, uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import get_current_active_user
 from app.core.security import (
-    hash_password,
-    verify_password,
     create_access_token,
     create_refresh_token,
-    decode_token
+    decode_token,
+    hash_password,
+    verify_password,
 )
-from app.core.deps import get_current_active_user
 from app.database import get_session
 from app.models import User, UserSociety
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
     RefreshTokenRequest,
-    TokenResponse,
     SignupRequest,
+    TokenResponse,
 )
-from app.schemas.user import UserResponse, UserInDB, PasswordChange, PasswordReset, PasswordResetConfirm
+from app.schemas.user import (
+    PasswordChange,
+    PasswordReset,
+    PasswordResetConfirm,
+    UserInDB,
+    UserResponse,
+)
 from app.utils.email import send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -44,12 +51,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="User Registration",
-    description="Register a new user account with email and password."
+    description="Register a new user account with email and password.",
 )
-async def signup(
-    signup_data: SignupRequest,
-    db: AsyncSession = Depends(get_session)
-):
+async def signup(signup_data: SignupRequest, db: AsyncSession = Depends(get_session)):
     """
     Register a new user.
 
@@ -70,7 +74,7 @@ async def signup(
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User with this email or phone already exists"
+            detail="User with this email or phone already exists",
         )
 
     # Hash password with a 10-byte cap (per current policy)
@@ -85,7 +89,7 @@ async def signup(
         full_name=signup_data.full_name,
         password_hash=password_hash,
         global_role="member",
-        is_active=True
+        is_active=True,
     )
 
     db.add(user)
@@ -96,10 +100,13 @@ async def signup(
         user_society = UserSociety(
             id=uuid4(),
             user_id=user.id,
-            society_id=uuid4() if isinstance(signup_data.society_id,
-                                             str) else signup_data.society_id,
+            society_id=(
+                uuid4()
+                if isinstance(signup_data.society_id, str)
+                else signup_data.society_id
+            ),
             role="member",
-            approval_status="pending"
+            approval_status="pending",
         )
         db.add(user_society)
 
@@ -113,12 +120,9 @@ async def signup(
     "/login",
     response_model=LoginResponse,
     summary="User Login",
-    description="Authenticate user and receive access and refresh tokens."
+    description="Authenticate user and receive access and refresh tokens.",
 )
-async def login(
-    login_data: LoginRequest,
-    db: AsyncSession = Depends(get_session)
-):
+async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_session)):
     """
     Authenticate user and return JWT tokens.
 
@@ -133,20 +137,17 @@ async def login(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     if not verify_password(login_data.password, cast(str, user.password_hash)):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
 
     # Update last login
@@ -168,13 +169,11 @@ async def login(
         "avatar_url": user.avatar_url,
         "settings": user.settings,
         "created_at": user.created_at,
-        "updated_at": user.updated_at
+        "updated_at": user.updated_at,
     }
 
     return LoginResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=user_dict
+        access_token=access_token, refresh_token=refresh_token, user=user_dict
     )
 
 
@@ -182,11 +181,10 @@ async def login(
     "/refresh",
     response_model=TokenResponse,
     summary="Refresh Access Token",
-    description="Get a new access token using a refresh token."
+    description="Get a new access token using a refresh token.",
 )
 async def refresh_token(
-    request: RefreshTokenRequest,
-    db: AsyncSession = Depends(get_session)
+    request: RefreshTokenRequest, db: AsyncSession = Depends(get_session)
 ):
     """
     Get a new access token using a refresh token.
@@ -200,14 +198,13 @@ async def refresh_token(
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token"
+            detail="Invalid or expired refresh token",
         )
 
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
         )
 
     # Verify user exists
@@ -217,7 +214,7 @@ async def refresh_token(
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive"
+            detail="User not found or inactive",
         )
 
     access_token = create_access_token(user_id)
@@ -229,10 +226,10 @@ async def refresh_token(
     "/me",
     response_model=UserResponse,
     summary="Get Current User",
-    description="Get the profile of the currently authenticated user."
+    description="Get the profile of the currently authenticated user.",
 )
 async def get_me(
-    current_user: UserInDB = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user),
 ) -> UserResponse:
     """
     Get the profile of the currently authenticated user.
@@ -245,11 +242,10 @@ async def get_me(
 @router.post(
     "/forgot-password",
     summary="Request Password Reset",
-    description="Request a password reset link via email."
+    description="Request a password reset link via email.",
 )
 async def forgot_password(
-    request: PasswordReset,
-    db: AsyncSession = Depends(get_session)
+    request: PasswordReset, db: AsyncSession = Depends(get_session)
 ):
     """
     Request a password reset.
@@ -275,7 +271,9 @@ async def forgot_password(
     await db.commit()
 
     # Send email
-    await send_password_reset_email(cast(str, user.email), cast(str, user.full_name), reset_token)
+    await send_password_reset_email(
+        cast(str, user.email), cast(str, user.full_name), reset_token
+    )
 
     return {"message": "Password reset link sent to your email"}
 
@@ -283,11 +281,10 @@ async def forgot_password(
 @router.post(
     "/reset-password",
     summary="Reset Password",
-    description="Reset password using the token from email."
+    description="Reset password using the token from email.",
 )
 async def reset_password(
-    request: PasswordResetConfirm,
-    db: AsyncSession = Depends(get_session)
+    request: PasswordResetConfirm, db: AsyncSession = Depends(get_session)
 ):
     """
     Reset password using token.
@@ -303,13 +300,12 @@ async def reset_password(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
+            detail="Invalid or expired reset token",
         )
 
     if user.reset_token_expiry and user.reset_token_expiry < datetime.utcnow():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Reset token has expired"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Reset token has expired"
         )
 
     # Update password
@@ -325,12 +321,12 @@ async def reset_password(
 @router.post(
     "/change-password",
     summary="Change Password",
-    description="Change password for authenticated user."
+    description="Change password for authenticated user.",
 )
 async def change_password(
     request: PasswordChange,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Change password for authenticated user.
@@ -346,14 +342,13 @@ async def change_password(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     if not verify_password(request.current_password, cast(str, user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
+            detail="Current password is incorrect",
         )
 
     user.password_hash = hash_password(request.new_password)
@@ -363,7 +358,7 @@ async def change_password(
     # If this is the developer user, update the APP_DEV_TOKEN
     from app.utils.default_data.seed_dev_user import update_dev_token_on_password_change
 
-    DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
+    DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
     if user.id == DEV_USER_ID:
         await update_dev_token_on_password_change(db, cast(UUID, user.id))
 

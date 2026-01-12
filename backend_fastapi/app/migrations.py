@@ -4,9 +4,10 @@ Database migrations module.
 Automatically syncs database schema with SQLAlchemy models on startup.
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 import logging
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +53,14 @@ async def sync_table(db: AsyncSession, table):
 
     try:
         # Check if table exists
-        check_table = text(f"""
+        check_table = text(
+            f"""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
                 WHERE table_name = '{table_name}'
             )
-        """)
+        """
+        )
         result = await db.execute(check_table)
         table_exists = result.scalar()
 
@@ -67,11 +70,13 @@ async def sync_table(db: AsyncSession, table):
             return
 
         # Get existing columns in database
-        get_columns = text(f"""
+        get_columns = text(
+            f"""
             SELECT column_name, data_type, column_default
             FROM information_schema.columns
             WHERE table_name = '{table_name}'
-        """)
+        """
+        )
         result = await db.execute(get_columns)
         existing_columns = {row[0]: row for row in result.fetchall()}
 
@@ -105,7 +110,7 @@ async def add_column(db: AsyncSession, table_name: str, column):
         # Handle default value
         default = ""
         if column.default is not None:
-            if hasattr(column.default, 'arg'):
+            if hasattr(column.default, "arg"):
                 if callable(column.default.arg):
                     # For functions like uuid4, datetime.utcnow
                     default = ""
@@ -119,7 +124,7 @@ async def add_column(db: AsyncSession, table_name: str, column):
         if column.foreign_keys:
             for fk in column.foreign_keys:
                 # Extract table and column from target
-                target_parts = str(fk.target_fullname).split('.')
+                target_parts = str(fk.target_fullname).split(".")
                 if len(target_parts) == 2:
                     fk_table = target_parts[0]
                     fk_column = target_parts[1]
@@ -145,6 +150,5 @@ async def add_column(db: AsyncSession, table_name: str, column):
             logger.info(f"Created index '{index_name}'")
 
     except Exception as e:
-        logger.error(
-            f"Failed to add column '{column.name}' to '{table_name}': {e}")
+        logger.error(f"Failed to add column '{column.name}' to '{table_name}': {e}")
         raise

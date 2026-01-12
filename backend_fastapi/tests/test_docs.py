@@ -53,6 +53,7 @@ No Database Cleanup: Documentation endpoints are read-only and don't create data
 """
 
 import os
+
 import httpx
 import pytest
 from fastapi import status
@@ -147,8 +148,9 @@ async def test_openapi_json_includes_all_endpoints():
 
     documented_paths = list(paths.keys())
     for endpoint in expected_endpoints:
-        assert any(endpoint in path for path in documented_paths), \
-            f"Endpoint {endpoint} not documented in OpenAPI schema"
+        assert any(
+            endpoint in path for path in documented_paths
+        ), f"Endpoint {endpoint} not documented in OpenAPI schema"
 
 
 @pytest.mark.asyncio

@@ -5,23 +5,21 @@ This module initializes the FastAPI application with all necessary
 configurations, middleware, and routers.
 """
 
+import logging
+import multiprocessing
 from contextlib import asynccontextmanager
 
-import logging
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
-import multiprocessing
-
-from config import settings
-from app.database import engine, Base, create_direct_engine_for_schema
-from app.api.v1.router import api_router
-from app.core.middleware import setup_middleware, setup_exception_handlers
 
 # Import all models to ensure they are registered with Base.metadata
 from app import models  # noqa: F401
-
+from app.api.v1.router import api_router
+from app.core.middleware import setup_exception_handlers, setup_middleware
+from app.database import Base, create_direct_engine_for_schema, engine
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +39,13 @@ async def lifespan(app: FastAPI):
     ddl_engine = engine
     if is_supabase:
         ddl_engine = create_direct_engine_for_schema()
-        logger.info(
-            "Using direct Supabase Postgres connection for schema creation")
+        logger.info("Using direct Supabase Postgres connection for schema creation")
 
     try:
         async with ddl_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all, checkfirst=True)
     except Exception as exc:
-        logger.exception(
-            "Table creation failed during startup", exc_info=exc)
+        logger.exception("Table creation failed during startup", exc_info=exc)
         raise
     finally:
         if ddl_engine is not engine:
@@ -59,12 +55,12 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Starting default data seeding...")
         from sqlalchemy.ext.asyncio import AsyncSession
+
         from app.utils.default_data.seed_db import seed_all_default_data
 
         async with AsyncSession(engine) as session:
             result = await seed_all_default_data(session)
-            logger.info(
-                f"Default data seeding completed successfully: {result}")
+            logger.info(f"Default data seeding completed successfully: {result}")
     except Exception as exc:
         logger.exception("Default data seeding failed", exc_info=exc)
         # Log but don't raise - allow app to start even if seeding fails
@@ -73,6 +69,7 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Setting up developer user...")
         from sqlalchemy.ext.asyncio import AsyncSession
+
         from app.utils.default_data.seed_dev_user import seed_dev_user
 
         async with AsyncSession(engine) as session:
@@ -86,6 +83,7 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Running database migrations...")
         from sqlalchemy.ext.asyncio import AsyncSession
+
         from app.migrations import run_migrations
 
         async with AsyncSession(engine) as session:
@@ -172,8 +170,8 @@ async def global_exception_handler(request, exc):
         status_code=500,
         content={
             "error": "Internal server error",
-            "detail": str(exc) if settings.debug else "An error occurred"
-        }
+            "detail": str(exc) if settings.debug else "An error occurred",
+        },
     )
 
 
@@ -187,5 +185,5 @@ if __name__ == "__main__":
         port=8000,
         reload=settings.debug,
         reload_delay=0.5,
-        use_colors=True
+        use_colors=True,
     )
