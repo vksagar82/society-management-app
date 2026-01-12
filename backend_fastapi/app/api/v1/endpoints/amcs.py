@@ -355,8 +355,7 @@ async def add_service_history(
     # Update AMC last_service_date and next_service_date
     amc.last_service_date = service.service_date  # type: ignore[assignment]
     if service.next_service_date:
-        # type: ignore[assignment]
-        amc.next_service_date = service.next_service_date
+        amc.next_service_date = service.next_service_date  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(new_service)
