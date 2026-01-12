@@ -96,7 +96,7 @@ def run_server():
     print("API will be available at: http://localhost:8000")
     print("Docs will be available at: http://localhost:8000/api/docs")
     print("\nPress Ctrl+C to stop\n")
-    os.system("python main.py")  # nosec B605,B607 - Dev utility
+    os.system("python main.py")  # nosec B605 B607 - Dev utility
 
 
 def show_menu():
