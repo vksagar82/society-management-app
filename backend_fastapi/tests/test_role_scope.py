@@ -607,7 +607,7 @@ async def test_create_requires_developer_or_admin():
             json={"name": role_name, "description": "Test"},
             headers=member_headers,
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         cleanup_resp = await client.delete(
             f"/api/v1/users/{user_id}", headers=dev_headers

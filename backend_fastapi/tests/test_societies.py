@@ -1164,7 +1164,7 @@ async def test_update_requires_admin():
             headers=user_headers,
             json={"name": "Hacked"},
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         # CLEANUP: DELETE user
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -1203,7 +1203,7 @@ async def test_delete_requires_admin():
         resp = await client.delete(
             f"/api/v1/societies/{society_id}", headers=user_headers
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         # CLEANUP: DELETE user
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -1255,7 +1255,7 @@ async def test_approve_requires_admin():
             json=approval_data,
             headers=user1_headers,
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         # CLEANUP: DELETE users
         resp = await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)

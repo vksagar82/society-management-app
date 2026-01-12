@@ -853,7 +853,7 @@ async def test_create_asset_requires_admin_or_manager():
         resp = await client.post(
             "/api/v1/assets", headers=member_headers, json=asset_data
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup
@@ -923,7 +923,7 @@ async def test_update_asset_requires_admin_or_manager():
         resp = await client.put(
             f"/api/v1/assets/{asset_id}", headers=member_headers, json=update_data
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup
@@ -986,7 +986,7 @@ async def test_delete_asset_requires_admin():
         resp = await client.delete(
             f"/api/v1/assets/{asset_id}", headers=manager_headers
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup

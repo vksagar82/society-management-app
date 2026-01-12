@@ -951,7 +951,7 @@ async def test_create_issue_not_in_society():
         resp = await client.post(
             "/api/v1/issues", headers=member_headers, json=issue_data
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup
@@ -983,7 +983,7 @@ async def test_get_issue_no_access():
 
         # Different member tries to view issue
         resp = await client.get(f"/api/v1/issues/{issue_id}", headers=member_headers)
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup
@@ -1204,7 +1204,7 @@ async def test_update_issue_requires_reporter():
         resp = await client.put(
             f"/api/v1/issues/{issue_id}", headers=member_headers, json=update_data
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup
@@ -1253,7 +1253,7 @@ async def test_delete_issue_requires_admin():
 
         # Member tries to delete (only admin/dev can delete)
         resp = await client.delete(f"/api/v1/issues/{issue_id}", headers=member_headers)
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup
@@ -1291,7 +1291,7 @@ async def test_add_comment_no_access():
             headers=member_headers,
             json=comment_data,
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
         await asyncio.sleep(1)
 
         # Cleanup

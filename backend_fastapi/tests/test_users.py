@@ -503,7 +503,7 @@ async def test_get_other_user_forbidden():
 
         # TEST: User1 tries to access User2's profile
         resp = await client.get(f"/api/v1/users/{user2_id}", headers=user1_headers)
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         # CLEANUP: Delete both users
         await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)
@@ -535,7 +535,7 @@ async def test_update_other_user_forbidden():
             headers=user1_headers,
             json={"full_name": "Hacked"},
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         # CLEANUP: Delete both users
         await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)
@@ -584,7 +584,7 @@ async def test_list_requires_admin():
 
         # TEST: Regular user tries to list users
         resp = await client.get("/api/v1/users", headers=user_headers)
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         # CLEANUP: Delete user
         await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -610,7 +610,7 @@ async def test_delete_requires_admin():
 
         # TEST: User1 tries to delete User2
         resp = await client.delete(f"/api/v1/users/{user2_id}", headers=user1_headers)
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
         # CLEANUP: Delete both users
         await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)
