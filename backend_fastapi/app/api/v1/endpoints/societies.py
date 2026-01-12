@@ -703,8 +703,7 @@ async def approve_member(
         membership.rejected_by = current_user.id
         membership.rejected_at = datetime.utcnow()
         if approval.rejection_reason:
-            # type: ignore[assignment]
-            membership.rejection_reason = approval.rejection_reason
+            membership.rejection_reason = approval.rejection_reason  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(membership)
