@@ -51,7 +51,7 @@ async def list_categories(
 )
 async def create_category(
     category: AssetCategoryCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
