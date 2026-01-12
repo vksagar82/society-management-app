@@ -21,7 +21,7 @@ from app.schemas.amc import (
     AMCServiceHistoryResponse,
     AMCServiceHistoryCreate
 )
-from app.schemas.user import UserResponse
+from app.schemas.user import UserInDB
 
 router = APIRouter(prefix="/amcs", tags=["AMCs"])
 
@@ -37,7 +37,7 @@ async def list_amcs(
     status_filter: Optional[str] = Query(None, description="Filter by status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """List AMCs with filtering options."""
@@ -84,7 +84,7 @@ async def list_amcs(
 )
 async def create_amc(
     amc: AMCCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -166,7 +166,7 @@ async def create_amc(
 )
 async def get_amc(
     amc_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """Get AMC by ID."""
@@ -195,7 +195,7 @@ async def get_amc(
 async def update_amc(
     amc_id: UUID,
     amc_update: AMCUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -260,7 +260,7 @@ async def update_amc(
 )
 async def delete_amc(
     amc_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -304,7 +304,7 @@ async def delete_amc(
 async def add_service_history(
     amc_id: UUID,
     service: AMCServiceHistoryCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -354,9 +354,10 @@ async def add_service_history(
     db.add(new_service)
 
     # Update AMC last_service_date and next_service_date
-    amc.last_service_date = cast(date, service.service_date)
+    amc.last_service_date = service.service_date  # type: ignore[assignment]
     if service.next_service_date:
-        amc.next_service_date = cast(Optional[date], service.next_service_date)
+        # type: ignore[assignment]
+        amc.next_service_date = service.next_service_date
 
     await db.commit()
     await db.refresh(new_service)
@@ -372,7 +373,7 @@ async def add_service_history(
 )
 async def get_service_history(
     amc_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """Get all service history records for an AMC."""
