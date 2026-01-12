@@ -1,4 +1,5 @@
 """Default roles seeding utilities via API calls."""
+
 import asyncio
 import os
 from datetime import datetime, timedelta
@@ -6,7 +7,8 @@ from pathlib import Path
 from uuid import UUID
 
 import httpx
-from jose import jwt, JWTError
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 # Role definitions
 ROLES_DEF = {
@@ -23,18 +25,25 @@ def _get_base_url() -> str:
 
 def _generate_new_dev_token() -> str:
     """Generate a new development token with 30-day expiration."""
-    from config import Settings
-    settings = Settings()
+    from typing import cast
 
-    dev_user_id = str(UUID('00000000-0000-0000-0000-000000000001'))
-    to_encode = {'sub': dev_user_id, 'scope': 'developer admin'}
+    # Get secret key from environment, use hardcoded fallback for tests
+    secret_key = os.getenv(
+        "SECRET_KEY",
+        "Hy07HivWRcrnAbOQ+Or9xsDEv89cKIWmFVLSzvVqbmzGPhXJk6x+o5vaTuyTbCxQl0g8GMyqJbgJy4c3MJyJ0w==",
+    )
+    algorithm = "HS256"
+
+    dev_user_id = str(UUID("00000000-0000-0000-0000-000000000001"))
+    to_encode = {"sub": dev_user_id, "scope": "developer admin"}
     expire = datetime.utcnow() + timedelta(days=30)
-    to_encode.update({'exp': expire})
+    # fmt: off
+    to_encode.update({'exp': int(expire.timestamp())})  # type: ignore[dict-item]
+    # fmt: on
 
-    token = jwt.encode(to_encode, settings.secret_key,
-                       algorithm=settings.algorithm)
+    token = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     print(f"[TOKEN] Generated new dev token (expires: {expire.isoformat()})")
-    return token
+    return cast(str, token)
 
 
 def _update_env_file(new_token: str) -> None:
@@ -44,20 +53,20 @@ def _update_env_file(new_token: str) -> None:
         print(f"[TOKEN] Warning: .env file not found at {env_path}")
         return
 
-    with open(env_path, 'r', encoding='utf-8') as f:
+    with open(env_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     token_found = False
     for i, line in enumerate(lines):
-        if line.strip().startswith('APP_DEV_TOKEN='):
-            lines[i] = f'APP_DEV_TOKEN={new_token}\n'
+        if line.strip().startswith("APP_DEV_TOKEN="):
+            lines[i] = f"APP_DEV_TOKEN={new_token}\n"
             token_found = True
             break
 
     if not token_found:
-        lines.append(f'\nAPP_DEV_TOKEN={new_token}\n')
+        lines.append(f"\nAPP_DEV_TOKEN={new_token}\n")
 
-    with open(env_path, 'w', encoding='utf-8') as f:
+    with open(env_path, "w", encoding="utf-8") as f:
         f.writelines(lines)
     print("[TOKEN] ✓ Updated .env file with new token")
 
@@ -65,11 +74,13 @@ def _update_env_file(new_token: str) -> None:
 def _is_token_valid(token: str) -> bool:
     """Check if a JWT token is valid and not expired."""
     try:
-        from config import Settings
-        settings = Settings()
-        payload = jwt.decode(token, settings.secret_key,
-                             algorithms=[settings.algorithm])
-        exp = payload.get('exp')
+        secret_key = os.getenv(
+            "SECRET_KEY",
+            "Hy07HivWRcrnAbOQ+Or9xsDEv89cKIWmFVLSzvVqbmzGPhXJk6x+o5vaTuyTbCxQl0g8GMyqJbgJy4c3MJyJ0w==",
+        )
+        algorithm = "HS256"
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        exp = payload.get("exp")
         if exp:
             exp_datetime = datetime.utcfromtimestamp(exp)
             if exp_datetime <= datetime.utcnow():
@@ -77,7 +88,7 @@ def _is_token_valid(token: str) -> bool:
                 return False
             print(f"[TOKEN] Token valid until {exp_datetime.isoformat()}")
         return True
-    except JWTError as e:
+    except InvalidTokenError as e:
         print(f"[TOKEN] Invalid token: {e}")
         return False
     except Exception as e:
@@ -124,12 +135,17 @@ async def seed_default_roles() -> dict:
         resp = await client.get("/api/v1/roles", headers=headers)
         await asyncio.sleep(2)
         if resp.status_code != 200:
-            raise RuntimeError(
-                f"Failed to list roles: {resp.status_code} {resp.text}")
+            raise RuntimeError(f"Failed to list roles: {resp.status_code} {resp.text}")
         existing = {item["name"]: item for item in resp.json()}
         print(f"[ROLES] Found {len(existing)} existing roles")
-        operations.append({"action": "GET", "endpoint": "/api/v1/roles",
-                          "status": resp.status_code, "result": f"Found {len(existing)} roles"})
+        operations.append(
+            {
+                "action": "GET",
+                "endpoint": "/api/v1/roles",
+                "status": resp.status_code,
+                "result": f"Found {len(existing)} roles",
+            }
+        )
 
         # Create or update
         for name, description in ROLES_DEF.items():
@@ -146,10 +162,16 @@ async def seed_default_roles() -> dict:
                     raise RuntimeError(
                         f"Failed to create role {name}: {resp.status_code} {resp.text}"
                     )
-                print(
-                    f"[ROLES] ✓ Created role '{name}' - Status: {resp.status_code}")
-                operations.append({"action": "POST", "endpoint": "/api/v1/roles",
-                                  "role": name, "status": resp.status_code, "result": "Created"})
+                print(f"[ROLES] ✓ Created role '{name}' - Status: {resp.status_code}")
+                operations.append(
+                    {
+                        "action": "POST",
+                        "endpoint": "/api/v1/roles",
+                        "role": name,
+                        "status": resp.status_code,
+                        "result": "Created",
+                    }
+                )
             elif current.get("description") != description:
                 print(f"[ROLES] Updating role '{name}'...")
                 resp = await client.patch(
@@ -162,15 +184,23 @@ async def seed_default_roles() -> dict:
                     raise RuntimeError(
                         f"Failed to update role {name}: {resp.status_code} {resp.text}"
                     )
-                print(
-                    f"[ROLES] ✓ Updated role '{name}' - Status: {resp.status_code}")
-                operations.append({"action": "PATCH", "endpoint": f"/api/v1/roles/{name}",
-                                  "role": name, "status": resp.status_code, "result": "Updated"})
+                print(f"[ROLES] ✓ Updated role '{name}' - Status: {resp.status_code}")
+                operations.append(
+                    {
+                        "action": "PATCH",
+                        "endpoint": f"/api/v1/roles/{name}",
+                        "role": name,
+                        "status": resp.status_code,
+                        "result": "Updated",
+                    }
+                )
             else:
                 print(
-                    f"[ROLES] ✓ Role '{name}' already exists with correct description - Skipped")
+                    f"[ROLES] ✓ Role '{name}' already exists with correct description - Skipped"
+                )
                 operations.append(
-                    {"action": "SKIP", "role": name, "result": "Already exists"})
+                    {"action": "SKIP", "role": name, "result": "Already exists"}
+                )
 
         # Return fresh view
         print("\n[ROLES] Fetching final roles list...")
@@ -178,15 +208,24 @@ async def seed_default_roles() -> dict:
         await asyncio.sleep(2)
         if resp.status_code != 200:
             raise RuntimeError(
-                f"Failed to list roles after seeding: {resp.status_code} {resp.text}")
+                f"Failed to list roles after seeding: {resp.status_code} {resp.text}"
+            )
         data = resp.json()
-        final_roles = {item["name"]: item.get(
-            "description") for item in data if item.get("name") in ROLES_DEF}
-        operations.append({"action": "GET", "endpoint": "/api/v1/roles",
-                          "status": resp.status_code, "result": f"Final count: {len(final_roles)}"})
+        final_roles = {
+            item["name"]: item.get("description")
+            for item in data
+            if item.get("name") in ROLES_DEF
+        }
+        operations.append(
+            {
+                "action": "GET",
+                "endpoint": "/api/v1/roles",
+                "status": resp.status_code,
+                "result": f"Final count: {len(final_roles)}",
+            }
+        )
 
-        print(
-            f"[ROLES] ✓ Seeding complete - {len(final_roles)} roles verified\n")
+        print(f"[ROLES] ✓ Seeding complete - {len(final_roles)} roles verified\n")
 
         return {
             "roles": final_roles,
@@ -196,5 +235,5 @@ async def seed_default_roles() -> dict:
                 "created": sum(1 for op in operations if op.get("action") == "POST"),
                 "updated": sum(1 for op in operations if op.get("action") == "PATCH"),
                 "skipped": sum(1 for op in operations if op.get("action") == "SKIP"),
-            }
+            },
         }

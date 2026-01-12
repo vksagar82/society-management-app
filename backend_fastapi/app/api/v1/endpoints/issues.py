@@ -4,24 +4,25 @@ Issues/Complaints API endpoints using SQLAlchemy ORM.
 This module provides endpoints for issue/complaint management.
 """
 
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, and_
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_active_user, check_society_access
+from app.core.deps import check_society_access, get_current_active_user
 from app.database import get_session
-from app.models import Issue, IssueComment, UserSociety, Society
+from app.models import Issue, IssueComment, Society, UserSociety
 from app.schemas.issue import (
-    IssueResponse,
-    IssueCreate,
-    IssueUpdate,
     IssueCommentCreate,
-    IssueCommentResponse
+    IssueCommentResponse,
+    IssueCreate,
+    IssueResponse,
+    IssueUpdate,
 )
-from app.schemas.user import UserResponse
+from app.schemas.user import UserInDB
 
 router = APIRouter(prefix="/issues", tags=["Issues"])
 
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/issues", tags=["Issues"])
     "",
     response_model=List[IssueResponse],
     summary="List Issues",
-    description="Get list of issues with filtering."
+    description="Get list of issues with filtering.",
 )
 async def list_issues(
     society_id: Optional[UUID] = Query(None),
@@ -39,8 +40,8 @@ async def list_issues(
     category: Optional[str] = Query(None, description="Filter by category"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """List issues with filtering options."""
     stmt = select(Issue)
@@ -53,7 +54,7 @@ async def list_issues(
         stmt_societies = select(UserSociety.society_id).where(
             and_(
                 UserSociety.user_id == current_user.id,
-                UserSociety.approval_status == "approved"
+                UserSociety.approval_status == "approved",
             )
         )
         result = await db.execute(stmt_societies)
@@ -88,12 +89,12 @@ async def list_issues(
     response_model=IssueResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create Issue",
-    description="Create a new issue/complaint."
+    description="Create a new issue/complaint.",
 )
 async def create_issue(
     issue: IssueCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Create a new issue/complaint.
@@ -105,8 +106,7 @@ async def create_issue(
     result = await db.execute(stmt)
     if not result.scalar_one_or_none():
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Society not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Society not found"
         )
 
     # Check user is member of society
@@ -126,7 +126,7 @@ async def create_issue(
         images=issue.images or [],
         attachment_urls=issue.attachment_urls or [],
         issue_date=datetime.utcnow(),
-        target_resolution_date=issue.target_resolution_date
+        target_resolution_date=issue.target_resolution_date,
     )
 
     db.add(new_issue)
@@ -140,12 +140,12 @@ async def create_issue(
     "/{issue_id}",
     response_model=IssueResponse,
     summary="Get Issue",
-    description="Get details of a specific issue."
+    description="Get details of a specific issue.",
 )
 async def get_issue(
     issue_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """Get issue by ID."""
     stmt = select(Issue).where(Issue.id == issue_id)
@@ -154,8 +154,7 @@ async def get_issue(
 
     if not issue:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Issue not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found"
         )
 
     # Check user has access to the society
@@ -168,13 +167,13 @@ async def get_issue(
     "/{issue_id}",
     response_model=IssueResponse,
     summary="Update Issue",
-    description="Update issue details."
+    description="Update issue details.",
 )
 async def update_issue(
     issue_id: UUID,
     issue_update: IssueUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Update issue details.
@@ -189,30 +188,32 @@ async def update_issue(
 
     if not issue:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Issue not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found"
         )
 
     # Check permissions
     from app.core.deps import get_user_society_role
 
     is_reporter = str(issue.reported_by) == str(current_user.id)
-    is_assignee = issue.assigned_to and str(
-        issue.assigned_to) == str(current_user.id)
+    is_assignee = issue.assigned_to and str(issue.assigned_to) == str(current_user.id)
     user_role = await get_user_society_role(current_user, str(issue.society_id), db)
     is_admin_or_manager = user_role in ["admin", "manager"]
 
     if not (is_reporter or is_assignee or is_admin_or_manager):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to update this issue"
+            detail="You don't have permission to update this issue",
         )
 
     # Update fields
     update_data = issue_update.model_dump(exclude_unset=True)
 
     # If status is being changed to resolved, set resolved_date
-    if "status" in update_data and update_data["status"] == "resolved" and issue.status != "resolved":
+    if (
+        "status" in update_data
+        and update_data["status"] == "resolved"
+        and issue.status != "resolved"
+    ):
         update_data["resolved_date"] = datetime.utcnow()
 
     for field, value in update_data.items():
@@ -228,12 +229,12 @@ async def update_issue(
     "/{issue_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete Issue",
-    description="Delete an issue."
+    description="Delete an issue.",
 )
 async def delete_issue(
     issue_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Delete an issue.
@@ -248,8 +249,7 @@ async def delete_issue(
 
     if not issue:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Issue not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found"
         )
 
     # Check permissions
@@ -262,7 +262,7 @@ async def delete_issue(
     if not (is_reporter or is_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to delete this issue"
+            detail="You don't have permission to delete this issue",
         )
 
     await db.delete(issue)
@@ -274,13 +274,13 @@ async def delete_issue(
     response_model=IssueCommentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add Comment",
-    description="Add a comment to an issue."
+    description="Add a comment to an issue.",
 )
 async def add_comment(
     issue_id: UUID,
     comment: IssueCommentCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Add a comment to an issue.
@@ -294,8 +294,7 @@ async def add_comment(
 
     if not issue:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Issue not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found"
         )
 
     # Check user has access to the society
@@ -303,14 +302,14 @@ async def add_comment(
         and_(
             UserSociety.user_id == current_user.id,
             UserSociety.society_id == issue.society_id,
-            UserSociety.approval_status == "approved"
+            UserSociety.approval_status == "approved",
         )
     )
     result = await db.execute(stmt)
     if not result.scalar_one_or_none() and current_user.global_role != "developer":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this issue"
+            detail="You don't have access to this issue",
         )
 
     # Create comment
@@ -319,7 +318,7 @@ async def add_comment(
         issue_id=issue_id,
         user_id=current_user.id,
         comment=comment.comment,
-        attachment_url=comment.attachment_url
+        attachment_url=comment.attachment_url,
     )
 
     db.add(new_comment)
@@ -333,14 +332,14 @@ async def add_comment(
     "/{issue_id}/comments",
     response_model=List[IssueCommentResponse],
     summary="Get Comments",
-    description="Get all comments for an issue."
+    description="Get all comments for an issue.",
 )
 async def get_comments(
     issue_id: UUID,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """Get all comments for an issue."""
     # Get issue to check access
@@ -350,8 +349,7 @@ async def get_comments(
 
     if not issue:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Issue not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found"
         )
 
     # Check user has access to the society
@@ -359,20 +357,24 @@ async def get_comments(
         and_(
             UserSociety.user_id == current_user.id,
             UserSociety.society_id == issue.society_id,
-            UserSociety.approval_status == "approved"
+            UserSociety.approval_status == "approved",
         )
     )
     result = await db.execute(stmt)
     if not result.scalar_one_or_none() and current_user.global_role != "developer":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this issue"
+            detail="You don't have access to this issue",
         )
 
     # Get comments with pagination
-    stmt = select(IssueComment).where(
-        IssueComment.issue_id == issue_id
-    ).order_by(IssueComment.created_at.asc()).offset(skip).limit(limit)
+    stmt = (
+        select(IssueComment)
+        .where(IssueComment.issue_id == issue_id)
+        .order_by(IssueComment.created_at.asc())
+        .offset(skip)
+        .limit(limit)
+    )
 
     result = await db.execute(stmt)
     comments = result.scalars().all()

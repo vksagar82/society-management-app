@@ -112,17 +112,17 @@ In-Process Testing: Tests use httpx.AsyncClient(app=app, base_url="http://test")
 - Ensures role-based permissions (admin/manager/member) work correctly
 """
 
+import asyncio
 import os
 import uuid
-import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional, cast
 
 import httpx
+import jwt
 import pytest
-from jose import jwt
 
 from config import settings
 from tests.conftest import DEV_USER_ID
@@ -179,9 +179,11 @@ def _make_dev_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() + timedelta(days=30),
+        "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(
+        str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    )
 
 
 async def _create_test_user(client: httpx.AsyncClient, role: str = "member") -> tuple:
@@ -231,7 +233,9 @@ async def _create_test_user(client: httpx.AsyncClient, role: str = "member") -> 
     return user_id, email, password, access_token
 
 
-async def _create_test_society(client: httpx.AsyncClient, creator_token: str, auto_approve: bool = True) -> str:
+async def _create_test_society(
+    client: httpx.AsyncClient, creator_token: str, auto_approve: bool = True
+) -> str:
     """
     Create test society and return ID.
 
@@ -268,16 +272,18 @@ async def _create_test_society(client: httpx.AsyncClient, creator_token: str, au
             await client.post(
                 f"/api/v1/societies/{society_id}/approve-society",
                 headers=dev_headers,
-                json={"approved": True}
+                json={"approved": True},
             )
             # Ignore if already approved or if endpoint doesn't exist
             await asyncio.sleep(1)
 
     await asyncio.sleep(1)
-    return society_id
+    return str(society_id)
 
 
-async def _create_test_category(client: httpx.AsyncClient, dev_token: str, society_id: str) -> str:
+async def _create_test_category(
+    client: httpx.AsyncClient, dev_token: str, society_id: str
+) -> str:
     """
     Create asset category and return ID.
 
@@ -297,12 +303,14 @@ async def _create_test_category(client: httpx.AsyncClient, dev_token: str, socie
     }
 
     headers = {"Authorization": f"Bearer {dev_token}"}
-    resp = await client.post("/api/v1/assets/categories", headers=headers, json=category_data)
+    resp = await client.post(
+        "/api/v1/assets/categories", headers=headers, json=category_data
+    )
     assert resp.status_code == 201
     category_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return category_id
+    return str(category_id)
 
 
 async def _create_test_asset(
@@ -310,7 +318,7 @@ async def _create_test_asset(
     auth_token: str,
     society_id: str,
     category_id: str,
-    name: str = None
+    name: Optional[str] = None,
 ) -> str:
     """
     Create asset and return ID.
@@ -341,14 +349,14 @@ async def _create_test_asset(
     asset_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return asset_id
+    return str(asset_id)
 
 
 async def _create_test_amc(
     client: httpx.AsyncClient,
     auth_token: str,
     society_id: str,
-    vendor_name: str = None
+    vendor_name: Optional[str] = None,
 ) -> str:
     """
     Create AMC and return ID.
@@ -383,12 +391,13 @@ async def _create_test_amc(
     amc_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return amc_id
+    return str(amc_id)
 
 
 # ============================================================================
 # HAPPY PATH TESTS (8 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_list_amcs_by_society():
@@ -401,7 +410,9 @@ async def test_list_amcs_by_society():
         society_id = await _create_test_society(client, user_token)
         amc_id = await _create_test_amc(client, user_token, society_id)
 
-        resp = await client.get(f"/api/v1/amcs?society_id={society_id}", headers=dev_headers)
+        resp = await client.get(
+            f"/api/v1/amcs?society_id={society_id}", headers=dev_headers
+        )
         assert resp.status_code == 200
         amcs = resp.json()
         assert isinstance(amcs, list)
@@ -430,14 +441,14 @@ async def test_list_amcs_with_filters():
         await client.put(
             f"/api/v1/amcs/{amc_id}",
             headers=user_headers,
-            json={"status": "pending_renewal"}
+            json={"status": "pending_renewal"},
         )
         await asyncio.sleep(1)
 
         # Filter by status
         resp = await client.get(
             f"/api/v1/amcs?society_id={society_id}&status_filter=pending_renewal",
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200
         amcs = resp.json()
@@ -534,12 +545,11 @@ async def test_update_amc_as_admin():
         society_id = await _create_test_society(client, user_token)
         amc_id = await _create_test_amc(client, user_token, society_id)
 
-        update_data = {
-            "status": "expired",
-            "notes": "Contract ended"
-        }
+        update_data = {"status": "expired", "notes": "Contract ended"}
 
-        resp = await client.put(f"/api/v1/amcs/{amc_id}", headers=user_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/amcs/{amc_id}", headers=user_headers, json=update_data
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "expired"
@@ -601,13 +611,13 @@ async def test_add_service_history():
             "next_service_date": "2026-02-15",
             "rating": 5,
             "feedback": "Excellent service",
-            "notes": "All systems operational"
+            "notes": "All systems operational",
         }
 
         resp = await client.post(
             f"/api/v1/amcs/{amc_id}/service-history",
             headers=user_headers,
-            json=service_data
+            json=service_data,
         )
         assert resp.status_code == 201
         data = resp.json()
@@ -644,12 +654,14 @@ async def test_get_service_history():
         await client.post(
             f"/api/v1/amcs/{amc_id}/service-history",
             headers=user_headers,
-            json=service_data
+            json=service_data,
         )
         await asyncio.sleep(1)
 
         # Get service history
-        resp = await client.get(f"/api/v1/amcs/{amc_id}/service-history", headers=dev_headers)
+        resp = await client.get(
+            f"/api/v1/amcs/{amc_id}/service-history", headers=dev_headers
+        )
         assert resp.status_code == 200
         history = resp.json()
         assert isinstance(history, list)
@@ -666,6 +678,7 @@ async def test_get_service_history():
 # ============================================================================
 # ERROR SCENARIO TESTS (7 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_amc_invalid_asset():
@@ -722,7 +735,9 @@ async def test_update_amc_not_found():
         fake_amc_id = str(uuid.uuid4())
         update_data = {"status": "expired"}
 
-        resp = await client.put(f"/api/v1/amcs/{fake_amc_id}", headers=dev_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/amcs/{fake_amc_id}", headers=dev_headers, json=update_data
+        )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
@@ -776,7 +791,7 @@ async def test_add_service_history_amc_not_found():
         resp = await client.post(
             f"/api/v1/amcs/{fake_amc_id}/service-history",
             headers=dev_headers,
-            json=service_data
+            json=service_data,
         )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
@@ -790,7 +805,9 @@ async def test_get_service_history_amc_not_found():
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
         fake_amc_id = str(uuid.uuid4())
-        resp = await client.get(f"/api/v1/amcs/{fake_amc_id}/service-history", headers=dev_headers)
+        resp = await client.get(
+            f"/api/v1/amcs/{fake_amc_id}/service-history", headers=dev_headers
+        )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
@@ -798,6 +815,7 @@ async def test_get_service_history_amc_not_found():
 # ============================================================================
 # PERMISSION TESTS (11 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_amc_requires_admin_or_manager():
@@ -813,7 +831,9 @@ async def test_create_amc_requires_admin_or_manager():
         member_headers = {"Authorization": f"Bearer {member_token}"}
 
         # Join member to society
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=member_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=member_headers
+        )
         await asyncio.sleep(1)
 
         # Approve membership
@@ -821,7 +841,7 @@ async def test_create_amc_requires_admin_or_manager():
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": member_id, "approve": True}
+            json={"user_id": member_id, "approve": True},
         )
         await asyncio.sleep(1)
 
@@ -857,7 +877,7 @@ async def test_create_amc_requires_auth():
         }
 
         resp = await client.post("/api/v1/amcs", json=amc_data)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -866,7 +886,7 @@ async def test_get_amc_requires_auth():
     async with _get_client() as client:
         fake_amc_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/amcs/{fake_amc_id}")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -884,19 +904,23 @@ async def test_update_amc_requires_admin_or_manager():
         member_headers = {"Authorization": f"Bearer {member_token}"}
 
         # Join and approve member
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=member_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=member_headers
+        )
         await asyncio.sleep(1)
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": member_id, "approve": True}
+            json={"user_id": member_id, "approve": True},
         )
         await asyncio.sleep(1)
 
         # Member attempts to update AMC
         update_data = {"status": "expired"}
-        resp = await client.put(f"/api/v1/amcs/{amc_id}", headers=member_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/amcs/{amc_id}", headers=member_headers, json=update_data
+        )
         assert resp.status_code == 403
         await asyncio.sleep(1)
 
@@ -915,7 +939,7 @@ async def test_update_amc_requires_auth():
         update_data = {"status": "expired"}
 
         resp = await client.put(f"/api/v1/amcs/{fake_amc_id}", json=update_data)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -933,13 +957,15 @@ async def test_delete_amc_requires_admin():
         manager_headers = {"Authorization": f"Bearer {manager_token}"}
 
         # Join and approve manager
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=manager_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=manager_headers
+        )
         await asyncio.sleep(1)
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": manager_id, "approve": True}
+            json={"user_id": manager_id, "approve": True},
         )
         await asyncio.sleep(1)
 
@@ -947,7 +973,7 @@ async def test_delete_amc_requires_admin():
         await client.put(
             f"/api/v1/societies/{society_id}/members/{manager_id}",
             headers=admin_headers,
-            json={"role": "manager"}
+            json={"role": "manager"},
         )
         await asyncio.sleep(1)
 
@@ -969,7 +995,7 @@ async def test_delete_amc_requires_auth():
     async with _get_client() as client:
         fake_amc_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/amcs/{fake_amc_id}")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -977,7 +1003,7 @@ async def test_list_amcs_requires_auth():
     """Listing AMCs without token returns 403."""
     async with _get_client() as client:
         resp = await client.get("/api/v1/amcs")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -995,13 +1021,15 @@ async def test_add_service_history_requires_admin_or_manager():
         member_headers = {"Authorization": f"Bearer {member_token}"}
 
         # Join and approve member
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=member_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=member_headers
+        )
         await asyncio.sleep(1)
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": member_id, "approve": True}
+            json={"user_id": member_id, "approve": True},
         )
         await asyncio.sleep(1)
 
@@ -1015,7 +1043,7 @@ async def test_add_service_history_requires_admin_or_manager():
         resp = await client.post(
             f"/api/v1/amcs/{amc_id}/service-history",
             headers=member_headers,
-            json=service_data
+            json=service_data,
         )
         assert resp.status_code == 403
         await asyncio.sleep(1)
@@ -1038,8 +1066,10 @@ async def test_add_service_history_requires_auth():
             "service_type": "Test",
         }
 
-        resp = await client.post(f"/api/v1/amcs/{fake_amc_id}/service-history", json=service_data)
-        assert resp.status_code == 403
+        resp = await client.post(
+            f"/api/v1/amcs/{fake_amc_id}/service-history", json=service_data
+        )
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1048,4 +1078,4 @@ async def test_get_service_history_requires_auth():
     async with _get_client() as client:
         fake_amc_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/amcs/{fake_amc_id}/service-history")
-        assert resp.status_code == 403
+        assert resp.status_code == 401

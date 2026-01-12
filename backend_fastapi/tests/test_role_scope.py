@@ -121,17 +121,17 @@ HTTP Client Testing: Tests use httpx.AsyncClient(base_url=APP_BASE_URL)
 - Developer/admin role required for mutations
 """
 
+import asyncio
 import os
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, cast
 
-import asyncio
 import httpx
+import jwt
 import pytest
-from jose import jwt
 
 from config import settings
 from tests.conftest import DEV_USER_ID
@@ -188,14 +188,17 @@ def _make_dev_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() + timedelta(days=30),
+        "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(
+        str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    )
 
 
 # ============================================================================
 # HAPPY PATH TESTS (3 tests - Core functionality)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_roles_scopes_crud():
@@ -219,103 +222,103 @@ async def test_roles_scopes_crud():
         resp = await client.post(
             "/api/v1/roles",
             json={"name": role_name, "description": "Test role for CRUD"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 201, f"Create role failed: {resp.text}"
         created_role = resp.json()
         assert created_role["name"] == role_name, "Role name in response"
-        assert created_role["description"] == "Test role for CRUD", "Role description in response"
+        assert (
+            created_role["description"] == "Test role for CRUD"
+        ), "Role description in response"
         await asyncio.sleep(1)
 
         # TEST 2: GET /api/v1/roles - List roles
         resp = await client.get("/api/v1/roles", headers=dev_headers)
         assert resp.status_code == 200, "List roles successful"
         roles = resp.json()
-        assert any(
-            r["name"] == role_name for r in roles), "Created role in list"
+        assert any(r["name"] == role_name for r in roles), "Created role in list"
         await asyncio.sleep(1)
 
         # TEST 3: PATCH /api/v1/roles/{role_name} - Update role description
         resp = await client.patch(
             f"/api/v1/roles/{role_name}",
             json={"description": "Updated role description"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200, f"Update role failed: {resp.text}"
-        assert resp.json()[
-            "description"] == "Updated role description", "Description updated in response"
+        assert (
+            resp.json()["description"] == "Updated role description"
+        ), "Description updated in response"
         await asyncio.sleep(1)
 
         # TEST 4: POST /api/v1/roles/scopes - Create scope
         resp = await client.post(
             "/api/v1/roles/scopes",
             json={"name": scope_name, "description": "Test scope for CRUD"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 201, f"Create scope failed: {resp.text}"
         created_scope = resp.json()
         assert created_scope["name"] == scope_name, "Scope name in response"
-        assert created_scope["description"] == "Test scope for CRUD", "Scope description in response"
+        assert (
+            created_scope["description"] == "Test scope for CRUD"
+        ), "Scope description in response"
         await asyncio.sleep(1)
 
         # TEST 5: GET /api/v1/roles/scopes - List scopes
         resp = await client.get("/api/v1/roles/scopes", headers=dev_headers)
         assert resp.status_code == 200, "List scopes successful"
         scopes = resp.json()
-        assert any(
-            s["name"] == scope_name for s in scopes), "Created scope in list"
+        assert any(s["name"] == scope_name for s in scopes), "Created scope in list"
         await asyncio.sleep(1)
 
         # TEST 6: PUT /api/v1/roles/{role_name}/scopes - Assign scope to role
         resp = await client.put(
             f"/api/v1/roles/{role_name}/scopes",
             json={"scopes": [scope_name]},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200, f"Assign scopes failed: {resp.text}"
         role_with_scopes = resp.json()
-        assert len(role_with_scopes.get("scopes", [])
-                   ) == 1, "One scope assigned"
+        assert len(role_with_scopes.get("scopes", [])) == 1, "One scope assigned"
         assert any(
-            s["name"] == scope_name for s in role_with_scopes["scopes"]), "Scope in role"
+            s["name"] == scope_name for s in role_with_scopes["scopes"]
+        ), "Scope in role"
         await asyncio.sleep(1)
 
         # TEST 7: GET /api/v1/roles/{role_name}/scopes - Get role scopes
         resp = await client.get(
-            f"/api/v1/roles/{role_name}/scopes",
-            headers=dev_headers
+            f"/api/v1/roles/{role_name}/scopes", headers=dev_headers
         )
         assert resp.status_code == 200, "Get role scopes successful"
         role_scopes = resp.json()
         assert len(role_scopes.get("scopes", [])) == 1, "One scope in role"
         assert any(
-            s["name"] == scope_name for s in role_scopes["scopes"]), "Scope persisted"
+            s["name"] == scope_name for s in role_scopes["scopes"]
+        ), "Scope persisted"
         await asyncio.sleep(1)
 
         # TEST 8: PATCH /api/v1/roles/scopes/{scope_name} - Update scope
         resp = await client.patch(
             f"/api/v1/roles/scopes/{scope_name}",
             json={"description": "Updated scope description"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200, f"Update scope failed: {resp.text}"
-        assert resp.json()[
-            "description"] == "Updated scope description", "Scope description updated"
+        assert (
+            resp.json()["description"] == "Updated scope description"
+        ), "Scope description updated"
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE scope first (must delete before role if role has scopes)
         resp = await client.delete(
-            f"/api/v1/roles/scopes/{scope_name}",
-            headers=dev_headers
+            f"/api/v1/roles/scopes/{scope_name}", headers=dev_headers
         )
         assert resp.status_code == 204, f"Delete scope failed: {resp.text}"
         await asyncio.sleep(1)
 
         # CLEANUP: DELETE role
-        resp = await client.delete(
-            f"/api/v1/roles/{role_name}",
-            headers=dev_headers
-        )
+        resp = await client.delete(f"/api/v1/roles/{role_name}", headers=dev_headers)
         assert resp.status_code == 204, f"Delete role failed: {resp.text}"
         await asyncio.sleep(1)
 
@@ -339,8 +342,7 @@ async def test_list_roles():
         roles = resp.json()
         assert isinstance(roles, list), "Response is list of roles"
         # Default roles should exist (developer, admin, member, manager)
-        assert any(
-            r["name"] == "developer" for r in roles), "Developer role exists"
+        assert any(r["name"] == "developer" for r in roles), "Developer role exists"
 
 
 @pytest.mark.asyncio
@@ -367,6 +369,7 @@ async def test_list_scopes():
 # ERROR SCENARIO TESTS (8 tests - 404, 400 errors)
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_role_scopes_not_found():
     """
@@ -381,12 +384,10 @@ async def test_get_role_scopes_not_found():
     async with _get_client() as client:
         fake_role = f"fake-role-{uuid.uuid4().hex[:8]}"
         resp = await client.get(
-            f"/api/v1/roles/{fake_role}/scopes",
-            headers=dev_headers
+            f"/api/v1/roles/{fake_role}/scopes", headers=dev_headers
         )
         assert resp.status_code == 404, "Non-existent role returns 404"
-        assert "not found" in resp.json(
-        )["detail"].lower(), "Error message clear"
+        assert "not found" in resp.json()["detail"].lower(), "Error message clear"
 
 
 @pytest.mark.asyncio
@@ -402,10 +403,7 @@ async def test_delete_role_not_found():
 
     async with _get_client() as client:
         fake_role = f"fake-role-{uuid.uuid4().hex[:8]}"
-        resp = await client.delete(
-            f"/api/v1/roles/{fake_role}",
-            headers=dev_headers
-        )
+        resp = await client.delete(f"/api/v1/roles/{fake_role}", headers=dev_headers)
         assert resp.status_code == 404, "Deleting non-existent role returns 404"
 
 
@@ -425,7 +423,7 @@ async def test_update_role_not_found():
         resp = await client.patch(
             f"/api/v1/roles/{fake_role}",
             json={"description": "Updated"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 404, "Updating non-existent role returns 404"
 
@@ -447,7 +445,7 @@ async def test_assign_scopes_role_not_found():
         resp = await client.post(
             "/api/v1/roles/scopes",
             json={"name": scope_name, "description": "Test scope"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 201, "Scope created"
         await asyncio.sleep(1)
@@ -457,7 +455,7 @@ async def test_assign_scopes_role_not_found():
         resp = await client.put(
             f"/api/v1/roles/{fake_role}/scopes",
             json={"scopes": [scope_name]},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 404, "Assigning to non-existent role returns 404"
 
@@ -482,7 +480,7 @@ async def test_assign_scopes_missing():
         resp = await client.post(
             "/api/v1/roles",
             json={"name": role_name, "description": "Test role"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 201, "Role created"
         await asyncio.sleep(1)
@@ -492,11 +490,10 @@ async def test_assign_scopes_missing():
         resp = await client.put(
             f"/api/v1/roles/{role_name}/scopes",
             json={"scopes": [fake_scope]},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 400, "Assigning non-existent scope returns 400"
-        assert "not found" in resp.json(
-        )["detail"].lower(), "Error message clear"
+        assert "not found" in resp.json()["detail"].lower(), "Error message clear"
 
         # CLEANUP: Delete role
         await client.delete(f"/api/v1/roles/{role_name}", headers=dev_headers)
@@ -516,8 +513,7 @@ async def test_delete_scope_not_found():
     async with _get_client() as client:
         fake_scope = f"fake-scope-{uuid.uuid4().hex[:8]}"
         resp = await client.delete(
-            f"/api/v1/roles/scopes/{fake_scope}",
-            headers=dev_headers
+            f"/api/v1/roles/scopes/{fake_scope}", headers=dev_headers
         )
         assert resp.status_code == 404, "Deleting non-existent scope returns 404"
 
@@ -538,7 +534,7 @@ async def test_update_scope_not_found():
         resp = await client.patch(
             f"/api/v1/roles/scopes/{fake_scope}",
             json={"description": "Updated"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 404, "Updating non-existent scope returns 404"
 
@@ -558,10 +554,7 @@ async def test_delete_role_in_use_prevented():
 
     async with _get_client() as client:
         # Try to delete a default role that is in use (developer role used by test user)
-        resp = await client.delete(
-            "/api/v1/roles/developer",
-            headers=dev_headers
-        )
+        resp = await client.delete("/api/v1/roles/developer", headers=dev_headers)
         assert resp.status_code == 400, "Deleting in-use role returns 400"
         assert "in use" in resp.json()["detail"].lower(), "Error message clear"
 
@@ -569,6 +562,7 @@ async def test_delete_role_in_use_prevented():
 # ============================================================================
 # PERMISSION TESTS (7 tests - 403 Forbidden for non-developer/admin users)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_requires_developer_or_admin():
@@ -604,7 +598,8 @@ async def test_create_requires_developer_or_admin():
         )
         assert login_resp.status_code == 200, login_resp.text
         member_headers = {
-            "Authorization": f"Bearer {login_resp.json()['access_token']}"}
+            "Authorization": f"Bearer {login_resp.json()['access_token']}"
+        }
 
         role_name = f"role-{uuid.uuid4().hex[:8]}"
         resp = await client.post(
@@ -612,9 +607,11 @@ async def test_create_requires_developer_or_admin():
             json={"name": role_name, "description": "Test"},
             headers=member_headers,
         )
-        assert resp.status_code == 403, "Member token rejected by developer gate"
+        assert resp.status_code == 403
 
-        cleanup_resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        cleanup_resp = await client.delete(
+            f"/api/v1/users/{user_id}", headers=dev_headers
+        )
         assert cleanup_resp.status_code == 204, cleanup_resp.text
 
 
@@ -666,8 +663,7 @@ async def test_create_scope_requires_developer_or_admin():
             "/api/v1/roles/scopes",
             json={"name": scope_name, "description": "Test"},
         )
-        assert resp.status_code in [
-            401, 403], "Create scope without token rejected"
+        assert resp.status_code in [401, 403], "Create scope without token rejected"
 
 
 @pytest.mark.asyncio
@@ -684,8 +680,7 @@ async def test_update_scope_requires_developer_or_admin():
             "/api/v1/roles/scopes/test-scope",
             json={"description": "Updated"},
         )
-        assert resp.status_code in [
-            401, 403], "Update scope without token rejected"
+        assert resp.status_code in [401, 403], "Update scope without token rejected"
 
 
 @pytest.mark.asyncio
@@ -701,8 +696,7 @@ async def test_delete_scope_requires_developer_or_admin():
         resp = await client.delete(
             "/api/v1/roles/scopes/test-scope",
         )
-        assert resp.status_code in [
-            401, 403], "Delete scope without token rejected"
+        assert resp.status_code in [401, 403], "Delete scope without token rejected"
 
 
 @pytest.mark.asyncio
@@ -719,13 +713,13 @@ async def test_assign_requires_developer_or_admin():
             "/api/v1/roles/member/scopes",
             json={"scopes": ["test-scope"]},
         )
-        assert resp.status_code in [
-            401, 403], "Assign scopes without token rejected"
+        assert resp.status_code in [401, 403], "Assign scopes without token rejected"
 
 
 # ============================================================================
 # DATA VALIDATION TESTS (2 tests - 400 Bad Request)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_role_duplicate():
@@ -745,7 +739,7 @@ async def test_create_role_duplicate():
         resp = await client.post(
             "/api/v1/roles",
             json={"name": role_name, "description": "First role"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 201, "First role created"
         await asyncio.sleep(1)
@@ -754,11 +748,10 @@ async def test_create_role_duplicate():
         resp = await client.post(
             "/api/v1/roles",
             json={"name": role_name, "description": "Duplicate role"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 400, "Duplicate role rejected"
-        assert "already exists" in resp.json(
-        )["detail"].lower(), "Error message clear"
+        assert "already exists" in resp.json()["detail"].lower(), "Error message clear"
 
         # CLEANUP: Delete the created role
         await client.delete(f"/api/v1/roles/{role_name}", headers=dev_headers)
@@ -782,7 +775,7 @@ async def test_create_scope_duplicate():
         resp = await client.post(
             "/api/v1/roles/scopes",
             json={"name": scope_name, "description": "First scope"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 201, "First scope created"
         await asyncio.sleep(1)
@@ -791,11 +784,10 @@ async def test_create_scope_duplicate():
         resp = await client.post(
             "/api/v1/roles/scopes",
             json={"name": scope_name, "description": "Duplicate scope"},
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 400, "Duplicate scope rejected"
-        assert "already exists" in resp.json(
-        )["detail"].lower(), "Error message clear"
+        assert "already exists" in resp.json()["detail"].lower(), "Error message clear"
 
         # CLEANUP: Delete the created scope
         await client.delete(f"/api/v1/roles/scopes/{scope_name}", headers=dev_headers)

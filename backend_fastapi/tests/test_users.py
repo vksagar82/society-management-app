@@ -91,17 +91,17 @@ All tests that create users have explicit cleanup:
 SQLAlchemy async pattern: db.delete(user) → await db.flush() → await db.commit()
 """
 
+import asyncio
 import os
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, cast
 
-import asyncio
 import httpx
+import jwt
 import pytest
-from jose import jwt
 
 from config import settings
 from tests.conftest import DEV_USER_ID
@@ -158,9 +158,11 @@ def _make_dev_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() + timedelta(days=30),
+        "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(
+        str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    )
 
 
 async def _create_user_and_login(client: httpx.AsyncClient):
@@ -194,6 +196,7 @@ async def _create_user_and_login(client: httpx.AsyncClient):
 # ============================================================================
 # HAPPY PATH TESTS (5 tests - Core functionality)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_users_crud():
@@ -313,7 +316,7 @@ async def test_user_avatar():
         resp = await client.post(
             "/api/v1/users/profile/avatar",
             headers=user_headers,
-            params={"avatar_url": avatar_url}
+            params={"avatar_url": avatar_url},
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["avatar_url"] == avatar_url, "Avatar in response"
@@ -347,15 +350,13 @@ async def test_list_users_with_search():
         user_id, _, email = await _create_user_and_login(client)
 
         # TEST: Search by email prefix
-        search_query = email.split('@')[0]
+        search_query = email.split("@")[0]
         resp = await client.get(
-            f"/api/v1/users?search={search_query}",
-            headers=dev_headers
+            f"/api/v1/users?search={search_query}", headers=dev_headers
         )
         assert resp.status_code == 200, "Search works"
         users = resp.json()
-        assert any(
-            u["email"] == email for u in users), "User in search results"
+        assert any(u["email"] == email for u in users), "User in search results"
         await asyncio.sleep(2)
 
         # CLEANUP: DELETE user
@@ -380,10 +381,7 @@ async def test_list_users_pagination():
         user_id, _, _ = await _create_user_and_login(client)
 
         # TEST: Pagination with skip and limit
-        resp = await client.get(
-            "/api/v1/users?skip=0&limit=10",
-            headers=dev_headers
-        )
+        resp = await client.get("/api/v1/users?skip=0&limit=10", headers=dev_headers)
         assert resp.status_code == 200, "Pagination works"
         users = resp.json()
         assert len(users) <= 10, "Limit respected"
@@ -412,10 +410,10 @@ async def test_list_users_role_filter():
         resp = await client.get("/api/v1/users?role=member", headers=dev_headers)
         assert resp.status_code == 200, "Role filter request succeeds"
         users = resp.json()
-        assert any(
-            u["id"] == user_id for u in users), "Created member included"
-        assert all(u.get("global_role") ==
-                   "member" for u in users), "Only members returned"
+        assert any(u["id"] == user_id for u in users), "Created member included"
+        assert all(
+            u.get("global_role") == "member" for u in users
+        ), "Only members returned"
         await asyncio.sleep(2)
 
         resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -425,6 +423,7 @@ async def test_list_users_role_filter():
 # ============================================================================
 # ERROR SCENARIO TESTS (6 tests - 404, 403, 400 errors)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_get_user_not_found():
@@ -441,8 +440,9 @@ async def test_get_user_not_found():
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/users/{fake_id}", headers=dev_headers)
         assert resp.status_code == 404, "Non-existent user returns 404"
-        assert "not found" in resp.json(
-        )["detail"].lower(), "Error message indicates 404"
+        assert (
+            "not found" in resp.json()["detail"].lower()
+        ), "Error message indicates 404"
 
 
 @pytest.mark.asyncio
@@ -478,7 +478,7 @@ async def test_update_user_not_found():
         resp = await client.put(
             f"/api/v1/users/{fake_id}",
             headers=dev_headers,
-            json={"full_name": "Updated"}
+            json={"full_name": "Updated"},
         )
         assert resp.status_code == 404, "Non-existent user returns 404"
 
@@ -503,7 +503,7 @@ async def test_get_other_user_forbidden():
 
         # TEST: User1 tries to access User2's profile
         resp = await client.get(f"/api/v1/users/{user2_id}", headers=user1_headers)
-        assert resp.status_code == 403, "Non-admin cannot view other user"
+        assert resp.status_code == 403
 
         # CLEANUP: Delete both users
         await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)
@@ -533,9 +533,9 @@ async def test_update_other_user_forbidden():
         resp = await client.put(
             f"/api/v1/users/{user2_id}",
             headers=user1_headers,
-            json={"full_name": "Hacked"}
+            json={"full_name": "Hacked"},
         )
-        assert resp.status_code == 403, "Non-admin cannot update other user"
+        assert resp.status_code == 403
 
         # CLEANUP: Delete both users
         await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)
@@ -556,18 +556,15 @@ async def test_delete_self_prevented():
 
     async with _get_client() as client:
         # TEST: Admin tries to delete self using DEV_USER_ID
-        resp = await client.delete(
-            f"/api/v1/users/{DEV_USER_ID}",
-            headers=dev_headers
-        )
+        resp = await client.delete(f"/api/v1/users/{DEV_USER_ID}", headers=dev_headers)
         assert resp.status_code == 400, "Admin cannot delete self"
-        assert "cannot delete" in resp.json(
-        )["detail"].lower(), "Error message clear"
+        assert "cannot delete" in resp.json()["detail"].lower(), "Error message clear"
 
 
 # ============================================================================
 # PERMISSION TESTS (6 tests - 403 Forbidden, 401 Unauthorized)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_list_requires_admin():
@@ -587,7 +584,7 @@ async def test_list_requires_admin():
 
         # TEST: Regular user tries to list users
         resp = await client.get("/api/v1/users", headers=user_headers)
-        assert resp.status_code == 403, "Non-admin cannot list users"
+        assert resp.status_code == 403
 
         # CLEANUP: Delete user
         await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
@@ -613,7 +610,7 @@ async def test_delete_requires_admin():
 
         # TEST: User1 tries to delete User2
         resp = await client.delete(f"/api/v1/users/{user2_id}", headers=user1_headers)
-        assert resp.status_code == 403, "Non-admin cannot delete user"
+        assert resp.status_code == 403
 
         # CLEANUP: Delete both users
         await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)
@@ -658,10 +655,7 @@ async def test_update_requires_authentication():
     """
     async with _get_client() as client:
         fake_id = str(uuid.uuid4())
-        resp = await client.put(
-            f"/api/v1/users/{fake_id}",
-            json={"full_name": "Test"}
-        )
+        resp = await client.put(f"/api/v1/users/{fake_id}", json={"full_name": "Test"})
         assert resp.status_code in [401, 403], "No token rejected"
 
 
@@ -694,8 +688,7 @@ async def test_settings_requires_authentication():
 
         # PUT without token
         resp = await client.put(
-            "/api/v1/users/profile/settings",
-            json={"timezone": "UTC"}
+            "/api/v1/users/profile/settings", json={"timezone": "UTC"}
         )
         assert resp.status_code in [401, 403], "No token rejected on PUT"
 
@@ -711,7 +704,7 @@ async def test_avatar_requires_authentication():
     async with _get_client() as client:
         resp = await client.post(
             "/api/v1/users/profile/avatar",
-            params={"avatar_url": "https://example.com/avatar.jpg"}
+            params={"avatar_url": "https://example.com/avatar.jpg"},
         )
         assert resp.status_code in [401, 403], "No token rejected"
 
@@ -719,6 +712,7 @@ async def test_avatar_requires_authentication():
 # ============================================================================
 # DATA VALIDATION TESTS (1 test - 400 Bad Request)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_update_duplicate_email():
@@ -740,13 +734,10 @@ async def test_update_duplicate_email():
 
         # TEST: User2 tries to update email to User1's email
         resp = await client.put(
-            f"/api/v1/users/{user2_id}",
-            headers=user2_headers,
-            json={"email": email1}
+            f"/api/v1/users/{user2_id}", headers=user2_headers, json={"email": email1}
         )
         assert resp.status_code == 400, "Duplicate email rejected"
-        assert "already registered" in resp.json(
-        )["detail"].lower(), "Error clear"
+        assert "already registered" in resp.json()["detail"].lower(), "Error clear"
 
         # CLEANUP: Delete both users
         await client.delete(f"/api/v1/users/{user1_id}", headers=dev_headers)

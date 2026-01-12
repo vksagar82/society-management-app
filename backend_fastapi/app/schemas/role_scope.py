@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
 class RoleBase(BaseModel):
-    name: str = Field(..., min_length=2, max_length=50,
-                      description="Role name")
+    name: str = Field(..., min_length=2, max_length=50, description="Role name")
     description: Optional[str] = Field(None, description="Role description")
 
 
@@ -19,8 +19,7 @@ class RoleUpdate(BaseModel):
 
 
 class ScopeBase(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100,
-                      description="Scope name")
+    name: str = Field(..., min_length=2, max_length=100, description="Scope name")
     description: Optional[str] = Field(None, description="Scope description")
 
 
@@ -55,5 +54,6 @@ class RoleWithScopes(RoleResponse):
 
 
 class RoleScopesUpdate(BaseModel):
-    scopes: List[str] = Field(default_factory=list,
-                              description="List of scope names to assign")
+    scopes: List[str] = Field(
+        default_factory=list, description="List of scope names to assign"
+    )

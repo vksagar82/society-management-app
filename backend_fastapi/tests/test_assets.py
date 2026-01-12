@@ -104,17 +104,17 @@ In-Process Testing: Tests use httpx.AsyncClient(app=app, base_url="http://test")
 - Ensures role-based permissions (developer/admin/manager/member) work correctly
 """
 
+import asyncio
 import os
 import uuid
-import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional, cast
 
 import httpx
+import jwt
 import pytest
-from jose import jwt
 
 from config import settings
 from tests.conftest import DEV_USER_ID
@@ -171,9 +171,11 @@ def _make_dev_token() -> str:
     payload = {
         "sub": str(DEV_USER_ID),
         "scope": "developer admin",
-        "exp": datetime.utcnow() + timedelta(days=30),
+        "exp": int((datetime.utcnow() + timedelta(days=30)).timestamp()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(
+        str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    )
 
 
 async def _create_test_user(client: httpx.AsyncClient, role: str = "member") -> tuple:
@@ -223,7 +225,9 @@ async def _create_test_user(client: httpx.AsyncClient, role: str = "member") -> 
     return user_id, email, password, access_token
 
 
-async def _create_test_society(client: httpx.AsyncClient, creator_token: str, auto_approve: bool = True) -> str:
+async def _create_test_society(
+    client: httpx.AsyncClient, creator_token: str, auto_approve: bool = True
+) -> str:
     """
     Create test society and return ID.
 
@@ -260,16 +264,21 @@ async def _create_test_society(client: httpx.AsyncClient, creator_token: str, au
             await client.post(
                 f"/api/v1/societies/{society_id}/approve-society",
                 headers=dev_headers,
-                json={"approved": True}
+                json={"approved": True},
             )
             # Ignore if already approved or if endpoint doesn't exist
             await asyncio.sleep(1)
 
     await asyncio.sleep(1)
-    return society_id
+    return str(society_id)
 
 
-async def _create_test_category(client: httpx.AsyncClient, dev_token: str, society_id: str, name: str = None) -> str:
+async def _create_test_category(
+    client: httpx.AsyncClient,
+    dev_token: str,
+    society_id: str,
+    name: Optional[str] = None,
+) -> str:
     """
     Create asset category and return ID.
 
@@ -290,12 +299,14 @@ async def _create_test_category(client: httpx.AsyncClient, dev_token: str, socie
     }
 
     headers = {"Authorization": f"Bearer {dev_token}"}
-    resp = await client.post("/api/v1/assets/categories", headers=headers, json=category_data)
+    resp = await client.post(
+        "/api/v1/assets/categories", headers=headers, json=category_data
+    )
     assert resp.status_code == 201
     category_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return category_id
+    return str(category_id)
 
 
 async def _create_test_asset(
@@ -303,7 +314,7 @@ async def _create_test_asset(
     auth_token: str,
     society_id: str,
     category_id: str,
-    name: str = None
+    name: Optional[str] = None,
 ) -> str:
     """
     Create asset and return ID.
@@ -334,12 +345,13 @@ async def _create_test_asset(
     asset_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return asset_id
+    return str(asset_id)
 
 
 # ============================================================================
 # HAPPY PATH TESTS (8 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_list_categories():
@@ -374,7 +386,9 @@ async def test_list_categories():
             "society_id": society_id,
         }
 
-        resp = await client.post("/api/v1/assets/categories", headers=dev_headers, json=category_data)
+        resp = await client.post(
+            "/api/v1/assets/categories", headers=dev_headers, json=category_data
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["name"] == category_name
@@ -399,7 +413,9 @@ async def test_list_assets_by_society():
         category_id = await _create_test_category(client, dev_token, society_id)
         asset_id = await _create_test_asset(client, user_token, society_id, category_id)
 
-        resp = await client.get(f"/api/v1/assets?society_id={society_id}", headers=dev_headers)
+        resp = await client.get(
+            f"/api/v1/assets?society_id={society_id}", headers=dev_headers
+        )
         assert resp.status_code == 200
         assets = resp.json()
         assert isinstance(assets, list)
@@ -428,16 +444,17 @@ async def test_list_assets_with_filters():
         # Update asset to specific status
         await client.put(
             f"/api/v1/assets/{asset_id}",
-            headers=user_token and {
-                "Authorization": f"Bearer {user_token}"} or dev_headers,
-            json={"status": "maintenance"}
+            headers=user_token
+            and {"Authorization": f"Bearer {user_token}"}
+            or dev_headers,
+            json={"status": "maintenance"},
         )
         await asyncio.sleep(1)
 
         # Filter by category and status
         resp = await client.get(
             f"/api/v1/assets?society_id={society_id}&category_id={category_id}&status_filter=maintenance",
-            headers=dev_headers
+            headers=dev_headers,
         )
         assert resp.status_code == 200
         assets = resp.json()
@@ -476,7 +493,9 @@ async def test_create_asset_as_admin():
             "status": "active",
         }
 
-        resp = await client.post("/api/v1/assets", headers=user_headers, json=asset_data)
+        resp = await client.post(
+            "/api/v1/assets", headers=user_headers, json=asset_data
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["name"] == asset_name
@@ -502,7 +521,9 @@ async def test_get_asset_details():
 
         society_id = await _create_test_society(client, user_token)
         category_id = await _create_test_category(client, dev_token, society_id)
-        asset_id = await _create_test_asset(client, user_token, society_id, category_id, "DetailAsset")
+        asset_id = await _create_test_asset(
+            client, user_token, society_id, category_id, "DetailAsset"
+        )
 
         resp = await client.get(f"/api/v1/assets/{asset_id}", headers=dev_headers)
         assert resp.status_code == 200
@@ -532,12 +553,11 @@ async def test_update_asset_as_admin():
         category_id = await _create_test_category(client, dev_token, society_id)
         asset_id = await _create_test_asset(client, user_token, society_id, category_id)
 
-        update_data = {
-            "name": "Updated Asset Name",
-            "status": "under_repair"
-        }
+        update_data = {"name": "Updated Asset Name", "status": "under_repair"}
 
-        resp = await client.put(f"/api/v1/assets/{asset_id}", headers=user_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/assets/{asset_id}", headers=user_headers, json=update_data
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "Updated Asset Name"
@@ -581,6 +601,7 @@ async def test_delete_asset_as_admin():
 # ERROR SCENARIO TESTS (7 tests)
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_create_category_duplicate():
     """Creating category with duplicate name returns 400."""
@@ -598,12 +619,16 @@ async def test_create_category_duplicate():
         }
 
         # Create first category
-        resp = await client.post("/api/v1/assets/categories", headers=dev_headers, json=category_data)
+        resp = await client.post(
+            "/api/v1/assets/categories", headers=dev_headers, json=category_data
+        )
         assert resp.status_code == 201
         await asyncio.sleep(1)
 
         # Attempt duplicate
-        resp = await client.post("/api/v1/assets/categories", headers=dev_headers, json=category_data)
+        resp = await client.post(
+            "/api/v1/assets/categories", headers=dev_headers, json=category_data
+        )
         assert resp.status_code == 400
         assert "already exists" in resp.json()["detail"].lower()
         await asyncio.sleep(1)
@@ -633,7 +658,9 @@ async def test_create_asset_invalid_category():
             "purchase_cost": 1000.00,
         }
 
-        resp = await client.post("/api/v1/assets", headers=user_headers, json=asset_data)
+        resp = await client.post(
+            "/api/v1/assets", headers=user_headers, json=asset_data
+        )
         assert resp.status_code == 404
         assert "category not found" in resp.json()["detail"].lower()
         await asyncio.sleep(1)
@@ -666,7 +693,9 @@ async def test_update_asset_not_found():
         fake_asset_id = str(uuid.uuid4())
         update_data = {"name": "NonExistent"}
 
-        resp = await client.put(f"/api/v1/assets/{fake_asset_id}", headers=dev_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/assets/{fake_asset_id}", headers=dev_headers, json=update_data
+        )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
@@ -687,7 +716,9 @@ async def test_update_asset_invalid_category():
         fake_category_id = str(uuid.uuid4())
         update_data = {"category_id": fake_category_id}
 
-        resp = await client.put(f"/api/v1/assets/{asset_id}", headers=user_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/assets/{asset_id}", headers=user_headers, json=update_data
+        )
         assert resp.status_code == 404
         assert "category not found" in resp.json()["detail"].lower()
         await asyncio.sleep(1)
@@ -706,7 +737,9 @@ async def test_delete_asset_not_found():
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
         fake_asset_id = str(uuid.uuid4())
-        resp = await client.delete(f"/api/v1/assets/{fake_asset_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/assets/{fake_asset_id}", headers=dev_headers
+        )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
@@ -734,6 +767,7 @@ async def test_list_assets_no_access():
 # PERMISSION TESTS (9 tests)
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_create_category_requires_developer():
     """Non-developer creating category returns 403."""
@@ -751,7 +785,9 @@ async def test_create_category_requires_developer():
             "society_id": society_id,
         }
 
-        resp = await client.post("/api/v1/assets/categories", headers=user_headers, json=category_data)
+        resp = await client.post(
+            "/api/v1/assets/categories", headers=user_headers, json=category_data
+        )
         assert resp.status_code == 403
         assert "developer" in resp.json()["detail"].lower()
         await asyncio.sleep(1)
@@ -772,7 +808,7 @@ async def test_create_category_requires_auth():
         }
 
         resp = await client.post("/api/v1/assets/categories", json=category_data)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -790,7 +826,9 @@ async def test_create_asset_requires_admin_or_manager():
         member_headers = {"Authorization": f"Bearer {member_token}"}
 
         # Join member to society
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=member_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=member_headers
+        )
         await asyncio.sleep(1)
 
         # Approve membership
@@ -798,7 +836,7 @@ async def test_create_asset_requires_admin_or_manager():
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": member_id, "approve": True}
+            json={"user_id": member_id, "approve": True},
         )
         await asyncio.sleep(1)
 
@@ -812,7 +850,9 @@ async def test_create_asset_requires_admin_or_manager():
             "purchase_cost": 1000.00,
         }
 
-        resp = await client.post("/api/v1/assets", headers=member_headers, json=asset_data)
+        resp = await client.post(
+            "/api/v1/assets", headers=member_headers, json=asset_data
+        )
         assert resp.status_code == 403
         await asyncio.sleep(1)
 
@@ -836,7 +876,7 @@ async def test_create_asset_requires_auth():
         }
 
         resp = await client.post("/api/v1/assets", json=asset_data)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -845,7 +885,7 @@ async def test_get_asset_requires_auth():
     async with _get_client() as client:
         fake_asset_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/assets/{fake_asset_id}")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -858,25 +898,31 @@ async def test_update_asset_requires_admin_or_manager():
         admin_id, _, _, admin_token = await _create_test_user(client, "admin")
         society_id = await _create_test_society(client, admin_token)
         category_id = await _create_test_category(client, dev_token, society_id)
-        asset_id = await _create_test_asset(client, admin_token, society_id, category_id)
+        asset_id = await _create_test_asset(
+            client, admin_token, society_id, category_id
+        )
 
         member_id, _, _, member_token = await _create_test_user(client, "member")
         member_headers = {"Authorization": f"Bearer {member_token}"}
 
         # Join and approve member
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=member_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=member_headers
+        )
         await asyncio.sleep(1)
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": member_id, "approve": True}
+            json={"user_id": member_id, "approve": True},
         )
         await asyncio.sleep(1)
 
         # Member attempts to update asset
         update_data = {"name": "MemberUpdate"}
-        resp = await client.put(f"/api/v1/assets/{asset_id}", headers=member_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/assets/{asset_id}", headers=member_headers, json=update_data
+        )
         assert resp.status_code == 403
         await asyncio.sleep(1)
 
@@ -895,7 +941,7 @@ async def test_update_asset_requires_auth():
         update_data = {"name": "UnauthUpdate"}
 
         resp = await client.put(f"/api/v1/assets/{fake_asset_id}", json=update_data)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -908,19 +954,23 @@ async def test_delete_asset_requires_admin():
         admin_id, _, _, admin_token = await _create_test_user(client, "admin")
         society_id = await _create_test_society(client, admin_token)
         category_id = await _create_test_category(client, dev_token, society_id)
-        asset_id = await _create_test_asset(client, admin_token, society_id, category_id)
+        asset_id = await _create_test_asset(
+            client, admin_token, society_id, category_id
+        )
 
         manager_id, _, _, manager_token = await _create_test_user(client, "manager")
         manager_headers = {"Authorization": f"Bearer {manager_token}"}
 
         # Join and approve manager
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=manager_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=manager_headers
+        )
         await asyncio.sleep(1)
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": manager_id, "approve": True}
+            json={"user_id": manager_id, "approve": True},
         )
         await asyncio.sleep(1)
 
@@ -928,12 +978,14 @@ async def test_delete_asset_requires_admin():
         await client.put(
             f"/api/v1/societies/{society_id}/members/{manager_id}",
             headers=admin_headers,
-            json={"role": "manager"}
+            json={"role": "manager"},
         )
         await asyncio.sleep(1)
 
         # Manager attempts to delete asset (should fail - only admin can delete)
-        resp = await client.delete(f"/api/v1/assets/{asset_id}", headers=manager_headers)
+        resp = await client.delete(
+            f"/api/v1/assets/{asset_id}", headers=manager_headers
+        )
         assert resp.status_code == 403
         await asyncio.sleep(1)
 
@@ -950,7 +1002,7 @@ async def test_delete_asset_requires_auth():
     async with _get_client() as client:
         fake_asset_id = str(uuid.uuid4())
         resp = await client.delete(f"/api/v1/assets/{fake_asset_id}")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -958,4 +1010,4 @@ async def test_list_assets_requires_auth():
     """Listing assets without token returns 403."""
     async with _get_client() as client:
         resp = await client.get("/api/v1/assets")
-        assert resp.status_code == 403
+        assert resp.status_code == 401

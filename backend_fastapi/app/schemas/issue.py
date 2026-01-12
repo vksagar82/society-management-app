@@ -4,27 +4,26 @@ Issue/Complaint schemas for request/response validation.
 This module defines Pydantic models for issue management operations.
 """
 
-from datetime import datetime, date
-from typing import Optional, List
+from datetime import date, datetime
+from typing import List, Optional
 from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
 class IssueBase(BaseModel):
     """Base issue schema with common fields."""
 
-    title: str = Field(..., min_length=5, max_length=255,
-                       description="Issue title")
-    description: str = Field(..., min_length=10,
-                             description="Issue description")
-    category: Optional[str] = Field(
-        None, max_length=100, description="Category")
+    title: str = Field(..., min_length=5, max_length=255, description="Issue title")
+    description: str = Field(..., min_length=10, description="Issue description")
+    category: Optional[str] = Field(None, max_length=100, description="Category")
     priority: str = Field(
-        default="medium", description="Priority: low, medium, high, urgent")
-    location: Optional[str] = Field(
-        None, max_length=255, description="Location")
+        default="medium", description="Priority: low, medium, high, urgent"
+    )
+    location: Optional[str] = Field(None, max_length=255, description="Location")
     target_resolution_date: Optional[date] = Field(
-        None, description="Target resolution date")
+        None, description="Target resolution date"
+    )
 
 
 class IssueCreate(IssueBase):
@@ -32,8 +31,7 @@ class IssueCreate(IssueBase):
 
     society_id: UUID = Field(..., description="Society ID")
     images: Optional[List[str]] = Field(None, description="Image URLs")
-    attachment_urls: Optional[List[str]] = Field(
-        None, description="Attachment URLs")
+    attachment_urls: Optional[List[str]] = Field(None, description="Attachment URLs")
 
 
 class IssueUpdate(BaseModel):
@@ -44,7 +42,8 @@ class IssueUpdate(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     priority: Optional[str] = None
     status: Optional[str] = Field(
-        None, description="Status: open, in_progress, resolved, closed")
+        None, description="Status: open, in_progress, resolved, closed"
+    )
     assigned_to: Optional[UUID] = Field(None, description="Assign to user ID")
     location: Optional[str] = Field(None, max_length=255)
     target_resolution_date: Optional[date] = None
@@ -69,6 +68,7 @@ class IssueResponse(IssueBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True
 
 
@@ -96,4 +96,5 @@ class IssueCommentResponse(IssueCommentBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True

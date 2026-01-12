@@ -4,30 +4,30 @@ Pytest configuration and fixtures.
 This module provides reusable test fixtures for all test modules with automatic cleanup.
 """
 
-import pytest
 import asyncio
-from typing import Generator, AsyncGenerator
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete
-from uuid import UUID, uuid4
 from datetime import datetime
+from typing import AsyncGenerator, Dict, Generator, List
+from uuid import UUID, uuid4
 
-from main import app
-from app.database import AsyncSessionLocal, engine, get_session
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.security import create_access_token, hash_password
-from app.models import User, Society
-
+from app.database import AsyncSessionLocal, engine, get_session
+from app.models import Society, User
+from main import app
 
 # Bcrypt_sha256 hash for the password "password" using the app hasher (keeps 72-char limit)
 PASSWORD_HASH = hash_password("password")
 
 # Fixed UUID for dev user
-DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
+DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 # Store created test data IDs for cleanup
-test_data_ids = {
+test_data_ids: Dict[str, List] = {
     "users": [],
     "societies": [],
     "user_societies": [],
@@ -36,7 +36,7 @@ test_data_ids = {
     "assets": [],
     "asset_categories": [],
     "amcs": [],
-    "amc_service_histories": []
+    "amc_service_histories": [],
 }
 
 
@@ -61,7 +61,7 @@ async def setup_dev_user():
             full_name="Dev Admin Test",
             password_hash=PASSWORD_HASH,
             global_role="developer",
-            is_active=True
+            is_active=True,
         )
         session.add(user)
         await session.commit()
@@ -117,7 +117,7 @@ def test_user_data():
         "email": f"test_{uuid4().hex[:8]}@example.com",
         "phone": f"98{uuid4().hex[:8][:8]}",
         "full_name": "Test User",
-        "password": "TestPass123!"
+        "password": "TestPass123!",
     }
 
 
@@ -131,7 +131,7 @@ async def test_user(db: AsyncSession, test_user_data) -> User:
         full_name=test_user_data["full_name"],
         password_hash=hash_password(test_user_data["password"]),
         global_role="member",
-        is_active=True
+        is_active=True,
     )
     db.add(user)
     await db.commit()
@@ -153,7 +153,7 @@ async def test_admin_user(db: AsyncSession) -> User:
         full_name="Admin User",
         password_hash=hash_password("AdminPass123!"),
         global_role="admin",
-        is_active=True
+        is_active=True,
     )
     db.add(user)
     await db.commit()
@@ -174,7 +174,7 @@ async def test_developer_user(db: AsyncSession) -> User:
         full_name="Developer User",
         password_hash=hash_password("DevPass123!"),
         global_role="developer",
-        is_active=True
+        is_active=True,
     )
     db.add(user)
     await db.commit()
@@ -197,7 +197,7 @@ async def test_society(db: AsyncSession) -> Society:
         pincode="123456",
         total_units=100,
         contact_email=f"society_{uuid4().hex[:8]}@example.com",
-        contact_phone=f"99{uuid4().hex[:8][:8]}"
+        contact_phone=f"99{uuid4().hex[:8][:8]}",
     )
     db.add(society)
     await db.commit()
@@ -211,20 +211,14 @@ async def test_society(db: AsyncSession) -> Society:
 @pytest.fixture
 def user_token(test_user: User):
     """Generate token for test user."""
-    token_data = {
-        "sub": str(test_user.id),
-        "email": test_user.email
-    }
+    token_data = {"sub": str(test_user.id), "email": test_user.email}
     return create_access_token(token_data)
 
 
 @pytest.fixture
 def admin_token(test_admin_user: User):
     """Generate token for admin user."""
-    token_data = {
-        "sub": str(test_admin_user.id),
-        "email": test_admin_user.email
-    }
+    token_data = {"sub": str(test_admin_user.id), "email": test_admin_user.email}
     return create_access_token(token_data)
 
 
@@ -233,7 +227,7 @@ def developer_token(test_developer_user: User):
     """Generate token for developer user."""
     token_data = {
         "sub": str(test_developer_user.id),
-        "email": test_developer_user.email
+        "email": test_developer_user.email,
     }
     return create_access_token(token_data)
 
@@ -241,10 +235,7 @@ def developer_token(test_developer_user: User):
 @pytest.fixture
 def member_token(test_user: User):
     """Generate token for member user."""
-    token_data = {
-        "sub": str(test_user.id),
-        "email": test_user.email
-    }
+    token_data = {"sub": str(test_user.id), "email": test_user.email}
     return create_access_token(token_data)
 
 
@@ -277,7 +268,7 @@ def test_society_data():
         "pincode": "123456",
         "contact_person": "John Doe",
         "contact_email": "contact@testsociety.com",
-        "contact_phone": "9876543210"
+        "contact_phone": "9876543210",
     }
 
 
@@ -289,7 +280,7 @@ def test_issue_data():
         "description": "This is a test issue description",
         "category": "Maintenance",
         "priority": "medium",
-        "location": "Block A, Floor 2"
+        "location": "Block A, Floor 2",
     }
 
 
@@ -302,7 +293,7 @@ def test_asset_data():
         "purchase_cost": 10000,
         "location": "Main Building",
         "asset_code": "ASSET-001",
-        "maintenance_frequency": "monthly"
+        "maintenance_frequency": "monthly",
     }
 
 
@@ -318,13 +309,14 @@ def test_amc_data():
         "annual_cost": 50000,
         "currency": "INR",
         "contact_person": "Vendor Contact",
-        "contact_phone": "9876543210"
+        "contact_phone": "9876543210",
     }
 
 
 # ============================================================================
 # PYTEST HOOKS - Test Summary Reporting
 # ============================================================================
+
 
 def pytest_sessionfinish(session, exitstatus):
     """
@@ -340,8 +332,7 @@ def pytest_sessionfinish(session, exitstatus):
 
     try:
         if hasattr(session, "config") and hasattr(session.config, "pluginmanager"):
-            reporter = session.config.pluginmanager.get_plugin(
-                "terminalreporter")
+            reporter = session.config.pluginmanager.get_plugin("terminalreporter")
             if reporter and hasattr(reporter, "stats"):
                 stats = reporter.stats
                 passed = len(stats.get("passed", []))

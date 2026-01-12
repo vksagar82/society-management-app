@@ -4,57 +4,58 @@ AMC (Annual Maintenance Contract) schemas for request/response validation.
 This module defines Pydantic models for AMC management operations.
 """
 
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
+
 from pydantic import BaseModel, EmailStr, Field
 
 
 class AMCBase(BaseModel):
     """Base AMC schema."""
 
-    vendor_name: str = Field(..., min_length=2,
-                             max_length=255, description="Vendor name")
-    vendor_code: Optional[str] = Field(
-        None, max_length=100, description="Vendor code")
+    vendor_name: str = Field(
+        ..., min_length=2, max_length=255, description="Vendor name"
+    )
+    vendor_code: Optional[str] = Field(None, max_length=100, description="Vendor code")
     service_type: str = Field(..., max_length=255, description="Service type")
     work_order_number: Optional[str] = Field(
-        None, max_length=255, description="Work order number")
+        None, max_length=255, description="Work order number"
+    )
     invoice_number: Optional[str] = Field(
-        None, max_length=255, description="Invoice number")
+        None, max_length=255, description="Invoice number"
+    )
     po_number: Optional[str] = Field(
-        None, max_length=255, description="Purchase order number")
+        None, max_length=255, description="Purchase order number"
+    )
     contract_start_date: date = Field(..., description="Contract start date")
     contract_end_date: date = Field(..., description="Contract end date")
-    annual_cost: Optional[float] = Field(
-        None, ge=0, description="Annual cost")
-    currency: str = Field(default="INR", max_length=10,
-                          description="Currency code")
+    annual_cost: Optional[float] = Field(None, ge=0, description="Annual cost")
+    currency: str = Field(default="INR", max_length=10, description="Currency code")
     payment_terms: Optional[str] = Field(None, description="Payment terms")
-    document_url: Optional[str] = Field(
-        None, description="Contract document URL")
+    document_url: Optional[str] = Field(None, description="Contract document URL")
     contact_person: Optional[str] = Field(
-        None, max_length=255, description="Contact person")
+        None, max_length=255, description="Contact person"
+    )
     contact_phone: Optional[str] = Field(
-        None, max_length=20, description="Contact phone")
+        None, max_length=20, description="Contact phone"
+    )
     email: Optional[EmailStr] = Field(None, description="Vendor email")
     vendor_address: Optional[str] = Field(None, description="Vendor address")
-    gst_number: Optional[str] = Field(
-        None, max_length=50, description="GST number")
+    gst_number: Optional[str] = Field(None, max_length=50, description="GST number")
     maintenance_frequency: Optional[str] = Field(
-        None,
-        description="Frequency: monthly, quarterly, semi-annual, annual, custom"
+        None, description="Frequency: monthly, quarterly, semi-annual, annual, custom"
     )
     maintenance_interval_months: Optional[int] = Field(
-        None,
-        ge=1,
-        description="Custom interval in months"
+        None, ge=1, description="Custom interval in months"
     )
     renewal_reminder_days: int = Field(
-        default=30, ge=1, description="Renewal reminder days")
+        default=30, ge=1, description="Renewal reminder days"
+    )
     notes: Optional[str] = Field(None, description="Additional notes")
     asset_id: Optional[UUID] = Field(
-        None, description="Asset ID (optional, for asset-specific AMCs)")
+        None, description="Asset ID (optional, for asset-specific AMCs)"
+    )
 
 
 class AMCCreate(AMCBase):
@@ -90,8 +91,7 @@ class AMCUpdate(BaseModel):
     service_reminder_days: Optional[int] = Field(None, ge=1)
     renewal_reminder_days: Optional[int] = Field(None, ge=1)
     status: Optional[str] = Field(
-        None,
-        description="Status: active, expired, pending_renewal, cancelled"
+        None, description="Status: active, expired, pending_renewal, cancelled"
     )
     notes: Optional[str] = None
     asset_id: Optional[UUID] = None
@@ -113,6 +113,7 @@ class AMCResponse(AMCBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True
 
 
@@ -121,21 +122,20 @@ class AMCServiceHistoryBase(BaseModel):
 
     service_date: date = Field(..., description="Service date")
     service_type: Optional[str] = Field(
-        None, max_length=100, description="Service type")
+        None, max_length=100, description="Service type"
+    )
     technician_name: Optional[str] = Field(
-        None, max_length=255, description="Technician name")
+        None, max_length=255, description="Technician name"
+    )
     work_performed: Optional[str] = Field(None, description="Work performed")
     issues_found: Optional[str] = Field(None, description="Issues found")
-    service_cost: Optional[float] = Field(
-        None, ge=0, description="Service cost")
+    service_cost: Optional[float] = Field(None, ge=0, description="Service cost")
     invoice_number: Optional[str] = Field(
-        None, max_length=255, description="Invoice number")
-    service_report_url: Optional[str] = Field(
-        None, description="Service report URL")
-    next_service_date: Optional[date] = Field(
-        None, description="Next service date")
-    rating: Optional[int] = Field(
-        None, ge=1, le=5, description="Service rating (1-5)")
+        None, max_length=255, description="Invoice number"
+    )
+    service_report_url: Optional[str] = Field(None, description="Service report URL")
+    next_service_date: Optional[date] = Field(None, description="Next service date")
+    rating: Optional[int] = Field(None, ge=1, le=5, description="Service rating (1-5)")
     feedback: Optional[str] = Field(None, description="Service feedback")
     notes: Optional[str] = Field(None, description="Additional notes")
 
@@ -156,4 +156,5 @@ class AMCServiceHistoryResponse(AMCServiceHistoryBase):
 
     class Config:
         """Pydantic config."""
+
         from_attributes = True

@@ -7,38 +7,42 @@ Generates and stores TOKEN in APP_DEV_TOKEN environment variable.
 
 import logging
 from datetime import datetime, timedelta
-from uuid import UUID
 from pathlib import Path
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from jose import jwt
+from typing import Optional
+from uuid import UUID
 
-from app.models import User
+import jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.security import hash_password
+from app.models import User
 from config import settings
 
 logger = logging.getLogger(__name__)
 
 # Fixed UUID for dev user
-DEV_USER_ID = UUID('00000000-0000-0000-0000-000000000001')
+DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 DEV_USER_EMAIL = "dev-admin@societymanagement.com"
 DEV_USER_PHONE = "9999999999"
 DEV_USER_NAME = "Developer Admin"
-DEV_USER_PASSWORD = "Dev@12345"  # Default password
+DEV_USER_PASSWORD = "Dev@12345"  # nosec B105 - Dev user for testing only
 
 
 def _generate_dev_token(user_id: UUID, expires_days: int = 365) -> str:
     """Generate a long-lived dev token for the developer user."""
+    from typing import cast
+
     expire = datetime.utcnow() + timedelta(days=expires_days)
     to_encode = {
         "sub": str(user_id),
         "scope": "developer admin",
-        "exp": expire,
+        "exp": int(expire.timestamp()),
     }
     encoded_jwt = jwt.encode(
         to_encode, settings.secret_key, algorithm=settings.algorithm
     )
-    return encoded_jwt
+    return cast(str, encoded_jwt)
 
 
 def _update_env_dev_token(token: str) -> None:
@@ -100,14 +104,11 @@ async def seed_dev_user(session: AsyncSession) -> dict:
         print("\n[SEED] Checking for default developer user...")
 
         # Check if dev user already exists
-        result = await session.execute(
-            select(User).where(User.id == DEV_USER_ID)
-        )
+        result = await session.execute(select(User).where(User.id == DEV_USER_ID))
         existing_user = result.scalars().first()
 
         if existing_user:
-            logger.info(
-                f"Developer user already exists: {existing_user.email}")
+            logger.info(f"Developer user already exists: {existing_user.email}")
             print("[SEED] ✓ Developer user already exists - SKIPPED")
             action = "SKIPPED"
             user = existing_user
@@ -127,7 +128,7 @@ async def seed_dev_user(session: AsyncSession) -> dict:
                 settings={
                     "timezone": "UTC",
                     "notifications_enabled": True,
-                }
+                },
             )
             session.add(user)
             await session.commit()
@@ -150,10 +151,14 @@ async def seed_dev_user(session: AsyncSession) -> dict:
             "role": "developer",
             "token_generated": True,
             "token_expires_days": 365,
-            "credentials": {
-                "email": DEV_USER_EMAIL,
-                "password": DEV_USER_PASSWORD,
-            } if action == "CREATED" else None,
+            "credentials": (
+                {
+                    "email": DEV_USER_EMAIL,
+                    "password": DEV_USER_PASSWORD,
+                }
+                if action == "CREATED"
+                else None
+            ),
         }
 
     except Exception as e:
@@ -165,7 +170,7 @@ async def seed_dev_user(session: AsyncSession) -> dict:
 async def update_dev_token_on_password_change(
     session: AsyncSession,
     user_id: UUID = DEV_USER_ID,
-) -> str:
+) -> Optional[str]:
     """
     Update APP_DEV_TOKEN after developer user password is changed.
 
@@ -174,13 +179,11 @@ async def update_dev_token_on_password_change(
         user_id: User ID (defaults to dev user)
 
     Returns:
-        str: New generated token
+        str: New generated token, or None if update failed
     """
     try:
         # Verify user exists
-        result = await session.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
 
         if not user:
@@ -199,7 +202,6 @@ async def update_dev_token_on_password_change(
         return token
 
     except Exception as e:
-        logger.error(
-            f"Error updating token on password change: {e}", exc_info=True)
+        logger.error(f"Error updating token on password change: {e}", exc_info=True)
         print(f"[AUTH] ⚠ Warning: Could not update token: {e}")
         return None

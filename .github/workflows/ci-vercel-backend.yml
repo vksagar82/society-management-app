@@ -37,9 +37,6 @@ jobs:
       - name: Type check with mypy
         run: mypy .
 
-      - name: Security scan with Bandit
-        run: bandit -r .
-
       - name: Format check with Black
         run: black --check .
 
@@ -48,6 +45,9 @@ jobs:
 
       - name: Dependency audit
         run: pip-audit
+
+      - name: Security scan with Bandit
+        run: bandit -r . --exclude ./tests
 
   deploy-backend-production:
     needs: quality-checks

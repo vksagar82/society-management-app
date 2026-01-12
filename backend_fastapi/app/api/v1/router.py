@@ -7,16 +7,16 @@ for inclusion in the main application.
 
 from fastapi import APIRouter, Depends
 
-from app.api.v1.endpoints import (
-    auth,
-    users,
-    societies,
-    issues,
-    assets,
-    amcs,
-    roles_scopes,
-)
 from app.api.v1 import system
+from app.api.v1.endpoints import (
+    amcs,
+    assets,
+    auth,
+    issues,
+    roles_scopes,
+    societies,
+    users,
+)
 from app.core.deps import get_current_active_user
 
 api_router = APIRouter()

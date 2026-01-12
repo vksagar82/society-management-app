@@ -11,30 +11,28 @@ This module provides endpoints for society management including:
 - Approval workflows
 """
 
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
-from sqlalchemy import select, or_, and_
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import datetime
 
-from app.core.deps import (
-    get_current_active_user,
-    require_admin
-)
+from app.core.deps import get_current_active_user
 from app.database import get_session
 from app.models import Society, UserSociety
 from app.schemas.society import (
-    SocietyResponse,
+    ApprovalRequest,
+    SocietyApprovalRequest,
     SocietyCreate,
+    SocietyResponse,
     SocietyUpdate,
     UserSocietyCreate,
     UserSocietyResponse,
-    ApprovalRequest,
-    SocietyApprovalRequest
 )
-from app.schemas.user import UserResponse
+from app.schemas.user import UserInDB
 
 router = APIRouter(prefix="/societies", tags=["Societies"])
 
@@ -43,16 +41,16 @@ router = APIRouter(prefix="/societies", tags=["Societies"])
     "",
     response_model=List[SocietyResponse],
     summary="List Societies",
-    description="Get list of all societies with pagination and search."
+    description="Get list of all societies with pagination and search.",
 )
 async def list_societies(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(
-        50, ge=1, le=100, description="Number of records per page (max 100)"),
-    search: Optional[str] = Query(
-        None, description="Search by society name or city"),
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+        50, ge=1, le=100, description="Number of records per page (max 100)"
+    ),
+    search: Optional[str] = Query(None, description="Search by society name or city"),
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     List societies with pagination and optional search.
@@ -77,36 +75,40 @@ async def list_societies(
 
         if search:
             search_pattern = f"%{search}%"
-            stmt = stmt.where(or_(
-                Society.name.ilike(search_pattern),
-                Society.city.ilike(search_pattern)
-            ))
+            stmt = stmt.where(
+                or_(
+                    Society.name.ilike(search_pattern),
+                    Society.city.ilike(search_pattern),
+                )
+            )
 
-        stmt = stmt.order_by(Society.created_at.desc()
-                             ).offset(skip).limit(limit)
+        stmt = stmt.order_by(Society.created_at.desc()).offset(skip).limit(limit)
         result = await db.execute(stmt)
         societies = result.scalars().all()
     else:
         # Get approved societies user is a member of
-        stmt = select(Society).join(
-            UserSociety, Society.id == UserSociety.society_id
-        ).where(
-            and_(
-                UserSociety.user_id == current_user.id,
-                UserSociety.approval_status == "approved",
-                Society.approval_status == "approved"  # Only approved societies
+        stmt = (
+            select(Society)
+            .join(UserSociety, Society.id == UserSociety.society_id)
+            .where(
+                and_(
+                    UserSociety.user_id == current_user.id,
+                    UserSociety.approval_status == "approved",
+                    Society.approval_status == "approved",  # Only approved societies
+                )
             )
         )
 
         if search:
             search_pattern = f"%{search}%"
-            stmt = stmt.where(or_(
-                Society.name.ilike(search_pattern),
-                Society.city.ilike(search_pattern)
-            ))
+            stmt = stmt.where(
+                or_(
+                    Society.name.ilike(search_pattern),
+                    Society.city.ilike(search_pattern),
+                )
+            )
 
-        stmt = stmt.order_by(Society.created_at.desc()
-                             ).offset(skip).limit(limit)
+        stmt = stmt.order_by(Society.created_at.desc()).offset(skip).limit(limit)
         result = await db.execute(stmt)
         societies = result.scalars().all()
 
@@ -118,12 +120,12 @@ async def list_societies(
     response_model=SocietyResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create Society",
-    description="Create a new society and automatically become its admin."
+    description="Create a new society and automatically become its admin.",
 )
 async def create_society(
     society: SocietyCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Create a new society.
@@ -164,7 +166,7 @@ async def create_society(
         logo_url=society.logo_url,
         approval_status="approved" if is_developer else "pending",
         approved_by=current_user.id if is_developer else None,
-        approved_at=datetime.utcnow() if is_developer else None
+        approved_at=datetime.utcnow() if is_developer else None,
     )
 
     db.add(new_society)
@@ -177,7 +179,7 @@ async def create_society(
         role="admin",
         approval_status="approved",
         approved_by=current_user.id,
-        approved_at=datetime.utcnow()
+        approved_at=datetime.utcnow(),
     )
 
     db.add(user_society)
@@ -191,13 +193,13 @@ async def create_society(
     "/{society_id}/approve-society",
     response_model=SocietyResponse,
     summary="Approve Society (Developer Only)",
-    description="Approve a pending society. Only developers can approve societies."
+    description="Approve a pending society. Only developers can approve societies.",
 )
 async def approve_society(
     society_id: UUID,
     approval: SocietyApprovalRequest,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Approve or reject a society.
@@ -227,7 +229,7 @@ async def approve_society(
     if current_user.global_role != "developer":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only developers can approve societies"
+            detail="Only developers can approve societies",
         )
 
     # Get society
@@ -237,20 +239,19 @@ async def approve_society(
 
     if not society:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Society not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Society not found"
         )
 
     if society.approval_status == "approved":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Society is already approved"
+            detail="Society is already approved",
         )
 
     if approval.approved:
-        society.approval_status = "approved"
-        society.approved_by = current_user.id
-        society.approved_at = datetime.utcnow()
+        society.approval_status = "approved"  # type: ignore[assignment]
+        society.approved_by = current_user.id  # type: ignore[assignment]
+        society.approved_at = datetime.utcnow()  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(society)
@@ -262,12 +263,12 @@ async def approve_society(
     "/{society_id}",
     response_model=SocietyResponse,
     summary="Get Society Details",
-    description="Retrieve detailed information about a specific society."
+    description="Retrieve detailed information about a specific society.",
 )
 async def get_society(
     society_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Get society details by ID.
@@ -289,8 +290,7 @@ async def get_society(
 
     if not society:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Society not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Society not found"
         )
 
     return SocietyResponse.model_validate(society)
@@ -300,13 +300,13 @@ async def get_society(
     "/{society_id}",
     response_model=SocietyResponse,
     summary="Update Society",
-    description="Update society details and settings."
+    description="Update society details and settings.",
 )
 async def update_society(
     society_id: UUID,
     society_update: SocietyUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Update society information.
@@ -344,7 +344,7 @@ async def update_society(
         str(society_id),
         db,
         allowed_roles=["admin"],
-        action="update this society"
+        action="update this society",
     )
 
     # Get society
@@ -354,8 +354,7 @@ async def update_society(
 
     if not society:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Society not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Society not found"
         )
 
     # Update fields
@@ -373,12 +372,12 @@ async def update_society(
     "/{society_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete Society",
-    description="Permanently delete a society and all associated data."
+    description="Permanently delete a society and all associated data.",
 )
 async def delete_society(
     society_id: UUID,
-    current_user: UserResponse = Depends(require_admin),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Delete a society permanently.
@@ -412,7 +411,7 @@ async def delete_society(
         str(society_id),
         db,
         allowed_roles=["admin"],
-        action="delete this society"
+        action="delete this society",
     )
     stmt = select(Society).where(Society.id == society_id)
     result = await db.execute(stmt)
@@ -420,8 +419,7 @@ async def delete_society(
 
     if not society:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Society not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Society not found"
         )
 
     await db.delete(society)
@@ -433,13 +431,13 @@ async def delete_society(
     response_model=UserSocietyResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Request to Join Society",
-    description="Submit a membership request to join a society."
+    description="Submit a membership request to join a society.",
 )
 async def join_society(
     society_id: UUID,
     join_request: Optional[UserSocietyCreate] = Body(default=None),
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Request membership in a society.
@@ -485,22 +483,23 @@ async def join_society(
 
     if not society:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Society not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Society not found"
         )
 
     # Only developers can join pending societies
-    if society.approval_status != "approved" and current_user.global_role != "developer":
+    if (
+        society.approval_status != "approved"
+        and current_user.global_role != "developer"
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Society is pending approval. Only developers can access pending societies."
+            detail="Society is pending approval. Only developers can access pending societies.",
         )
 
     # Check if already a member or has pending request
     stmt = select(UserSociety).where(
         and_(
-            UserSociety.user_id == current_user.id,
-            UserSociety.society_id == society_id
+            UserSociety.user_id == current_user.id, UserSociety.society_id == society_id
         )
     )
     result = await db.execute(stmt)
@@ -510,18 +509,18 @@ async def join_society(
         if existing.approval_status == "approved":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You are already a member of this society"
+                detail="You are already a member of this society",
             )
         elif existing.approval_status == "pending":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You already have a pending request for this society"
+                detail="You already have a pending request for this society",
             )
         elif existing.approval_status == "rejected":
             # Allow re-requesting
-            existing.approval_status = "pending"
-            existing.rejected_at = None
-            existing.rejected_by = None
+            existing.approval_status = "pending"  # type: ignore[assignment]
+            existing.rejected_at = None  # type: ignore[assignment]
+            existing.rejected_by = None  # type: ignore[assignment]
             await db.commit()
             await db.refresh(existing)
             return UserSocietyResponse.model_validate(existing)
@@ -531,7 +530,7 @@ async def join_society(
     if requested_role not in ["admin", "manager", "member"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role. Must be 'admin', 'manager', or 'member'"
+            detail="Invalid role. Must be 'admin', 'manager', or 'member'",
         )
 
     # Create new membership request
@@ -541,7 +540,7 @@ async def join_society(
         role=requested_role,
         flat_no=join_request.flat_no if join_request else None,
         wing=join_request.wing if join_request else None,
-        approval_status="pending"
+        approval_status="pending",
     )
 
     db.add(user_society)
@@ -555,14 +554,15 @@ async def join_society(
     "/{society_id}/members",
     response_model=List[UserSocietyResponse],
     summary="List Society Members",
-    description="Get all members and pending requests for a society."
+    description="Get all members and pending requests for a society.",
 )
 async def get_society_members(
     society_id: UUID,
     status_filter: Optional[str] = Query(
-        None, description="Filter by status: 'pending', 'approved', or 'rejected'"),
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+        None, description="Filter by status: 'pending', 'approved', or 'rejected'"
+    ),
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Get all members of a society with optional status filtering.
@@ -591,9 +591,11 @@ async def get_society_members(
     - `rejected_at`: Timestamp when rejected
     - `user`: Full user object
     """
-    stmt = select(UserSociety).where(
-        UserSociety.society_id == society_id
-    ).options(selectinload(UserSociety.user))
+    stmt = (
+        select(UserSociety)
+        .where(UserSociety.society_id == society_id)
+        .options(selectinload(UserSociety.user))
+    )
 
     if status_filter:
         stmt = stmt.where(UserSociety.approval_status == status_filter)
@@ -608,13 +610,13 @@ async def get_society_members(
     "/{society_id}/approve",
     response_model=UserSocietyResponse,
     summary="Approve or Reject Member",
-    description="Approve or reject a pending membership request."
+    description="Approve or reject a pending membership request.",
 )
 async def approve_member(
     society_id: UUID,
     approval: ApprovalRequest,
-    current_user: UserResponse = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_session)
+    current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Approve or reject a pending membership request.
@@ -645,15 +647,13 @@ async def approve_member(
     - 403: Insufficient permissions for this role approval
     """
     # Get the membership request first to check the role being requested
-    stmt = select(UserSociety).where(
-        UserSociety.id == approval.user_society_id)
+    stmt = select(UserSociety).where(UserSociety.id == approval.user_society_id)
     result = await db.execute(stmt)
     membership = result.scalar_one_or_none()
 
     if not membership:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Membership request not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Membership request not found"
         )
 
     # Check approval permissions based on requested role
@@ -685,27 +685,27 @@ async def approve_member(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Insufficient permissions to approve {requested_role} role. "
-                   f"Admin approvals require developer, Manager approvals require admin, "
-                   f"Member approvals require manager or admin."
+            f"Admin approvals require developer, Manager approvals require admin, "
+            f"Member approvals require manager or admin.",
         )
 
     if membership.approval_status != "pending":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Membership is already {membership.approval_status}"
+            detail=f"Membership is already {membership.approval_status}",
         )
 
     # Update membership based on approval flag
     if approval.approved:
-        membership.approval_status = "approved"
-        membership.approved_by = current_user.id
-        membership.approved_at = datetime.utcnow()
+        membership.approval_status = "approved"  # type: ignore[assignment]
+        membership.approved_by = current_user.id  # type: ignore[assignment]
+        membership.approved_at = datetime.utcnow()  # type: ignore[assignment]
     else:
-        membership.approval_status = "rejected"
+        membership.approval_status = "rejected"  # type: ignore[assignment]
         membership.rejected_by = current_user.id
         membership.rejected_at = datetime.utcnow()
         if approval.rejection_reason:
-            membership.rejection_reason = approval.rejection_reason
+            membership.rejection_reason = approval.rejection_reason  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(membership)

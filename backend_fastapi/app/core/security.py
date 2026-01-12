@@ -5,27 +5,14 @@ This module provides JWT token generation/validation and password hashing
 utilities for secure authentication.
 """
 
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, Union
-from jose import JWTError, jwt
+import time
+from datetime import timedelta
+from typing import Any, Dict, Optional, Union, cast
+
+import jwt
+from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from passlib.hash import pbkdf2_sha256
-
-# Ensure bcrypt exposes version metadata for passlib compatibility. Some bcrypt
-# builds omit the __about__ module expected by passlib, so we add a minimal
-# shim when needed.
-try:  # pragma: no cover - defensive patch
-    import bcrypt as _bcrypt
-
-    if not hasattr(_bcrypt, "__about__") and hasattr(_bcrypt, "__version__"):
-        class _About:
-            __version__ = _bcrypt.__version__
-
-        _bcrypt.__about__ = _About()
-except Exception:
-    # If bcrypt is missing or behaves unexpectedly, let passlib raise its own
-    # error later; the patch is purely best-effort.
-    pass
 
 from config import settings
 
@@ -39,7 +26,7 @@ pwd_context = CryptContext(
 )
 
 
-def hash_password(password: str) -> str:
+def hash_password(password: str) -> Any:
     """
     Hash a password using bcrypt.
 
@@ -66,12 +53,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         bool: True if password matches, False otherwise
     """
     # Verify using pbkdf2_sha256; legacy bcrypt hashes should be re-hashed.
-    return pwd_context.verify(plain_password[:10], hashed_password)
+    return cast(bool, pwd_context.verify(plain_password[:10], hashed_password))
 
 
 def create_access_token(
-    data: Union[Dict[str, Any], str],
-    expires_delta: Optional[timedelta] = None
+    data: Union[Dict[str, Any], str], expires_delta: Optional[timedelta] = None
 ) -> str:
     """
     Create a JWT access token.
@@ -84,22 +70,21 @@ def create_access_token(
         str: Encoded JWT token
     """
     # Accept either a dict payload or a subject string; normalize to dict.
-    to_encode = {"sub": data} if isinstance(data, str) else data.copy()
+    if isinstance(data, str):
+        to_encode: Dict[str, Any] = {"sub": data}
+    else:
+        to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire_seconds = int(time.time() + expires_delta.total_seconds())
     else:
-        expire = datetime.utcnow() + timedelta(
-            minutes=settings.access_token_expire_minutes
-        )
+        expire_seconds = int(time.time() + (settings.access_token_expire_minutes * 60))
 
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.secret_key,
-        algorithm=settings.algorithm
+    to_encode.update({"exp": expire_seconds})
+    return cast(
+        str,
+        jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm),
     )
-    return encoded_jwt
 
 
 def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
@@ -112,16 +97,20 @@ def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
     Returns:
         str: Encoded JWT refresh token
     """
-    to_encode = {"sub": data} if isinstance(data, str) else data.copy()
-    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    if isinstance(data, str):
+        to_encode: Dict[str, Any] = {"sub": data}
+    else:
+        to_encode = data.copy()
+
+    expire_seconds = int(
+        time.time() + (settings.refresh_token_expire_days * 24 * 60 * 60)
+    )
+    to_encode.update({"exp": expire_seconds, "type": "refresh"})
 
     encoded_jwt = jwt.encode(
-        to_encode,
-        settings.secret_key,
-        algorithm=settings.algorithm
+        to_encode, settings.secret_key, algorithm=settings.algorithm
     )
-    return encoded_jwt
+    return cast(str, encoded_jwt)
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
@@ -136,10 +125,8 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """
     try:
         payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=[settings.algorithm]
+            token, settings.secret_key, algorithms=[settings.algorithm]
         )
-        return payload
-    except JWTError:
+        return cast(Dict[str, Any], payload)
+    except InvalidTokenError:
         return None

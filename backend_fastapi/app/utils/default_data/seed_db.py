@@ -5,10 +5,11 @@ allowing them to run during application startup.
 """
 
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models import Role, Scope, RoleScope
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Role, RoleScope, Scope
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,18 @@ SCOPES_DEF = {
 # Role-to-scope mappings
 ROLE_SCOPE_MAP = {
     "developer": set(SCOPES_DEF.keys()),
-    "admin": set(SCOPES_DEF.keys()) - {"logs.delete", "societies.approve", "members.approve.admin"},
-    "manager": set(SCOPES_DEF.keys()) - {"logs.delete", "assets.delete", "amc.delete", "societies.delete", "societies.approve", "members.approve.admin", "members.approve.manager"},
+    "admin": set(SCOPES_DEF.keys())
+    - {"logs.delete", "societies.approve", "members.approve.admin"},
+    "manager": set(SCOPES_DEF.keys())
+    - {
+        "logs.delete",
+        "assets.delete",
+        "amc.delete",
+        "societies.delete",
+        "societies.approve",
+        "members.approve.admin",
+        "members.approve.manager",
+    },
     "member": {name for name in SCOPES_DEF if name.endswith(".read")},
 }
 
@@ -64,9 +75,7 @@ async def seed_default_roles(session: AsyncSession) -> dict:
 
     for role_name, description in ROLES_DEF.items():
         # Check if role exists
-        result = await session.execute(
-            select(Role).where(Role.name == role_name)
-        )
+        result = await session.execute(select(Role).where(Role.name == role_name))
         existing = result.scalars().first()
 
         if existing:
@@ -101,9 +110,7 @@ async def seed_default_scopes(session: AsyncSession) -> dict:
 
     for scope_name, description in SCOPES_DEF.items():
         # Check if scope exists
-        result = await session.execute(
-            select(Scope).where(Scope.name == scope_name)
-        )
+        result = await session.execute(select(Scope).where(Scope.name == scope_name))
         existing = result.scalars().first()
 
         if existing:
@@ -138,9 +145,7 @@ async def seed_default_role_scopes(session: AsyncSession) -> dict:
 
     for role_name, scope_names in ROLE_SCOPE_MAP.items():
         # Get the role
-        result = await session.execute(
-            select(Role).where(Role.name == role_name)
-        )
+        result = await session.execute(select(Role).where(Role.name == role_name))
         role = result.scalars().first()
 
         if not role:
@@ -163,8 +168,7 @@ async def seed_default_role_scopes(session: AsyncSession) -> dict:
             # Check if mapping exists
             result = await session.execute(
                 select(RoleScope).where(
-                    (RoleScope.role_id == role.id) &
-                    (RoleScope.scope_id == scope.id)
+                    (RoleScope.role_id == role.id) & (RoleScope.scope_id == scope.id)
                 )
             )
             existing = result.scalars().first()
@@ -190,23 +194,23 @@ async def seed_default_role_scopes(session: AsyncSession) -> dict:
 async def seed_all_default_data(session: AsyncSession) -> dict:
     """Seed all default data (roles, scopes, and mappings)."""
     try:
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("SEEDING DEFAULT DATA")
-        logger.info("="*60)
-        print("\n" + "="*60)
+        logger.info("=" * 60)
+        print("\n" + "=" * 60)
         print("SEEDING DEFAULT DATA")
-        print("="*60)
+        print("=" * 60)
 
         roles_result = await seed_default_roles(session)
         scopes_result = await seed_default_scopes(session)
         mappings_result = await seed_default_role_scopes(session)
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("DEFAULT DATA SEEDING COMPLETE")
-        logger.info("="*60)
-        print("\n" + "="*60)
+        logger.info("=" * 60)
+        print("\n" + "=" * 60)
         print("DEFAULT DATA SEEDING COMPLETE")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         return {
             "roles": roles_result,

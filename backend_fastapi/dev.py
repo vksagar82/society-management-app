@@ -4,9 +4,9 @@ Development utilities and helpers.
 Run this script to perform common development tasks.
 """
 
-import subprocess
-import sys
 import os
+import subprocess  # nosec B404 - Dev utility
+import sys
 from pathlib import Path
 
 
@@ -17,7 +17,8 @@ def run_command(cmd, description):
     print(f"{'='*60}")
     try:
         subprocess.run(
-            cmd, shell=True, check=True, capture_output=False)
+            cmd, shell=True, check=True, capture_output=False
+        )  # nosec B602 - Dev utility
         print(f"✅ {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -34,8 +35,7 @@ def setup_environment():
         print("❌ Python 3.10+ required")
         return False
 
-    print(
-        f"✅ Python {sys.version_info.major}.{sys.version_info.minor} detected")
+    print(f"✅ Python {sys.version_info.major}.{sys.version_info.minor} detected")
 
     # Install requirements
     if not run_command("pip install -r requirements.txt", "Installing dependencies"):
@@ -46,6 +46,7 @@ def setup_environment():
         if Path(".env.example").exists():
             print("\n⚠️  .env file not found. Copying from .env.example")
             import shutil
+
             shutil.copy(".env.example", ".env")
             print("⚠️  Please edit .env file with your configuration")
         else:
@@ -65,7 +66,7 @@ def run_tests_with_coverage():
     """Run tests with coverage."""
     success = run_command(
         "pytest --cov=app --cov-report=html --cov-report=term",
-        "Running tests with coverage"
+        "Running tests with coverage",
     )
     if success:
         print("\n📊 Coverage report generated in htmlcov/index.html")
@@ -95,14 +96,14 @@ def run_server():
     print("API will be available at: http://localhost:8000")
     print("Docs will be available at: http://localhost:8000/api/docs")
     print("\nPress Ctrl+C to stop\n")
-    os.system("python main.py")
+    os.system("python main.py")  # nosec B605 B607 - Dev utility
 
 
 def show_menu():
     """Show interactive menu."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🏘️  Society Management API - Developer Tools")
-    print("="*60)
+    print("=" * 60)
     print("\n1. Setup environment (install dependencies)")
     print("2. Run tests")
     print("3. Run tests with coverage")
@@ -124,13 +125,13 @@ def run_all_checks():
     type_passed = type_check()
     tests_passed = run_tests()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📋 SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Linting: {'✅ Passed' if lint_passed else '❌ Failed'}")
     print(f"Type checking: {'✅ Passed' if type_passed else '❌ Failed'}")
     print(f"Tests: {'✅ Passed' if tests_passed else '❌ Failed'}")
-    print("="*60)
+    print("=" * 60)
 
     return all([lint_passed, type_passed, tests_passed])
 

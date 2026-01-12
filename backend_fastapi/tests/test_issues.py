@@ -116,14 +116,15 @@ In-Process Testing: Tests use httpx.AsyncClient(app=app, base_url="http://test")
 - Ensures role-based permissions (admin/member) work correctly
 """
 
+import asyncio
 import os
 import uuid
-import asyncio
 from pathlib import Path
+from typing import Optional, cast
 
 import httpx
+import jwt
 import pytest
-from jose import jwt
 
 from config import settings
 from main import app
@@ -156,10 +157,20 @@ def _make_dev_token():
 
     Returns: JWT token string that identifies as developer
     """
-    return jwt.encode(
-        {"sub": str(DEV_USER_ID), "scopes": ["develop"]},
-        settings.secret_key,
-        algorithm="HS256"
+    from datetime import datetime, timedelta
+
+    expire = datetime.utcnow() + timedelta(days=30)
+    return cast(
+        str,
+        jwt.encode(
+            {
+                "sub": str(DEV_USER_ID),
+                "scopes": ["develop"],
+                "exp": int(expire.timestamp()),
+            },
+            settings.secret_key,
+            algorithm="HS256",
+        ),
     )
 
 
@@ -228,7 +239,9 @@ async def _create_test_user(client: httpx.AsyncClient, role: str = "member") -> 
     return user_id, email, password, access_token
 
 
-async def _create_test_society(client: httpx.AsyncClient, creator_token: str, auto_approve: bool = True) -> str:
+async def _create_test_society(
+    client: httpx.AsyncClient, creator_token: str, auto_approve: bool = True
+) -> str:
     """
     Create test society and return ID.
 
@@ -265,21 +278,21 @@ async def _create_test_society(client: httpx.AsyncClient, creator_token: str, au
             await client.post(
                 f"/api/v1/societies/{society_id}/approve-society",
                 headers=dev_headers,
-                json={"approved": True}
+                json={"approved": True},
             )
             # Ignore if already approved or if endpoint doesn't exist
             await asyncio.sleep(1)
 
     await asyncio.sleep(1)
-    return society_id
+    return str(society_id)
 
 
 async def _create_test_issue(
     client: httpx.AsyncClient,
     auth_token: str,
     society_id: str,
-    title: str = None,
-    status: str = "open"
+    title: Optional[str] = None,
+    status: str = "open",
 ) -> str:
     """
     Create issue and return ID.
@@ -312,12 +325,13 @@ async def _create_test_issue(
     issue_id = resp.json()["id"]
 
     await asyncio.sleep(1)
-    return issue_id
+    return str(issue_id)
 
 
 # ============================================================================
 # HAPPY PATH TESTS (10 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_list_issues_by_society():
@@ -338,7 +352,9 @@ async def test_list_issues_by_society():
         society_id = await _create_test_society(client, user_token)
         issue_id = await _create_test_issue(client, user_token, society_id)
 
-        resp = await client.get(f"/api/v1/issues?society_id={society_id}", headers=user_headers)
+        resp = await client.get(
+            f"/api/v1/issues?society_id={society_id}", headers=user_headers
+        )
         assert resp.status_code == 200
         issues = resp.json()
         assert isinstance(issues, list)
@@ -368,11 +384,13 @@ async def test_list_issues_with_filters():
         user_id, _, _, user_token = await _create_test_user(client, "member")
         user_headers = {"Authorization": f"Bearer {user_token}"}
         society_id = await _create_test_society(client, user_token)
-        issue_id = await _create_test_issue(client, user_token, society_id, title="HighPriority")
+        issue_id = await _create_test_issue(
+            client, user_token, society_id, title="HighPriority"
+        )
 
         resp = await client.get(
             f"/api/v1/issues?society_id={society_id}&status_filter=open&category=Maintenance",
-            headers=user_headers
+            headers=user_headers,
         )
         assert resp.status_code == 200
         issues = resp.json()
@@ -406,13 +424,15 @@ async def test_list_issues_pagination():
         # Create 3 issues
         issue_ids = []
         for i in range(3):
-            issue_id = await _create_test_issue(client, user_token, society_id, title=f"Issue{i}")
+            issue_id = await _create_test_issue(
+                client, user_token, society_id, title=f"Issue{i}"
+            )
             issue_ids.append(issue_id)
 
         # Test pagination
         resp = await client.get(
             f"/api/v1/issues?society_id={society_id}&skip=0&limit=2",
-            headers=user_headers
+            headers=user_headers,
         )
         assert resp.status_code == 200
         issues = resp.json()
@@ -456,7 +476,9 @@ async def test_create_issue_as_member():
             "attachment_urls": ["http://example.com/doc.pdf"],
         }
 
-        resp = await client.post("/api/v1/issues", headers=user_headers, json=issue_data)
+        resp = await client.post(
+            "/api/v1/issues", headers=user_headers, json=issue_data
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["title"] == "Water Leak in Corridor"
@@ -488,7 +510,9 @@ async def test_get_issue_details():
         user_id, _, _, user_token = await _create_test_user(client, "member")
         user_headers = {"Authorization": f"Bearer {user_token}"}
         society_id = await _create_test_society(client, user_token)
-        issue_id = await _create_test_issue(client, user_token, society_id, "DetailTest")
+        issue_id = await _create_test_issue(
+            client, user_token, society_id, "DetailTest"
+        )
 
         resp = await client.get(f"/api/v1/issues/{issue_id}", headers=user_headers)
         assert resp.status_code == 200
@@ -524,12 +548,11 @@ async def test_update_issue_as_reporter():
         society_id = await _create_test_society(client, user_token)
         issue_id = await _create_test_issue(client, user_token, society_id)
 
-        update_data = {
-            "status": "in_progress",
-            "priority": "high"
-        }
+        update_data = {"status": "in_progress", "priority": "high"}
 
-        resp = await client.put(f"/api/v1/issues/{issue_id}", headers=user_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/issues/{issue_id}", headers=user_headers, json=update_data
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "in_progress"
@@ -588,14 +611,12 @@ async def test_add_comment():
         society_id = await _create_test_society(client, user_token)
         issue_id = await _create_test_issue(client, user_token, society_id)
 
-        comment_data = {
-            "comment": "This looks like a serious issue"
-        }
+        comment_data = {"comment": "This looks like a serious issue"}
 
         resp = await client.post(
             f"/api/v1/issues/{issue_id}/comments",
             headers=user_headers,
-            json=comment_data
+            json=comment_data,
         )
         assert resp.status_code == 201
         data = resp.json()
@@ -632,12 +653,14 @@ async def test_get_comments():
         await client.post(
             f"/api/v1/issues/{issue_id}/comments",
             headers=user_headers,
-            json=comment_data
+            json=comment_data,
         )
         await asyncio.sleep(1)
 
         # Get comments
-        resp = await client.get(f"/api/v1/issues/{issue_id}/comments", headers=user_headers)
+        resp = await client.get(
+            f"/api/v1/issues/{issue_id}/comments", headers=user_headers
+        )
         assert resp.status_code == 200
         comments = resp.json()
         assert isinstance(comments, list)
@@ -675,14 +698,13 @@ async def test_get_comments_pagination():
             await client.post(
                 f"/api/v1/issues/{issue_id}/comments",
                 headers=user_headers,
-                json={"comment": f"Comment {i}"}
+                json={"comment": f"Comment {i}"},
             )
             await asyncio.sleep(0.5)
 
         # Get comments with pagination
         resp = await client.get(
-            f"/api/v1/issues/{issue_id}/comments?skip=0&limit=2",
-            headers=user_headers
+            f"/api/v1/issues/{issue_id}/comments?skip=0&limit=2", headers=user_headers
         )
         assert resp.status_code == 200
         comments = resp.json()
@@ -698,6 +720,7 @@ async def test_get_comments_pagination():
 # ============================================================================
 # ERROR SCENARIO TESTS (10 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_issue_invalid_society():
@@ -725,7 +748,9 @@ async def test_create_issue_invalid_society():
             "society_id": fake_society_id,
         }
 
-        resp = await client.post("/api/v1/issues", headers=user_headers, json=issue_data)
+        resp = await client.post(
+            "/api/v1/issues", headers=user_headers, json=issue_data
+        )
         assert resp.status_code == 404
         await asyncio.sleep(1)
 
@@ -776,7 +801,9 @@ async def test_update_issue_not_found():
         fake_issue_id = str(uuid.uuid4())
         update_data = {"status": "resolved"}
 
-        resp = await client.put(f"/api/v1/issues/{fake_issue_id}", headers=user_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/issues/{fake_issue_id}", headers=user_headers, json=update_data
+        )
         assert resp.status_code == 404
         await asyncio.sleep(1)
 
@@ -799,7 +826,9 @@ async def test_delete_issue_not_found():
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
         fake_issue_id = str(uuid.uuid4())
-        resp = await client.delete(f"/api/v1/issues/{fake_issue_id}", headers=dev_headers)
+        resp = await client.delete(
+            f"/api/v1/issues/{fake_issue_id}", headers=dev_headers
+        )
         assert resp.status_code == 404
         await asyncio.sleep(1)
 
@@ -828,7 +857,7 @@ async def test_add_comment_issue_not_found():
         resp = await client.post(
             f"/api/v1/issues/{fake_issue_id}/comments",
             headers=user_headers,
-            json=comment_data
+            json=comment_data,
         )
         assert resp.status_code == 404
         await asyncio.sleep(1)
@@ -853,7 +882,9 @@ async def test_get_comments_issue_not_found():
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
         fake_issue_id = str(uuid.uuid4())
-        resp = await client.get(f"/api/v1/issues/{fake_issue_id}/comments", headers=user_headers)
+        resp = await client.get(
+            f"/api/v1/issues/{fake_issue_id}/comments", headers=user_headers
+        )
         assert resp.status_code == 404
         await asyncio.sleep(1)
 
@@ -917,7 +948,9 @@ async def test_create_issue_not_in_society():
             "society_id": society_id,
         }
 
-        resp = await client.post("/api/v1/issues", headers=member_headers, json=issue_data)
+        resp = await client.post(
+            "/api/v1/issues", headers=member_headers, json=issue_data
+        )
         assert resp.status_code == 403
         await asyncio.sleep(1)
 
@@ -987,7 +1020,9 @@ async def test_create_issue_invalid_data():
             "society_id": society_id,
         }
 
-        resp = await client.post("/api/v1/issues", headers=user_headers, json=issue_data)
+        resp = await client.post(
+            "/api/v1/issues", headers=user_headers, json=issue_data
+        )
         assert resp.status_code == 422
         await asyncio.sleep(1)
 
@@ -999,6 +1034,7 @@ async def test_create_issue_invalid_data():
 # ============================================================================
 # PERMISSION TESTS (10 tests)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_list_issues_requires_auth():
@@ -1012,7 +1048,7 @@ async def test_list_issues_requires_auth():
     """
     async with _get_client() as client:
         resp = await client.get("/api/v1/issues")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1036,7 +1072,7 @@ async def test_create_issue_requires_auth():
         }
 
         resp = await client.post("/api/v1/issues", json=issue_data)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1052,7 +1088,7 @@ async def test_get_issue_requires_auth():
     async with _get_client() as client:
         fake_issue_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/issues/{fake_issue_id}")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1070,7 +1106,7 @@ async def test_update_issue_requires_auth():
         update_data = {"status": "resolved"}
 
         resp = await client.put(f"/api/v1/issues/{fake_issue_id}", json=update_data)
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1087,7 +1123,7 @@ async def test_delete_issue_requires_auth():
         fake_issue_id = str(uuid.uuid4())
 
         resp = await client.delete(f"/api/v1/issues/{fake_issue_id}")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1104,8 +1140,10 @@ async def test_add_comment_requires_auth():
         fake_issue_id = str(uuid.uuid4())
         comment_data = {"comment": "Test comment"}
 
-        resp = await client.post(f"/api/v1/issues/{fake_issue_id}/comments", json=comment_data)
-        assert resp.status_code == 403
+        resp = await client.post(
+            f"/api/v1/issues/{fake_issue_id}/comments", json=comment_data
+        )
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1121,7 +1159,7 @@ async def test_get_comments_requires_auth():
     async with _get_client() as client:
         fake_issue_id = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/issues/{fake_issue_id}/comments")
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1146,14 +1184,16 @@ async def test_update_issue_requires_reporter():
         society_id = await _create_test_society(client, admin_token)
 
         # Join member to society
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=member_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=member_headers
+        )
         await asyncio.sleep(1)
 
         # Approve membership
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": member_id, "approve": True}
+            json={"user_id": member_id, "approve": True},
         )
         await asyncio.sleep(1)
 
@@ -1161,7 +1201,9 @@ async def test_update_issue_requires_reporter():
 
         # Member (non-reporter) tries to update
         update_data = {"status": "resolved"}
-        resp = await client.put(f"/api/v1/issues/{issue_id}", headers=member_headers, json=update_data)
+        resp = await client.put(
+            f"/api/v1/issues/{issue_id}", headers=member_headers, json=update_data
+        )
         assert resp.status_code == 403
         await asyncio.sleep(1)
 
@@ -1194,14 +1236,16 @@ async def test_delete_issue_requires_admin():
         society_id = await _create_test_society(client, admin_token)
 
         # Join member to society
-        await client.post(f"/api/v1/societies/{society_id}/join", headers=member_headers)
+        await client.post(
+            f"/api/v1/societies/{society_id}/join", headers=member_headers
+        )
         await asyncio.sleep(1)
 
         # Approve membership
         await client.post(
             f"/api/v1/societies/{society_id}/approve",
             headers=admin_headers,
-            json={"user_id": member_id, "approve": True}
+            json={"user_id": member_id, "approve": True},
         )
         await asyncio.sleep(1)
 
@@ -1245,7 +1289,7 @@ async def test_add_comment_no_access():
         resp = await client.post(
             f"/api/v1/issues/{issue_id}/comments",
             headers=member_headers,
-            json=comment_data
+            json=comment_data,
         )
         assert resp.status_code == 403
         await asyncio.sleep(1)

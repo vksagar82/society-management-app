@@ -51,7 +51,7 @@ from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import engine
-from app.models import Role, Scope, RoleScope
+from app.models import Role, RoleScope, Scope
 
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000/api/v1")
 VERCEL_BYPASS_TOKEN = os.getenv("VERCEL_BYPASS_TOKEN", "")
@@ -93,7 +93,9 @@ async def _create_role_scope(session: AsyncSession) -> Tuple[Role, Scope, RoleSc
     return role, scope, mapping
 
 
-async def _cleanup_role_scope(session: AsyncSession, role: Role, scope: Scope, mapping: RoleScope) -> None:
+async def _cleanup_role_scope(
+    session: AsyncSession, role: Role, scope: Scope, mapping: RoleScope
+) -> None:
     """Delete mapping then role/scope to leave DB pristine."""
     # Merge objects back into session if detached
     mapping = await session.merge(mapping)
@@ -133,7 +135,8 @@ async def test_seed_status_reports_counts():
     assert isinstance(payload.get("scopes_count"), int)
     assert isinstance(payload.get("mappings_count"), int)
     assert payload["seeded"] == (
-        payload["roles_count"] > 0 and payload["scopes_count"] > 0)
+        payload["roles_count"] > 0 and payload["scopes_count"] > 0
+    )
 
 
 @pytest.mark.asyncio
