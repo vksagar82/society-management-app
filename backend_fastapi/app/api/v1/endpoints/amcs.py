@@ -4,9 +4,8 @@ AMC (Annual Maintenance Contract) API endpoints using SQLAlchemy ORM.
 This module provides endpoints for AMC and service history management.
 """
 
-from typing import List, Optional, cast
+from typing import List, Optional
 from uuid import UUID, uuid4
-from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
