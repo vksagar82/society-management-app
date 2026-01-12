@@ -5,7 +5,7 @@ Run this script to perform common development tasks.
 """
 
 import os
-import subprocess
+import subprocess  # nosec B404 - Dev utility
 import sys
 from pathlib import Path
 
