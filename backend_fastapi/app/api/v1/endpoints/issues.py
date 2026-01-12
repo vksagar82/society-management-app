@@ -21,7 +21,7 @@ from app.schemas.issue import (
     IssueCommentCreate,
     IssueCommentResponse
 )
-from app.schemas.user import UserResponse
+from app.schemas.user import UserInDB
 
 router = APIRouter(prefix="/issues", tags=["Issues"])
 
@@ -92,7 +92,7 @@ async def list_issues(
 )
 async def create_issue(
     issue: IssueCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -144,7 +144,7 @@ async def create_issue(
 )
 async def get_issue(
     issue_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """Get issue by ID."""
@@ -173,7 +173,7 @@ async def get_issue(
 async def update_issue(
     issue_id: UUID,
     issue_update: IssueUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -232,7 +232,7 @@ async def update_issue(
 )
 async def delete_issue(
     issue_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """

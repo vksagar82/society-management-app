@@ -150,7 +150,7 @@ async def login(
         )
 
     # Update last login
-    user.last_login = cast(datetime, datetime.utcnow())
+    user.last_login = datetime.utcnow()
     db.add(user)
     await db.commit()
 
@@ -269,8 +269,8 @@ async def forgot_password(
     reset_token = str(uuid4())
     reset_expiry = datetime.utcnow() + timedelta(hours=24)
 
-    user.reset_token = cast(str, reset_token)
-    user.reset_token_expiry = cast(datetime, reset_expiry)
+    user.reset_token = reset_token
+    user.reset_token_expiry = reset_expiry
     db.add(user)
     await db.commit()
 
@@ -313,9 +313,9 @@ async def reset_password(
         )
 
     # Update password
-    user.password_hash = cast(str, hash_password(request.new_password))
-    user.reset_token = cast(Optional[str], None)
-    user.reset_token_expiry = cast(Optional[datetime], None)
+    user.password_hash = hash_password(request.new_password)
+    user.reset_token = None
+    user.reset_token_expiry = None
     db.add(user)
     await db.commit()
 
@@ -356,7 +356,7 @@ async def change_password(
             detail="Current password is incorrect"
         )
 
-    user.password_hash = cast(str, hash_password(request.new_password))
+    user.password_hash = hash_password(request.new_password)
     db.add(user)
     await db.commit()
 

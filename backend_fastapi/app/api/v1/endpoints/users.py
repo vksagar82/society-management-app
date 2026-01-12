@@ -258,7 +258,7 @@ async def get_user_settings(
         )
 
     # Settings is a JSON column
-    settings: Dict[str, Any] = user.settings or {}
+    settings: Dict[str, Any] = user.settings or {}  # type: ignore[assignment]
     return UserSettings(**settings)
 
 
