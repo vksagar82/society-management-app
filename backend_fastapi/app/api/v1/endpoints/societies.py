@@ -706,6 +706,7 @@ async def approve_member(
             # type: ignore[assignment]
             membership.rejection_reason = approval.rejection_reason
 
-    await dbmembership.rejection_reason = approval.rejection_reason  # type: ignore[assignment]
+    # type: ignore[assignment]
+    await dbmembership.rejection_reason = approval.rejection_reason
 
     return UserSocietyResponse.model_validate(membership)
