@@ -61,7 +61,7 @@ async def signup(signup_data: SignupRequest, db: AsyncSession = Depends(get_sess
     - **phone**: Phone number (must be unique)
     - **full_name**: User's full name
     - **password**: Strong password (min 8 chars, with uppercase, lowercase, digit)
-    - **society_id**: Optional society ID to join upon registration
+    - **society_ids**: Optional list of society IDs to request access to
 
     Returns the created user details (without password).
     """
@@ -95,20 +95,17 @@ async def signup(signup_data: SignupRequest, db: AsyncSession = Depends(get_sess
     db.add(user)
     await db.flush()
 
-    # If society_id provided, create pending membership
-    if signup_data.society_id:
-        user_society = UserSociety(
-            id=uuid4(),
-            user_id=user.id,
-            society_id=(
-                uuid4()
-                if isinstance(signup_data.society_id, str)
-                else signup_data.society_id
-            ),
-            role="member",
-            approval_status="pending",
-        )
-        db.add(user_society)
+    # If society_ids provided, create pending memberships for each
+    if signup_data.society_ids:
+        for society_id in signup_data.society_ids:
+            user_society = UserSociety(
+                id=uuid4(),
+                user_id=user.id,
+                society_id=society_id,
+                role="member",
+                approval_status="pending",
+            )
+            db.add(user_society)
 
     await db.commit()
     await db.refresh(user)
@@ -230,13 +227,55 @@ async def refresh_token(
 )
 async def get_me(
     current_user: UserInDB = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_session),
 ) -> UserResponse:
     """
     Get the profile of the currently authenticated user.
 
-    Returns user details including email, phone, name, and role.
+    Returns user details including email, phone, name, role, and society memberships.
     """
-    return current_user
+    from sqlalchemy.orm import selectinload
+
+    # Fetch user with user_societies relationship
+    stmt = select(User).where(User.id == current_user.id).options(
+        selectinload(User.user_societies).selectinload(UserSociety.society)
+    )
+    user_with_societies = await db.scalar(stmt)
+
+    if not user_with_societies:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Build user_societies list with society names
+    user_societies_data = [
+        {
+            "society_id": us.society_id,
+            "society_name": us.society.name if us.society else None,
+            "role": us.role,
+            "approval_status": us.approval_status,
+            "is_primary": us.is_primary,
+            "flat_no": us.flat_no,
+            "wing": us.wing,
+            "joined_at": us.joined_at,
+        }
+        for us in user_with_societies.user_societies
+    ]
+
+    return UserResponse(
+        id=user_with_societies.id,
+        email=user_with_societies.email,
+        phone=user_with_societies.phone,
+        full_name=user_with_societies.full_name,
+        avatar_url=user_with_societies.avatar_url,
+        global_role=user_with_societies.global_role,
+        is_active=user_with_societies.is_active,
+        settings=user_with_societies.settings or {},
+        user_societies=user_societies_data,
+        created_at=user_with_societies.created_at,
+        updated_at=user_with_societies.updated_at,
+    )
 
 
 @router.post(

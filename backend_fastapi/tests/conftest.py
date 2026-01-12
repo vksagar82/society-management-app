@@ -56,7 +56,7 @@ async def setup_dev_user():
         await session.execute(delete(User).where(User.id == DEV_USER_ID))
         user = User(
             id=DEV_USER_ID,
-            email="dev-admin@example.com",
+            email="dev-admin@example.com",  # Match production/seed email
             phone="9999999999",
             full_name="Dev Admin Test",
             password_hash=PASSWORD_HASH,
@@ -218,7 +218,8 @@ def user_token(test_user: User):
 @pytest.fixture
 def admin_token(test_admin_user: User):
     """Generate token for admin user."""
-    token_data = {"sub": str(test_admin_user.id), "email": test_admin_user.email}
+    token_data = {"sub": str(test_admin_user.id),
+                  "email": test_admin_user.email}
     return create_access_token(token_data)
 
 
@@ -332,7 +333,8 @@ def pytest_sessionfinish(session, exitstatus):
 
     try:
         if hasattr(session, "config") and hasattr(session.config, "pluginmanager"):
-            reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+            reporter = session.config.pluginmanager.get_plugin(
+                "terminalreporter")
             if reporter and hasattr(reporter, "stats"):
                 stats = reporter.stats
                 passed = len(stats.get("passed", []))

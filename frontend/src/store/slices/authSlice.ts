@@ -5,9 +5,13 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
+  phone?: string;
+  avatar_url?: string;
   role?: string;
   is_active: boolean;
   is_approved?: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthState {
@@ -74,7 +78,13 @@ export const login = createAsyncThunk(
 
 export const register = createAsyncThunk(
   "auth/register",
-  async (userData: { email: string; password: string; full_name: string }) => {
+  async (userData: {
+    email: string;
+    password: string;
+    full_name: string;
+    phone: string;
+    society_ids?: number[];
+  }) => {
     const response = await api.post("/api/v1/auth/signup", userData);
     return response;
   }
@@ -106,8 +116,11 @@ const authSlice = createSlice({
       state.access_token = null;
       state.refresh_token = null;
       state.isAuthenticated = false;
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+      // Check if we're in browser before accessing localStorage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+      }
     },
     setCredentials: (
       state,
@@ -116,6 +129,16 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.access_token = action.payload.access_token;
       state.isAuthenticated = true;
+    },
+    restoreSession: (state) => {
+      // Restore session from localStorage on app load
+      if (typeof window !== "undefined") {
+        const token = localStorage.getItem("access_token");
+        if (token) {
+          state.access_token = token;
+          state.isAuthenticated = true;
+        }
+      }
     },
     clearError: (state) => {
       state.error = null;
@@ -164,6 +187,14 @@ const authSlice = createSlice({
       .addCase(getCurrentUser.rejected, (state) => {
         state.isLoading = false;
         state.isAuthenticated = false;
+        state.user = null;
+        state.access_token = null;
+        state.refresh_token = null;
+        // Clear tokens from localStorage
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+        }
       })
       // Password Reset
       .addCase(requestPasswordReset.pending, (state) => {
@@ -180,5 +211,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, setCredentials, clearError } = authSlice.actions;
+export const { logout, setCredentials, restoreSession, clearError } =
+  authSlice.actions;
 export default authSlice.reducer;

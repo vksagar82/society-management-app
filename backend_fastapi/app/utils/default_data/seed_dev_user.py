@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Fixed UUID for dev user
 DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-DEV_USER_EMAIL = "dev-admin@societymanagement.com"
+DEV_USER_EMAIL = "dev-admin@example.com"  # Match test database
 DEV_USER_PHONE = "9999999999"
 DEV_USER_NAME = "Developer Admin"
 DEV_USER_PASSWORD = "Dev@12345"  # nosec B105 - Dev user for testing only
@@ -108,7 +108,8 @@ async def seed_dev_user(session: AsyncSession) -> dict:
         existing_user = result.scalars().first()
 
         if existing_user:
-            logger.info(f"Developer user already exists: {existing_user.email}")
+            logger.info(
+                f"Developer user already exists: {existing_user.email}")
             print("[SEED] ✓ Developer user already exists - SKIPPED")
             action = "SKIPPED"
             user = existing_user
@@ -202,6 +203,7 @@ async def update_dev_token_on_password_change(
         return token
 
     except Exception as e:
-        logger.error(f"Error updating token on password change: {e}", exc_info=True)
+        logger.error(
+            f"Error updating token on password change: {e}", exc_info=True)
         print(f"[AUTH] ⚠ Warning: Could not update token: {e}")
         return None

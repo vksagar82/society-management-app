@@ -7,11 +7,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion } from "framer-motion";
-import { LogIn, Mail, Lock } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { Shield, Mail, Lock } from "lucide-react";
+import { ThemePalette } from "@/components/ThemePalette";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -34,6 +35,7 @@ export default function LoginPage() {
   const dispatch = useAppDispatch();
   const { isLoading, error } = useAppSelector((state) => state.auth);
   const [showError, setShowError] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const {
     register,
@@ -57,74 +59,91 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
-      <div className="fixed top-4 right-4">
-        <ThemeToggle />
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-violet-900 to-purple-800 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="shadow-2xl">
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <LogIn className="h-6 w-6 text-primary" />
+        <Card className="shadow-2xl border-0 bg-gray-950/90 backdrop-blur-sm">
+          <CardHeader className="space-y-3 text-center pb-4">
+            <div className="flex justify-center">
+              <div
+                style={{ backgroundColor: "hsl(var(--primary))" }}
+                className="h-14 w-14 rounded-xl flex items-center justify-center shadow-lg"
+              >
+                <Shield className="h-7 w-7 text-white" />
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold">Welcome Back</CardTitle>
-            <CardDescription className="text-base">
-              Sign in to your society management account
+            <CardTitle className="text-2xl font-bold text-white">
+              Society Management
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Welcome back! Please sign in to continue
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 pb-6">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    className="pl-10"
-                    {...register("email")}
-                  />
-                </div>
+                <Label htmlFor="email" className="text-gray-300">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@dashboard.com"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-500 focus:border-primary"
+                  {...register("email")}
+                />
                 {errors.email && (
                   <p className="text-sm text-destructive">
                     {errors.email.message}
                   </p>
                 )}
               </div>
-
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="/auth/forgot-password"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    {...register("password")}
-                  />
-                </div>
+                <Label htmlFor="password" className="text-gray-300">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-500 focus:border-primary"
+                  {...register("password")}
+                />
                 {errors.password && (
                   <p className="text-sm text-destructive">
                     {errors.password.message}
                   </p>
                 )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="remember"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) =>
+                      setRememberMe(checked as boolean)
+                    }
+                    className="border-gray-700 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  <label
+                    htmlFor="remember"
+                    className="text-sm text-gray-400 cursor-pointer"
+                  >
+                    Remember me
+                  </label>
+                </div>
+                <Link
+                  href="/auth/forgot-password"
+                  style={{ color: "hsl(var(--primary))" }}
+                  className="text-sm hover:opacity-80 transition-opacity"
+                >
+                  Forgot password?
+                </Link>
               </div>
 
               {(showError || error) && (
@@ -137,15 +156,24 @@ export default function LoginPage() {
                 </motion.div>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
+              <Button
+                type="submit"
+                style={{
+                  backgroundColor: "hsl(var(--primary))",
+                  color: "hsl(var(--primary-foreground))",
+                }}
+                className="w-full hover:opacity-90 font-semibold h-11 transition-all"
+                disabled={isLoading}
+              >
+                {isLoading ? "Signing in..." : "Sign in"}
               </Button>
 
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-sm text-gray-400 pt-2">
                 Don&apos;t have an account?{" "}
                 <Link
                   href="/auth/register"
-                  className="text-primary font-medium hover:underline"
+                  style={{ color: "hsl(var(--primary))" }}
+                  className="font-medium hover:opacity-80 transition-opacity"
                 >
                   Sign up
                 </Link>
@@ -153,11 +181,10 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          © 2026 Society Management. All rights reserved.
-        </p>
       </motion.div>
+
+      {/* Theme Palette Selector */}
+      <ThemePalette />
     </div>
   );
 }

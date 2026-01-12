@@ -4,7 +4,11 @@ export const api = {
   baseURL: API_URL,
 
   async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const token = localStorage.getItem("access_token");
+    // Check if we're in the browser before accessing localStorage
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("access_token")
+        : null;
 
     const headers: HeadersInit = {
       "Content-Type": "application/json",

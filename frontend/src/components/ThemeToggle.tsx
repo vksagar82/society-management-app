@@ -25,6 +25,11 @@ export function ThemeToggle() {
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
     document.documentElement.classList.toggle("dark", newTheme === "dark");
+
+    // Trigger event to reapply color theme
+    window.dispatchEvent(
+      new CustomEvent("themeChanged", { detail: { theme: newTheme } })
+    );
   };
 
   return (

@@ -15,10 +15,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_active_user, require_admin
 from app.database import get_session
-from app.models import User
+from app.models import User, UserSociety
 from app.schemas.user import UserInDB, UserResponse, UserSettings, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -49,10 +50,11 @@ async def get_current_user_profile(
 )
 async def list_users(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(50, ge=1, le=100, description="Number of records to return"),
+    limit: int = Query(
+        50, ge=1, le=100, description="Number of records to return"),
     search: Optional[str] = Query(None, description="Search by name or email"),
     role: Optional[str] = Query(None, description="Filter by global role"),
-    current_user: UserResponse = Depends(require_admin),
+    current_user: UserInDB = Depends(require_admin),
     db: AsyncSession = Depends(get_session),
 ):
     """
@@ -66,13 +68,16 @@ async def list_users(
     - **search**: Search query for name or email
     - **role**: Filter by global role
     """
-    stmt = select(User)
+    stmt = select(User).options(
+        selectinload(User.user_societies).selectinload(UserSociety.society)
+    )
 
     # Apply search filter
     if search:
         search_pattern = f"%{search}%"
         stmt = stmt.where(
-            or_(User.full_name.ilike(search_pattern), User.email.ilike(search_pattern))
+            or_(User.full_name.ilike(search_pattern),
+                User.email.ilike(search_pattern))
         )
 
     # Apply role filter

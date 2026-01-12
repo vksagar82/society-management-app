@@ -4,6 +4,7 @@ Authentication schemas for request/response validation.
 This module defines Pydantic models for authentication operations.
 """
 
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -40,7 +41,11 @@ class SignupRequest(BaseModel):
     """Schema for signup request."""
 
     email: EmailStr = Field(..., description="User email address")
-    phone: str = Field(..., min_length=10, max_length=20, description="Phone number")
-    full_name: str = Field(..., min_length=2, max_length=255, description="Full name")
-    password: str = Field(..., min_length=8, description="Password (min 8 characters)")
-    society_id: str = Field(None, description="Optional society ID to join")
+    phone: str = Field(..., min_length=10, max_length=20,
+                       description="Phone number")
+    full_name: str = Field(..., min_length=2,
+                           max_length=255, description="Full name")
+    password: str = Field(..., min_length=8,
+                          description="Password (min 8 characters)")
+    society_ids: Optional[List[int]] = Field(
+        default=None, description="List of society IDs to request access to")

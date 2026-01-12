@@ -32,7 +32,8 @@ api_router.include_router(auth.router)
 auth_dependency = [Depends(get_current_active_user)]
 api_router.include_router(users.router, dependencies=auth_dependency)
 api_router.include_router(roles_scopes.router, dependencies=auth_dependency)
-api_router.include_router(societies.router, dependencies=auth_dependency)
+# No global auth - endpoints handle individually
+api_router.include_router(societies.router)
 api_router.include_router(issues.router, dependencies=auth_dependency)
 api_router.include_router(assets.router, dependencies=auth_dependency)
 api_router.include_router(amcs.router, dependencies=auth_dependency)

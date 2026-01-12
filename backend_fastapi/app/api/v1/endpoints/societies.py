@@ -38,6 +38,49 @@ router = APIRouter(prefix="/societies", tags=["Societies"])
 
 
 @router.get(
+    "/public",
+    response_model=List[SocietyResponse],
+    summary="List Approved Societies (Public)",
+    description="Get list of all approved societies for registration - no authentication required.",
+)
+async def list_public_societies(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        100, ge=1, le=100, description="Number of records per page (max 100)"
+    ),
+    search: Optional[str] = Query(
+        None, description="Search by society name or city"),
+    db: AsyncSession = Depends(get_session),
+):
+    """
+    List approved societies for public viewing (used during registration).
+
+    **Query Parameters**:
+    - `skip`: Pagination offset (default: 0)
+    - `limit`: Results per page (default: 100, max: 100)
+    - `search`: Filter by name or city (partial match, case-insensitive)
+
+    **Returns**: Only societies with approval_status='approved'
+    """
+    stmt = select(Society).where(Society.approval_status == "approved")
+
+    if search:
+        search_pattern = f"%{search}%"
+        stmt = stmt.where(
+            or_(
+                Society.name.ilike(search_pattern),
+                Society.city.ilike(search_pattern),
+            )
+        )
+
+    stmt = stmt.order_by(Society.name).offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    societies = result.scalars().all()
+
+    return societies
+
+
+@router.get(
     "",
     response_model=List[SocietyResponse],
     summary="List Societies",
@@ -48,7 +91,8 @@ async def list_societies(
     limit: int = Query(
         50, ge=1, le=100, description="Number of records per page (max 100)"
     ),
-    search: Optional[str] = Query(None, description="Search by society name or city"),
+    search: Optional[str] = Query(
+        None, description="Search by society name or city"),
     current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
@@ -82,7 +126,8 @@ async def list_societies(
                 )
             )
 
-        stmt = stmt.order_by(Society.created_at.desc()).offset(skip).limit(limit)
+        stmt = stmt.order_by(Society.created_at.desc()
+                             ).offset(skip).limit(limit)
         result = await db.execute(stmt)
         societies = result.scalars().all()
     else:
@@ -108,7 +153,8 @@ async def list_societies(
                 )
             )
 
-        stmt = stmt.order_by(Society.created_at.desc()).offset(skip).limit(limit)
+        stmt = stmt.order_by(Society.created_at.desc()
+                             ).offset(skip).limit(limit)
         result = await db.execute(stmt)
         societies = result.scalars().all()
 
@@ -647,7 +693,8 @@ async def approve_member(
     - 403: Insufficient permissions for this role approval
     """
     # Get the membership request first to check the role being requested
-    stmt = select(UserSociety).where(UserSociety.id == approval.user_society_id)
+    stmt = select(UserSociety).where(
+        UserSociety.id == approval.user_society_id)
     result = await db.execute(stmt)
     membership = result.scalar_one_or_none()
 
@@ -705,7 +752,8 @@ async def approve_member(
         membership.rejected_by = current_user.id
         membership.rejected_at = datetime.utcnow()
         if approval.rejection_reason:
-            membership.rejection_reason = approval.rejection_reason  # type: ignore[assignment]
+            # type: ignore[assignment]
+            membership.rejection_reason = approval.rejection_reason
 
     await db.commit()
     await db.refresh(membership)

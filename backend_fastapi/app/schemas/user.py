@@ -5,25 +5,46 @@ This module defines Pydantic models for user-related API operations.
 """
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, validator
+
+
+class UserSocietyInfo(BaseModel):
+    """Schema for user-society membership info."""
+
+    society_id: UUID
+    society_name: Optional[str] = None
+    role: str
+    approval_status: str
+    is_primary: bool
+    flat_no: Optional[str] = None
+    wing: Optional[str] = None
+    joined_at: datetime
+
+    class Config:
+        """Pydantic config."""
+
+        from_attributes = True
 
 
 class UserBase(BaseModel):
     """Base user schema with common fields."""
 
     email: EmailStr = Field(..., description="User email address")
-    phone: str = Field(..., min_length=10, max_length=20, description="Phone number")
-    full_name: str = Field(..., min_length=2, max_length=255, description="Full name")
+    phone: str = Field(..., min_length=10, max_length=20,
+                       description="Phone number")
+    full_name: str = Field(..., min_length=2,
+                           max_length=255, description="Full name")
     avatar_url: Optional[str] = Field(None, description="Avatar image URL")
 
 
 class UserCreate(UserBase):
     """Schema for user creation."""
 
-    password: str = Field(..., min_length=8, description="Password (min 8 characters)")
+    password: str = Field(..., min_length=8,
+                          description="Password (min 8 characters)")
 
     @validator("password")
     def validate_password(cls, v):
@@ -31,9 +52,11 @@ class UserCreate(UserBase):
         if not any(char.isdigit() for char in v):
             raise ValueError("Password must contain at least one digit")
         if not any(char.isupper() for char in v):
-            raise ValueError("Password must contain at least one uppercase letter")
+            raise ValueError(
+                "Password must contain at least one uppercase letter")
         if not any(char.islower() for char in v):
-            raise ValueError("Password must contain at least one lowercase letter")
+            raise ValueError(
+                "Password must contain at least one lowercase letter")
         return v
 
 
@@ -57,6 +80,8 @@ class UserResponse(UserBase):
     )
     is_active: bool
     settings: Dict[str, Any] = Field(default_factory=dict)
+    user_societies: List[UserSocietyInfo] = Field(
+        default_factory=list, description="User's society memberships")
     created_at: datetime
     updated_at: datetime
 
@@ -90,9 +115,11 @@ class PasswordChange(BaseModel):
         if not any(char.isdigit() for char in v):
             raise ValueError("Password must contain at least one digit")
         if not any(char.isupper() for char in v):
-            raise ValueError("Password must contain at least one uppercase letter")
+            raise ValueError(
+                "Password must contain at least one uppercase letter")
         if not any(char.islower() for char in v):
-            raise ValueError("Password must contain at least one lowercase letter")
+            raise ValueError(
+                "Password must contain at least one lowercase letter")
         return v
 
 
@@ -114,9 +141,11 @@ class PasswordResetConfirm(BaseModel):
         if not any(char.isdigit() for char in v):
             raise ValueError("Password must contain at least one digit")
         if not any(char.isupper() for char in v):
-            raise ValueError("Password must contain at least one uppercase letter")
+            raise ValueError(
+                "Password must contain at least one uppercase letter")
         if not any(char.islower() for char in v):
-            raise ValueError("Password must contain at least one lowercase letter")
+            raise ValueError(
+                "Password must contain at least one lowercase letter")
         return v
 
 
