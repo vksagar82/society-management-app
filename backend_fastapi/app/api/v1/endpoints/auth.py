@@ -33,7 +33,7 @@ from app.schemas.auth import (
     TokenResponse,
     SignupRequest,
 )
-from app.schemas.user import UserResponse, PasswordChange, PasswordReset, PasswordResetConfirm
+from app.schemas.user import UserResponse, UserInDB, PasswordChange, PasswordReset, PasswordResetConfirm
 from app.utils.email import send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -232,7 +232,7 @@ async def refresh_token(
     description="Get the profile of the currently authenticated user."
 )
 async def get_me(
-    current_user: UserResponse = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ) -> UserResponse:
     """
     Get the profile of the currently authenticated user.

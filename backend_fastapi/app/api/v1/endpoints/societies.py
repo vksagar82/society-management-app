@@ -32,7 +32,6 @@ from app.schemas.society import (
     ApprovalRequest,
     SocietyApprovalRequest
 )
-from app.schemas.user import UserResponse
 
 router = APIRouter(prefix="/societies", tags=["Societies"])
 
@@ -49,7 +48,7 @@ async def list_societies(
         50, ge=1, le=100, description="Number of records per page (max 100)"),
     search: Optional[str] = Query(
         None, description="Search by society name or city"),
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -120,7 +119,7 @@ async def list_societies(
 )
 async def create_society(
     society: SocietyCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -194,7 +193,7 @@ async def create_society(
 async def approve_society(
     society_id: UUID,
     approval: SocietyApprovalRequest,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -703,7 +702,8 @@ async def approve_member(
         membership.rejected_by = current_user.id
         membership.rejected_at = datetime.utcnow()
         if approval.rejection_reason:
-            membership.rejection_reason = approval.rejection_reason  # type: ignore[assignment]
+            # type: ignore[assignment]
+            membership.rejection_reason = approval.rejection_reason
 
     await db.commit()
     await db.refresh(membership)

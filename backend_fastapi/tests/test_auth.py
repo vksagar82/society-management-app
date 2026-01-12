@@ -405,7 +405,7 @@ async def test_reset_password_success(monkeypatch):
 
     token_holder = {}
 
-    async def _stub_send_password_reset_email(email, reset_token, *_, **__):
+    async def _stub_send_password_reset_email(email, name, reset_token):
         token_holder["token"] = reset_token
 
     monkeypatch.setattr(
@@ -457,7 +457,7 @@ async def test_reset_password_expired_token(monkeypatch):
 
     token_holder = {}
 
-    async def _stub_send_password_reset_email(email, reset_token, *_, **__):
+    async def _stub_send_password_reset_email(email, name, reset_token):
         token_holder["token"] = reset_token
 
     monkeypatch.setattr(

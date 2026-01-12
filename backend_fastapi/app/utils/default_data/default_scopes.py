@@ -41,7 +41,8 @@ def _generate_new_dev_token() -> str:
     dev_user_id = str(UUID('00000000-0000-0000-0000-000000000001'))
     to_encode = {'sub': dev_user_id, 'scope': 'developer admin'}
     expire = datetime.utcnow() + timedelta(days=30)
-    to_encode.update({'exp': str(int(expire.timestamp()))})
+    to_encode.update({'exp': int(expire.timestamp())}
+                     )  # type: ignore[dict-item]
 
     token = jwt.encode(to_encode, secret_key,
                        algorithm=algorithm)

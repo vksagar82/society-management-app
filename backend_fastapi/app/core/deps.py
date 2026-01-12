@@ -81,6 +81,7 @@ async def get_current_user(
         settings=cast(Any, user.settings),
         created_at=cast(Any, user.created_at),
         updated_at=cast(Any, user.updated_at),
+        last_login=cast(Any, user.last_login),
     )
 
 

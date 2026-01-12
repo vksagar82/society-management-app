@@ -5,7 +5,8 @@ This module provides JWT token generation/validation and password hashing
 utilities for secure authentication.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
+import time
 from typing import Optional, Dict, Any, Union, cast
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -74,13 +75,12 @@ def create_access_token(
         to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire_seconds = int(time.time() + expires_delta.total_seconds())
     else:
-        expire = datetime.utcnow() + timedelta(
-            minutes=settings.access_token_expire_minutes
-        )
+        expire_seconds = int(
+            time.time() + (settings.access_token_expire_minutes * 60))
 
-    to_encode.update({"exp": int(expire.timestamp())})
+    to_encode.update({"exp": expire_seconds})
     return cast(str, jwt.encode(  # type: ignore[no-any-return]
         to_encode,
         settings.secret_key,
@@ -102,8 +102,10 @@ def create_refresh_token(data: Union[Dict[str, Any], str]) -> str:
         to_encode: Dict[str, Any] = {"sub": data}
     else:
         to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": int(expire.timestamp()), "type": "refresh"})
+
+    expire_seconds = int(
+        time.time() + (settings.refresh_token_expire_days * 24 * 60 * 60))
+    to_encode.update({"exp": expire_seconds, "type": "refresh"})
 
     encoded_jwt = jwt.encode(
         to_encode,

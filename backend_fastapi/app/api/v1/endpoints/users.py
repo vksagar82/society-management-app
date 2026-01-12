@@ -23,6 +23,7 @@ from app.database import get_session
 from app.models import User
 from app.schemas.user import (
     UserResponse,
+    UserInDB,
     UserUpdate,
     UserSettings
 )
@@ -87,7 +88,7 @@ async def list_users(
 )
 async def get_user(
     user_id: UUID,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -124,7 +125,7 @@ async def get_user(
 async def update_user(
     user_id: UUID,
     user_update: UserUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -239,7 +240,7 @@ async def delete_user(
     description="Get current user's settings."
 )
 async def get_user_settings(
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -270,7 +271,7 @@ async def get_user_settings(
 )
 async def update_user_settings(
     settings_update: UserSettings,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -289,7 +290,8 @@ async def update_user_settings(
         )
 
     # Update settings (merge with existing)
-    current_settings: Dict[str, Any] = user.settings or {}  # type: ignore[assignment]
+    # type: ignore[assignment]
+    current_settings: Dict[str, Any] = user.settings or {}
     updated_settings: Dict[str, Any] = {**current_settings, **
                                         settings_update.model_dump(exclude_unset=True)}
     user.settings = updated_settings  # type: ignore[assignment]
@@ -308,7 +310,7 @@ async def update_user_settings(
 )
 async def update_avatar(
     avatar_url: str,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """

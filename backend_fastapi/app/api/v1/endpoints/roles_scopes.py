@@ -19,7 +19,7 @@ from app.schemas.role_scope import (
     ScopeResponse,
     RoleScopesUpdate,
 )
-from app.schemas.user import UserResponse
+from app.schemas.user import UserResponse, UserInDB
 
 router = APIRouter(prefix="/roles", tags=["Roles & Scopes"])
 
@@ -43,7 +43,7 @@ async def list_roles(db: AsyncSession = Depends(get_session)):
 @router.post("", response_model=RoleResponse, status_code=status.HTTP_201_CREATED, summary="Create role")
 async def create_role(
     payload: RoleCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     await _require_developer_or_admin(current_user)
@@ -65,7 +65,7 @@ async def create_role(
 async def update_role(
     role_name: str,
     payload: RoleUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     await _require_developer_or_admin(current_user)
@@ -87,7 +87,7 @@ async def update_role(
 @router.delete("/{role_name}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete role")
 async def delete_role(
     role_name: str,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     await _require_developer_or_admin(current_user)
@@ -139,7 +139,7 @@ async def get_role_scopes(role_name: str, db: AsyncSession = Depends(get_session
 async def set_role_scopes(
     role_name: str,
     payload: RoleScopesUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     await _require_developer_or_admin(current_user)
@@ -199,7 +199,7 @@ async def list_scopes(db: AsyncSession = Depends(get_session)):
 @router.post("/scopes", response_model=ScopeResponse, status_code=status.HTTP_201_CREATED, summary="Create scope")
 async def create_scope(
     payload: ScopeCreate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     await _require_developer_or_admin(current_user)
@@ -220,7 +220,7 @@ async def create_scope(
 async def update_scope(
     scope_name: str,
     payload: ScopeUpdate,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     await _require_developer_or_admin(current_user)
@@ -242,7 +242,7 @@ async def update_scope(
 @router.delete("/scopes/{scope_name}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete scope")
 async def delete_scope(
     scope_name: str,
-    current_user: UserResponse = Depends(get_current_active_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session),
 ):
     await _require_developer_or_admin(current_user)
