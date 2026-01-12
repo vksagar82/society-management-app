@@ -16,7 +16,9 @@ def run_command(cmd, description):
     print(f"🔧 {description}")
     print(f"{'='*60}")
     try:
-        subprocess.run(cmd, shell=True, check=True, capture_output=False)  # nosec B602 - Dev utility
+        subprocess.run(
+            cmd, shell=True, check=True, capture_output=False
+        )  # nosec B602 - Dev utility
         print(f"✅ {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
