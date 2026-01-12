@@ -6,7 +6,7 @@ import { Palette, Check, X } from "lucide-react";
 const palettes = [
   { name: "orange", color: "#EA580C", label: "Orange" },
   { name: "blue", color: "#3B82F6", label: "Blue" },
-  { name: "amber", color: "#F59E0B", label: "Amber" },
+  { name: "green", color: "#10B981", label: "Green" },
   { name: "gray", color: "#6B7280", label: "Gray" },
 ];
 

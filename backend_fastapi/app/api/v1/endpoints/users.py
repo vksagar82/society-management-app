@@ -212,6 +212,15 @@ async def update_user(
     await db.commit()
     await db.refresh(user)
 
+    # Reload with relationships
+    stmt = (
+        select(User)
+        .where(User.id == user_id)
+        .options(selectinload(User.user_societies).selectinload(UserSociety.society))
+    )
+    result = await db.execute(stmt)
+    user = result.scalar_one()
+
     return UserResponse.model_validate(user)
 
 

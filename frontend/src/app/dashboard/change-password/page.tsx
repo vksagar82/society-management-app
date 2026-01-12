@@ -5,7 +5,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion } from "framer-motion";
-import { Key, Lock, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Key,
+  Lock,
+  CheckCircle2,
+  AlertCircle,
+  ArrowLeft,
+  Shield,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +24,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 const changePasswordSchema = z
   .object({
@@ -37,6 +45,7 @@ const changePasswordSchema = z
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
 export default function ChangePasswordPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -79,8 +88,8 @@ export default function ChangePasswordPage() {
 
   return (
     <div
-      className="p-6 space-y-6"
-      style={{ backgroundColor: "#0A0A0A", minHeight: "calc(100vh - 4rem)" }}
+      className="min-h-screen p-4 sm:p-6"
+      style={{ backgroundColor: "#0A0A0A" }}
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -88,44 +97,154 @@ export default function ChangePasswordPage() {
         transition={{ duration: 0.5 }}
         className="max-w-2xl mx-auto"
       >
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="mb-4 text-gray-400 hover:text-white hover:bg-white/5"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-            <Key className="h-8 w-8" style={{ color: "hsl(var(--primary))" }} />
+          <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+            <div
+              className="p-2 rounded-lg"
+              style={{ backgroundColor: "hsl(var(--primary) / 0.1)" }}
+            >
+              <Key
+                className="h-6 w-6 sm:h-8 sm:w-8"
+                style={{ color: "hsl(var(--primary))" }}
+              />
+            </div>
             Change Password
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-sm sm:text-base text-gray-500 mt-2">
             Update your password to keep your account secure
           </p>
         </div>
 
+        {/* Success Message */}
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl flex items-center gap-3"
+            style={{
+              backgroundColor: "hsl(var(--primary) / 0.1)",
+              border: "1px solid hsl(var(--primary) / 0.3)",
+            }}
+          >
+            <CheckCircle2
+              className="h-5 w-5"
+              style={{ color: "hsl(var(--primary))" }}
+            />
+            <p
+              className="text-sm font-medium"
+              style={{ color: "hsl(var(--primary))" }}
+            >
+              Password changed successfully!
+            </p>
+          </motion.div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl flex items-center gap-3"
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+            }}
+          >
+            <AlertCircle className="h-5 w-5" style={{ color: "#EF4444" }} />
+            <p className="text-sm font-medium" style={{ color: "#EF4444" }}>
+              {error}
+            </p>
+          </motion.div>
+        )}
+
         {/* Change Password Form */}
-        <Card className="border-0" style={{ backgroundColor: "#141414" }}>
+        <Card
+          className="border-0 shadow-xl"
+          style={{
+            backgroundColor: "#1A1A1A",
+            borderTop: "2px solid hsl(var(--primary))",
+          }}
+        >
           <CardHeader>
-            <CardTitle className="text-white">Password Settings</CardTitle>
-            <CardDescription className="text-gray-500">
-              Enter your current password and choose a new one
+            <CardTitle className="text-white text-lg sm:text-xl">
+              Password Requirements
+            </CardTitle>
+            <CardDescription className="text-gray-400 text-sm">
+              Your password must meet the following criteria:
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* Password Requirements List */}
+            <div
+              className="space-y-2 p-4 rounded-lg"
+              style={{ backgroundColor: "#0A0A0A" }}
+            >
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+                <div
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "hsl(var(--primary))" }}
+                />
+                At least 8 characters long
+              </div>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+                <div
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "hsl(var(--primary))" }}
+                />
+                Contains at least one uppercase letter
+              </div>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+                <div
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "hsl(var(--primary))" }}
+                />
+                Contains at least one lowercase letter
+              </div>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+                <div
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "hsl(var(--primary))" }}
+                />
+                Contains at least one number
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               {/* Current Password */}
               <div className="space-y-2">
-                <Label htmlFor="current_password" className="text-gray-300">
+                <Label
+                  htmlFor="current_password"
+                  className="text-gray-300 text-sm font-medium"
+                >
                   Current Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
                   <Input
                     id="current_password"
                     type="password"
-                    placeholder="Enter current password"
-                    className="pl-10 bg-black/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-primary"
                     {...register("current_password")}
+                    className="pl-10 bg-black/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary"
+                    placeholder="Enter your current password"
                   />
                 </div>
                 {errors.current_password && (
-                  <p className="text-sm text-red-500">
+                  <p
+                    className="text-xs sm:text-sm"
+                    style={{ color: "#EF4444" }}
+                  >
                     {errors.current_password.message}
                   </p>
                 )}
@@ -133,21 +252,27 @@ export default function ChangePasswordPage() {
 
               {/* New Password */}
               <div className="space-y-2">
-                <Label htmlFor="new_password" className="text-gray-300">
+                <Label
+                  htmlFor="new_password"
+                  className="text-gray-300 text-sm font-medium"
+                >
                   New Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
                   <Input
                     id="new_password"
                     type="password"
-                    placeholder="Enter new password"
-                    className="pl-10 bg-black/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-primary"
                     {...register("new_password")}
+                    className="pl-10 bg-black/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary"
+                    placeholder="Enter your new password"
                   />
                 </div>
                 {errors.new_password && (
-                  <p className="text-sm text-red-500">
+                  <p
+                    className="text-xs sm:text-sm"
+                    style={{ color: "#EF4444" }}
+                  >
                     {errors.new_password.message}
                   </p>
                 )}
@@ -155,94 +280,86 @@ export default function ChangePasswordPage() {
 
               {/* Confirm Password */}
               <div className="space-y-2">
-                <Label htmlFor="confirm_password" className="text-gray-300">
+                <Label
+                  htmlFor="confirm_password"
+                  className="text-gray-300 text-sm font-medium"
+                >
                   Confirm New Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
                   <Input
                     id="confirm_password"
                     type="password"
-                    placeholder="Confirm new password"
-                    className="pl-10 bg-black/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-primary"
                     {...register("confirm_password")}
+                    className="pl-10 bg-black/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary"
+                    placeholder="Confirm your new password"
                   />
                 </div>
                 {errors.confirm_password && (
-                  <p className="text-sm text-red-500">
+                  <p
+                    className="text-xs sm:text-sm"
+                    style={{ color: "#EF4444" }}
+                  >
                     {errors.confirm_password.message}
                   </p>
                 )}
               </div>
 
-              {/* Error Message */}
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-3 rounded-md flex items-center gap-2"
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 text-white font-medium"
                   style={{
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    border: "1px solid rgba(239, 68, 68, 0.2)",
+                    backgroundColor: "hsl(var(--primary))",
                   }}
                 >
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm text-red-500">{error}</span>
-                </motion.div>
-              )}
-
-              {/* Success Message */}
-              {success && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-3 rounded-md flex items-center gap-2"
-                  style={{
-                    backgroundColor: "rgba(34, 197, 94, 0.1)",
-                    border: "1px solid rgba(34, 197, 94, 0.2)",
-                  }}
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Key className="h-4 w-4 mr-2" />
+                      Update Password
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                  className="flex-1 border-gray-700 text-gray-300 hover:bg-white/5 hover:text-white"
                 >
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-green-500">
-                    Password changed successfully!
-                  </span>
-                </motion.div>
-              )}
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full font-semibold h-11 transition-all"
-                style={{
-                  backgroundColor: "hsl(var(--primary))",
-                  color: "white",
-                }}
-                disabled={isLoading}
-              >
-                {isLoading ? "Changing Password..." : "Change Password"}
-              </Button>
-
-              {/* Password Requirements */}
-              <div
-                className="mt-4 p-4 rounded-lg"
-                style={{
-                  backgroundColor: "#0A0A0A",
-                  border: "1px solid #2A2A2A",
-                }}
-              >
-                <p className="text-sm font-medium text-gray-400 mb-2">
-                  Password Requirements:
-                </p>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li>• At least 8 characters long</li>
-                  <li>• Must contain at least one uppercase letter (A-Z)</li>
-                  <li>• Must contain at least one lowercase letter (a-z)</li>
-                  <li>• Must contain at least one digit (0-9)</li>
-                </ul>
+                  Cancel
+                </Button>
               </div>
             </form>
           </CardContent>
         </Card>
+
+        {/* Security Tips */}
+        <div
+          className="mt-6 p-4 rounded-lg"
+          style={{ backgroundColor: "#1A1A1A" }}
+        >
+          <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+            <Shield
+              className="h-4 w-4"
+              style={{ color: "hsl(var(--primary))" }}
+            />
+            Security Tips
+          </h3>
+          <ul className="space-y-1 text-xs sm:text-sm text-gray-400">
+            <li>• Don&apos;t reuse passwords from other websites</li>
+            <li>• Avoid using personal information in your password</li>
+            <li>• Consider using a password manager</li>
+            <li>• Enable two-factor authentication for extra security</li>
+          </ul>
+        </div>
       </motion.div>
     </div>
   );

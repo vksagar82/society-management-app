@@ -85,16 +85,16 @@
     --focus: 221 83% 53%;
   }
 
-  [data-theme="amber"] {
-    /* Amber Theme */
+  [data-theme="green"] {
+    /* Green Theme */
     --background: 220 13% 9%;
-    --primary: 38 92% 50%;
+    --primary: 142 76% 36%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 45 93% 47%;
+    --secondary: 142 71% 45%;
     --secondary-foreground: 0 0% 100%;
     --accent: 220 13% 13%;
-    --ring: 38 92% 50%;
-    --focus: 38 92% 50%;
+    --ring: 142 76% 36%;
+    --focus: 142 76% 36%;
   }
 
   [data-theme="gray"] {
@@ -112,7 +112,7 @@
   .dark,
   .dark[data-theme="orange"],
   .dark[data-theme="blue"],
-  .dark[data-theme="amber"],
+  .dark[data-theme="green"],
   .dark[data-theme="gray"] {
     /* Same as root - already dark by default */
   }

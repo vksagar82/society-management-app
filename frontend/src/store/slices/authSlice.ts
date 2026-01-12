@@ -8,10 +8,23 @@ export interface User {
   phone?: string;
   avatar_url?: string;
   role?: string;
+  global_role?: string;
   is_active: boolean;
   is_approved?: boolean;
   created_at: string;
   updated_at: string;
+  user_societies?: Array<{
+    id: string;
+    society_id: string;
+    society?: {
+      name: string;
+      address?: string;
+      city?: string;
+    };
+    role: string;
+    joined_at?: string;
+    approval_status?: string;
+  }>;
 }
 
 interface AuthState {
