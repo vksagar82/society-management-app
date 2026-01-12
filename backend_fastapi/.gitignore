@@ -35,6 +35,9 @@ env/
 
 # VS Code
 .vscode/
+../.vscode/
+C:\Users\vksag\Downloads\society-management-app\.vscode
+
 
 # Testing
 .pytest_cache/
