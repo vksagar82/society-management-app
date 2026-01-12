@@ -11,7 +11,7 @@ This module provides endpoints for user authentication including:
 
 from datetime import datetime, timedelta
 from uuid import uuid4, UUID
-from typing import cast, Optional
+from typing import cast
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -11,7 +11,7 @@ This module provides endpoints for society management including:
 - Approval workflows
 """
 
-from typing import List, Optional, cast
+from typing import List, Optional
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy import select, or_, and_
