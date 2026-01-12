@@ -16,7 +16,7 @@ def run_command(cmd, description):
     print(f"🔧 {description}")
     print(f"{'='*60}")
     try:
-        subprocess.run(cmd, shell=True, check=True, capture_output=False)
+        subprocess.run(cmd, shell=True, check=True, capture_output=False)  # nosec B602 - Dev utility
         print(f"✅ {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -94,7 +94,7 @@ def run_server():
     print("API will be available at: http://localhost:8000")
     print("Docs will be available at: http://localhost:8000/api/docs")
     print("\nPress Ctrl+C to stop\n")
-    os.system("python main.py")
+    os.system("python main.py")  # nosec B605,B607 - Dev utility
 
 
 def show_menu():

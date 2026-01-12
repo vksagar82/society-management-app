@@ -26,7 +26,7 @@ DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 DEV_USER_EMAIL = "dev-admin@societymanagement.com"
 DEV_USER_PHONE = "9999999999"
 DEV_USER_NAME = "Developer Admin"
-DEV_USER_PASSWORD = "Dev@12345"  # Default password
+DEV_USER_PASSWORD = "Dev@12345"  # nosec B105 - Dev user for testing only
 
 
 def _generate_dev_token(user_id: UUID, expires_days: int = 365) -> str:

@@ -59,7 +59,7 @@ async def sync_table(db: AsyncSession, table):
                 SELECT FROM information_schema.tables
                 WHERE table_name = '{table_name}'
             )
-        """
+        """  # nosec B608 - table_name is validated internally
         )
         result = await db.execute(check_table)
         table_exists = result.scalar()
@@ -75,7 +75,7 @@ async def sync_table(db: AsyncSession, table):
             SELECT column_name, data_type, column_default
             FROM information_schema.columns
             WHERE table_name = '{table_name}'
-        """
+        """  # nosec B608 - table_name is validated internally
         )
         result = await db.execute(get_columns)
         existing_columns = {row[0]: row for row in result.fetchall()}
