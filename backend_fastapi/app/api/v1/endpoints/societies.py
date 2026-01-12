@@ -19,10 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from app.core.deps import (
-    get_current_active_user,
-    require_admin
-)
+from app.core.deps import get_current_active_user
 from app.database import get_session
 from app.models import Society, UserSociety
 from app.schemas.user import UserInDB
