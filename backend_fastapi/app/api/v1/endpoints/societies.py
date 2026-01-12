@@ -378,7 +378,7 @@ async def update_society(
 )
 async def delete_society(
     society_id: UUID,
-    current_user: UserResponse = Depends(require_admin),
+    current_user: UserInDB = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
