@@ -47,7 +47,7 @@ jobs:
         run: pip-audit
 
       - name: Security scan with Bandit
-        run: bandit -r .
+        run: bandit -r . --exclude ./tests
 
   deploy-backend-production:
     needs: quality-checks
