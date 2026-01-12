@@ -2,55 +2,61 @@
 User Management API - Comprehensive Test Suite
 
 ================================================================================
-COVERAGE MATRIX (7/7 Endpoints)
+COVERAGE MATRIX (8/8 Endpoints)
 ================================================================================
 
-1. GET /api/v1/users
+1. GET /api/v1/users/me
+    - Tests: Happy path (get current user), data accuracy
+    - Error cases: 401 Unauthorized (no token), 401 Invalid token
+    - Tested in: test_get_current_user_me, test_get_me_requires_authentication
+
+2. GET /api/v1/users
     - Tests: Happy path (list all), search filter, pagination (skip/limit), role filter
     - Error cases: 403 Forbidden (non-admin), 401 Unauthorized (no token)
     - Tested in: test_users_crud, test_list_users_with_search, test_list_users_pagination,
                     test_list_users_role_filter, test_list_requires_admin, test_list_requires_authentication
 
-2. GET /api/v1/users/{user_id}
+3. GET /api/v1/users/{user_id}
     - Tests: Happy path (self access), admin access to any user
     - Error cases: 404 Not Found, 403 Forbidden (non-admin accessing other), 401 Unauthorized
     - Tested in: test_users_crud, test_get_user_not_found, test_get_other_user_forbidden,
                     test_get_requires_authentication
 
-3. PUT /api/v1/users/{user_id}
+4. PUT /api/v1/users/{user_id}
     - Tests: Happy path (self update), admin update any user
     - Error cases: 404 Not Found, 403 Forbidden (non-admin updating other), 401 Unauthorized,
                       400 Bad Request (duplicate email, invalid data)
     - Tested in: test_users_crud, test_update_user_not_found, test_update_other_user_forbidden,
                     test_update_duplicate_email, test_update_requires_authentication
 
-4. DELETE /api/v1/users/{user_id}
+5. DELETE /api/v1/users/{user_id}
     - Tests: Happy path (admin delete), cascade delete relationships
     - Error cases: 404 Not Found, 403 Forbidden (non-admin), 400 Bad Request (self-delete),
                       401 Unauthorized
     - Tested in: test_users_crud, test_delete_user_not_found, test_delete_requires_admin,
                     test_delete_self_prevented, test_delete_requires_authentication
 
-5. GET /api/v1/users/profile/settings
+6. GET /api/v1/users/profile/settings
     - Tests: Happy path (get settings)
     - Error cases: 401 Unauthorized
     - Tested in: test_user_settings, test_settings_requires_authentication
 
-6. PUT /api/v1/users/profile/settings
+7. PUT /api/v1/users/profile/settings
     - Tests: Happy path (update settings), settings persistence
     - Error cases: 401 Unauthorized
     - Tested in: test_user_settings, test_settings_requires_authentication
 
-7. POST /api/v1/users/profile/avatar
+8. POST /api/v1/users/profile/avatar
     - Tests: Happy path (update avatar), avatar persistence, URL storage
     - Error cases: 401 Unauthorized
     - Tested in: test_user_avatar, test_avatar_requires_authentication
 
 ================================================================================
-SCENARIO COVERAGE (21 Tests)
+SCENARIO COVERAGE (23 Tests)
 ================================================================================
 
-HAPPY PATH (6 tests):
+HAPPY PATH (7 tests):
+✅ test_get_current_user_me - Get current user profile via /me endpoint
 ✅ test_users_crud - Full CRUD workflow (create, list, get, update, delete)
 ✅ test_user_settings - Settings get/update
 ✅ test_user_avatar - Avatar update and persistence
@@ -66,7 +72,8 @@ ERROR SCENARIOS (6 tests):
 ✅ test_update_other_user_forbidden - 403 when non-admin updates other user
 ✅ test_delete_self_prevented - 400 when admin tries to delete self
 
-PERMISSION SCENARIOS (8 tests):
+PERMISSION SCENARIOS (9 tests):
+✅ test_get_me_requires_authentication - 401 without token on /me endpoint
 ✅ test_list_requires_admin - 403 when non-admin lists users
 ✅ test_delete_requires_admin - 403 when non-admin deletes user
 ✅ test_list_requires_authentication - 401 without token
@@ -194,8 +201,41 @@ async def _create_user_and_login(client: httpx.AsyncClient):
 
 
 # ============================================================================
-# HAPPY PATH TESTS (5 tests - Core functionality)
+# HAPPY PATH TESTS (6 tests - Core functionality)
 # ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_me():
+    """
+    HAPPY PATH: Get current user profile via /me endpoint
+    Endpoint: GET /api/v1/users/me
+
+    Verifies: Returns authenticated user's profile data correctly
+    Permissions: Any authenticated user can access their own profile
+    Cleanup: User deleted at test end (204 No Content)
+    """
+    dev_token = _make_dev_token()
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+
+    async with _get_client() as client:
+        # Create test user
+        user_id, user_token, email = await _create_user_and_login(client)
+        user_headers = {"Authorization": f"Bearer {user_token}"}
+
+        # TEST: GET /api/v1/users/me - Get current user profile
+        resp = await client.get("/api/v1/users/me", headers=user_headers)
+        assert resp.status_code == 200, "User should access own profile via /me"
+        profile = resp.json()
+        assert profile["id"] == user_id, "Profile ID matches authenticated user"
+        assert profile["email"] == email, "Profile email matches"
+        assert profile["full_name"] == "Test User", "Profile name matches"
+        assert "password_hash" not in profile, "Password hash not exposed"
+        await asyncio.sleep(2)
+
+        # CLEANUP: DELETE user
+        resp = await client.delete(f"/api/v1/users/{user_id}", headers=dev_headers)
+        assert resp.status_code == 204, resp.text
 
 
 @pytest.mark.asyncio
@@ -629,6 +669,19 @@ async def test_list_requires_authentication():
     async with _get_client() as client:
         resp = await client.get("/api/v1/users")
         assert resp.status_code in [401, 403], "No token rejected"
+
+
+@pytest.mark.asyncio
+async def test_get_me_requires_authentication():
+    """
+    PERMISSION: 401 Unauthorized
+    Endpoint: GET /api/v1/users/me
+
+    Verifies: Unauthenticated requests to /me endpoint are rejected
+    """
+    async with _get_client() as client:
+        resp = await client.get("/api/v1/users/me")
+        assert resp.status_code in [401, 403], "No token rejected on /me endpoint"
 
 
 @pytest.mark.asyncio

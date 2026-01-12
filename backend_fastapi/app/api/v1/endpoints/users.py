@@ -25,6 +25,23 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get Current User",
+    description="Get the currently authenticated user's profile.",
+)
+async def get_current_user_profile(
+    current_user: UserInDB = Depends(get_current_active_user),
+):
+    """
+    Get current authenticated user's profile.
+
+    Returns the profile of the currently logged-in user.
+    """
+    return UserResponse.model_validate(current_user)
+
+
+@router.get(
     "",
     response_model=List[UserResponse],
     summary="List Users",
