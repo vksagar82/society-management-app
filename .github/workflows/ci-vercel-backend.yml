@@ -55,9 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: backend_production
-    defaults:
-      run:
-        working-directory: ./backend_fastapi
     env:
       DATABASE_URL: ${{ secrets.BACKEND_PRODUCTION_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
