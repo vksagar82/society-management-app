@@ -1,7 +1,66 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+// Flag to prevent multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
 export const api = {
   baseURL: API_URL,
+
+  async refreshAccessToken(): Promise<string | null> {
+    // If already refreshing, wait for that promise
+    if (isRefreshing && refreshPromise) {
+      return refreshPromise;
+    }
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+      try {
+        const refreshToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem("refresh_token")
+            : null;
+
+        if (!refreshToken) {
+          return null;
+        }
+
+        const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (!response.ok) {
+          // Refresh failed, clear tokens
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+          }
+          return null;
+        }
+
+        const data = await response.json();
+
+        // Update access token in localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("access_token", data.access_token);
+        }
+
+        return data.access_token;
+      } catch (error) {
+        console.error("Token refresh error:", error);
+        return null;
+      } finally {
+        isRefreshing = false;
+        refreshPromise = null;
+      }
+    })();
+
+    return refreshPromise;
+  },
 
   async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     // Check if we're in the browser before accessing localStorage
@@ -16,10 +75,33 @@ export const api = {
       ...options?.headers,
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    let response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers,
     });
+
+    // If 401 Unauthorized, try to refresh token and retry
+    if (response.status === 401 && typeof window !== "undefined") {
+      const newToken = await this.refreshAccessToken();
+
+      if (newToken) {
+        // Retry the original request with new token
+        const retryHeaders: HeadersInit = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${newToken}`,
+          ...options?.headers,
+        };
+
+        response = await fetch(`${API_URL}${endpoint}`, {
+          ...options,
+          headers: retryHeaders,
+        });
+      } else {
+        // Refresh failed, redirect to login
+        window.location.href = "/auth/login";
+        throw new Error("Session expired. Please login again.");
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));

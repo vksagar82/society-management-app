@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   logout,
@@ -39,6 +39,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const dispatch = useAppDispatch();
   const { user, isAuthenticated } = useAppSelector((state) => state.auth);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -153,9 +154,7 @@ export default function DashboardLayout({
           <nav className="flex-1 flex flex-col gap-2 px-3">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive =
-                typeof window !== "undefined" &&
-                window.location.pathname === item.href;
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}

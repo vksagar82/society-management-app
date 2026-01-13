@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import {
   Card,
   CardContent,
@@ -31,8 +31,20 @@ import {
   Sparkles,
   CreditCard,
   ChevronDown,
+  Building2,
+  MapPin,
+  Phone,
+  Upload,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { api } from "@/lib/api";
+import {
+  getCurrentUser,
+  User as UserType,
+  logout,
+} from "@/store/slices/authSlice";
 
 type TabType = "profile" | "security" | "notifications" | "preferences";
 
@@ -45,9 +57,23 @@ const settingsTabs = [
 
 export default function SettingsPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const searchParams = useSearchParams();
   const { user } = useAppSelector((state) => state.auth);
-  const [activeTab, setActiveTab] = useState<TabType>("security");
+  const [activeTab, setActiveTab] = useState<TabType>("profile");
+
+  // Profile form state
+  const [profileData, setProfileData] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    avatar_url: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [fullUserData, setFullUserData] = useState<UserType | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   // Set active tab from URL parameter
   useEffect(() => {
@@ -59,6 +85,137 @@ export default function SettingsPage() {
       setActiveTab(tabParam as TabType);
     }
   }, [searchParams]);
+
+  // Fetch complete user data on mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userData = await api.get<UserType>("/api/v1/users/me");
+        setFullUserData(userData);
+        setProfileData({
+          full_name: userData.full_name,
+          email: userData.email,
+          phone: userData.phone || "",
+          avatar_url: userData.avatar_url || "",
+        });
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+      }
+    };
+
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
+
+  const handleProfileUpdate = async () => {
+    if (!fullUserData) return;
+
+    setIsLoading(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const updated = await api.put<UserType>(
+        `/api/v1/users/${fullUserData.id}`,
+        {
+          full_name: profileData.full_name,
+          email: profileData.email,
+          phone: profileData.phone,
+          avatar_url: profileData.avatar_url || undefined,
+        }
+      );
+
+      setFullUserData(updated);
+      setSaveSuccess(true);
+
+      // Refresh user in Redux store
+      dispatch(getCurrentUser());
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error: any) {
+      setSaveError(error.message || "Failed to update profile");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = async (avatarUrl: string) => {
+    if (!fullUserData) return;
+
+    try {
+      await api.post(`/api/v1/users/profile/avatar`, avatarUrl);
+      setProfileData({ ...profileData, avatar_url: avatarUrl });
+      dispatch(getCurrentUser());
+    } catch (error) {
+      console.error("Failed to update avatar:", error);
+    }
+  };
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !fullUserData) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setSaveError("Please select an image file");
+      setTimeout(() => setSaveError(null), 3000);
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError("Image size should be less than 5MB");
+      setTimeout(() => setSaveError(null), 3000);
+      return;
+    }
+
+    setAvatarUploading(true);
+    setSaveError(null);
+
+    try {
+      // Convert file to base64 or upload to a service
+      // For now, we'll use a placeholder URL or you can integrate with cloud storage
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+
+        // Update profile with new avatar URL (you may want to upload to cloud storage first)
+        // For demonstration, we'll update with the data URL
+        // In production, upload to S3/Cloudinary/etc and use that URL
+
+        const updated = await api.put<UserType>(
+          `/api/v1/users/${fullUserData.id}`,
+          {
+            avatar_url: base64String,
+          }
+        );
+
+        setFullUserData(updated);
+        setProfileData({ ...profileData, avatar_url: base64String });
+        dispatch(getCurrentUser());
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      };
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      setSaveError(error.message || "Failed to upload avatar");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const triggerFileInput = () => {
+    document.getElementById("avatar-upload")?.click();
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/auth/login");
+  };
 
   // Notification toggles state
   const [emailAlerts, setEmailAlerts] = useState(true);
@@ -141,7 +298,10 @@ export default function SettingsPage() {
                         Help & Support
                       </span>
                     </button>
-                    <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    >
                       <LogOut className="h-5 w-5 flex-shrink-0" />
                       <span className="text-sm font-medium">Sign Out</span>
                     </button>
@@ -312,33 +472,86 @@ export default function SettingsPage() {
                       </p>
                     </div>
 
+                    {/* Success/Error Messages */}
+                    {saveSuccess && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-400"
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="text-sm">
+                          Profile updated successfully!
+                        </span>
+                      </motion.div>
+                    )}
+
+                    {saveError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-400"
+                      >
+                        <AlertCircle className="h-5 w-5" />
+                        <span className="text-sm">{saveError}</span>
+                      </motion.div>
+                    )}
+
                     {/* Profile Photo Section */}
                     <div
                       className="flex items-center gap-4 p-6 rounded-xl"
                       style={{ backgroundColor: "#0F0F0F" }}
                     >
+                      {/* Hidden file input */}
+                      <input
+                        type="file"
+                        id="avatar-upload"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+
                       <div
-                        className="h-16 w-16 sm:h-20 sm:w-20 rounded-full flex items-center justify-center text-2xl font-bold text-white flex-shrink-0"
+                        className="h-16 w-16 sm:h-20 sm:w-20 rounded-full flex items-center justify-center text-2xl font-bold text-white flex-shrink-0 overflow-hidden"
                         style={{
-                          background: `linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.7) 100%)`,
+                          ...(profileData.avatar_url
+                            ? {
+                                backgroundImage: `url(${profileData.avatar_url})`,
+                                backgroundSize: "cover",
+                                backgroundPosition: "center",
+                              }
+                            : {
+                                backgroundImage: `linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.7) 100%)`,
+                                backgroundSize: "cover",
+                                backgroundPosition: "center",
+                              }),
                         }}
                       >
-                        {user.full_name.charAt(0).toUpperCase()}
+                        {!profileData.avatar_url &&
+                          profileData.full_name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-base sm:text-lg font-semibold text-white truncate">
-                          {user.full_name}
+                          {profileData.full_name}
                         </h3>
                         <p className="text-xs sm:text-sm text-gray-400 truncate">
-                          {user.email}
+                          {profileData.email}
                         </p>
+                        {fullUserData?.global_role && (
+                          <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-primary/20 text-primary capitalize">
+                            {fullUserData.global_role}
+                          </span>
+                        )}
                       </div>
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={triggerFileInput}
+                        disabled={avatarUploading}
                         className="border-gray-700 text-gray-300 hover:bg-white/5 hover:text-white"
                       >
-                        Change Photo
+                        <Upload className="h-4 w-4 mr-2" />
+                        {avatarUploading ? "Uploading..." : "Change Photo"}
                       </Button>
                     </div>
 
@@ -351,109 +564,236 @@ export default function SettingsPage() {
                             Personal Information
                           </h3>
                           <p className="text-xs text-gray-500">
-                            Manage your basic profile information
+                            Update your basic profile information
                           </p>
                         </div>
                       </div>
 
-                      {/* Name Fields */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            First Name
-                          </label>
-                          <input
-                            type="text"
-                            defaultValue={user.full_name.split(" ")[0]}
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                            style={{ focusRingColor: "hsl(var(--primary))" }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Last Name
-                          </label>
-                          <input
-                            type="text"
-                            defaultValue={user.full_name
-                              .split(" ")
-                              .slice(1)
-                              .join(" ")}
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                            style={{ focusRingColor: "hsl(var(--primary))" }}
-                          />
-                        </div>
+                      {/* Full Name Field */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={profileData.full_name}
+                          onChange={(e) =>
+                            setProfileData({
+                              ...profileData,
+                              full_name: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                          style={{ focusRingColor: "hsl(var(--primary))" }}
+                          placeholder="Enter your full name"
+                        />
                       </div>
 
                       {/* Email Field */}
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Email
+                          Email Address *
                         </label>
                         <input
                           type="email"
-                          defaultValue={user.email}
+                          value={profileData.email}
+                          onChange={(e) =>
+                            setProfileData({
+                              ...profileData,
+                              email: e.target.value,
+                            })
+                          }
                           className="w-full px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2"
                           style={{ focusRingColor: "hsl(var(--primary))" }}
+                          placeholder="Enter your email"
                         />
                       </div>
 
                       {/* Phone Field */}
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Phone
+                          Phone Number *
                         </label>
-                        <div className="flex gap-2">
-                          <select className="px-3 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white focus:outline-none focus:ring-2 focus:ring-offset-2">
-                            <option>🇺🇸 +1</option>
-                            <option>🇬🇧 +44</option>
-                            <option>🇮🇳 +91</option>
-                          </select>
-                          <input
-                            type="tel"
-                            defaultValue={user.phone}
-                            placeholder="Enter your phone number"
-                            className="flex-1 px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                            style={{ focusRingColor: "hsl(var(--primary))" }}
-                          />
-                        </div>
+                        <input
+                          type="tel"
+                          value={profileData.phone}
+                          onChange={(e) =>
+                            setProfileData({
+                              ...profileData,
+                              phone: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your phone number"
+                          className="w-full px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                          style={{ focusRingColor: "hsl(var(--primary))" }}
+                        />
                       </div>
 
-                      {/* Country and Date of Birth */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Country
-                          </label>
-                          <select className="w-full px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white focus:outline-none focus:ring-2 focus:ring-offset-2">
-                            <option>🇺🇸 United States</option>
-                            <option>🇬🇧 United Kingdom</option>
-                            <option>🇮🇳 India</option>
-                            <option>🇨🇦 Canada</option>
-                          </select>
+                      {/* Account Information (Read-only) */}
+                      {fullUserData && (
+                        <div className="pt-4 border-t border-gray-800">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Shield className="h-5 w-5 text-gray-500" />
+                            <div>
+                              <h3 className="text-base font-semibold text-white">
+                                Account Information
+                              </h3>
+                              <p className="text-xs text-gray-500">
+                                Read-only account details
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="p-3 rounded-lg bg-black/30 border border-gray-800">
+                              <p className="text-xs text-gray-500 mb-1">
+                                User ID
+                              </p>
+                              <p className="text-sm text-white font-mono truncate">
+                                {fullUserData.id}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-black/30 border border-gray-800">
+                              <p className="text-xs text-gray-500 mb-1">Role</p>
+                              <p className="text-sm text-white capitalize">
+                                {fullUserData.global_role}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-black/30 border border-gray-800">
+                              <p className="text-xs text-gray-500 mb-1">
+                                Status
+                              </p>
+                              <p className="text-sm text-white">
+                                {fullUserData.is_active ? (
+                                  <span className="text-green-400">Active</span>
+                                ) : (
+                                  <span className="text-red-400">Inactive</span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-black/30 border border-gray-800">
+                              <p className="text-xs text-gray-500 mb-1">
+                                Member Since
+                              </p>
+                              <p className="text-sm text-white">
+                                {new Date(
+                                  fullUserData.created_at
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Date of Birth
-                          </label>
-                          <input
-                            type="date"
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-700 bg-black/50 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                            style={{ focusRingColor: "hsl(var(--primary))" }}
-                          />
-                        </div>
-                      </div>
+                      )}
+
+                      {/* Society Memberships */}
+                      {fullUserData?.user_societies &&
+                        fullUserData.user_societies.length > 0 && (
+                          <div className="pt-4 border-t border-gray-800">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Building2 className="h-5 w-5 text-gray-500" />
+                              <div>
+                                <h3 className="text-base font-semibold text-white">
+                                  Society Memberships
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                  Your affiliated societies
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3">
+                              {fullUserData.user_societies.map((society) => (
+                                <div
+                                  key={society.id}
+                                  className="p-4 rounded-lg bg-black/30 border border-gray-800 hover:border-gray-700 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <h4 className="text-sm font-medium text-white mb-1">
+                                        {society.society?.name ||
+                                          "Unknown Society"}
+                                      </h4>
+                                      {society.society?.address && (
+                                        <p className="text-xs text-gray-500 flex items-center gap-1 mb-2">
+                                          <MapPin className="h-3 w-3" />
+                                          {society.society.address}
+                                          {society.society.city &&
+                                            `, ${society.society.city}`}
+                                        </p>
+                                      )}
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/20 text-blue-400 capitalize">
+                                          {society.role}
+                                        </span>
+                                        <span
+                                          className={`px-2 py-0.5 text-xs rounded-full capitalize ${
+                                            society.approval_status ===
+                                            "approved"
+                                              ? "bg-green-500/20 text-green-400"
+                                              : society.approval_status ===
+                                                "pending"
+                                              ? "bg-yellow-500/20 text-yellow-400"
+                                              : "bg-red-500/20 text-red-400"
+                                          }`}
+                                        >
+                                          {society.approval_status}
+                                        </span>
+                                        {society.joined_at && (
+                                          <span className="px-2 py-0.5 text-xs rounded-full bg-gray-700 text-gray-300">
+                                            Joined{" "}
+                                            {new Date(
+                                              society.joined_at
+                                            ).toLocaleDateString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                       {/* Save Button */}
-                      <div className="flex justify-end pt-4">
+                      <div className="flex justify-end gap-3 pt-4">
                         <Button
+                          variant="outline"
+                          onClick={() => {
+                            if (fullUserData) {
+                              setProfileData({
+                                full_name: fullUserData.full_name,
+                                email: fullUserData.email,
+                                phone: fullUserData.phone || "",
+                                avatar_url: fullUserData.avatar_url || "",
+                              });
+                            }
+                          }}
+                          className="border-gray-700 text-gray-300 hover:bg-white/5"
+                        >
+                          Reset
+                        </Button>
+                        <Button
+                          onClick={handleProfileUpdate}
+                          disabled={isLoading}
                           size="lg"
                           style={{
                             backgroundColor: "hsl(var(--primary))",
                             color: "white",
                           }}
+                          className="hover:opacity-90"
                         >
-                          Save Changes
+                          {isLoading ? (
+                            <>
+                              <span className="animate-spin mr-2">⏳</span>
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4 mr-2" />
+                              Save Changes
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

@@ -309,7 +309,9 @@ export default function UsersPage() {
                               backgroundColor: "hsl(var(--primary))",
                               color: "white",
                             }}
-                            onClick={() => router.push("/dashboard/profile")}
+                            onClick={() =>
+                              router.push("/dashboard/settings?tab=profile")
+                            }
                           >
                             <Edit className="h-3 w-3 mr-1" />
                             Edit Profile
