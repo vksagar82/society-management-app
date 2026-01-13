@@ -62,9 +62,8 @@ function UsersPageContent() {
 
   const fetchSocieties = async () => {
     try {
-      const data = await api.get<Array<{ id: string; name: string }>>(
-        '/api/v1/societies'
-      )
+      const data =
+        await api.get<Array<{ id: string; name: string }>>('/api/v1/societies')
 
       const lookup = data.reduce<Record<string, string>>((acc, society) => {
         acc[society.id] = society.name
@@ -578,22 +577,25 @@ function UsersPageContent() {
                               </span>
                             </div>
 
-                            {canManageMembership(us.society_id) && us.approval_status !== 'approved' && (
-                              <div className="mt-3 flex flex-wrap items-center gap-3">
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  className="bg-green-600 text-white hover:bg-green-500"
-                                  disabled={updatingUserId === us.id}
-                                  onClick={() => approveMembership(us, selectedUser.id)}
-                                >
-                                  {updatingUserId === us.id ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : null}
-                                  Approve
-                                </Button>
-                              </div>
-                            )}
+                            {canManageMembership(us.society_id) &&
+                              us.approval_status !== 'approved' && (
+                                <div className="mt-3 flex flex-wrap items-center gap-3">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="bg-green-600 text-white hover:bg-green-500"
+                                    disabled={updatingUserId === us.id}
+                                    onClick={() =>
+                                      approveMembership(us, selectedUser.id)
+                                    }
+                                  >
+                                    {updatingUserId === us.id ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : null}
+                                    Approve
+                                  </Button>
+                                </div>
+                              )}
                           </div>
                         ))}
                       </div>
@@ -627,7 +629,8 @@ function UsersPageContent() {
                         {updatingUserId === selectedUser.id ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : null}
-                        {selectedUser.is_active ? 'Deactivate' : 'Activate'} User
+                        {selectedUser.is_active ? 'Deactivate' : 'Activate'}{' '}
+                        User
                       </Button>
                     </div>
                   )}
