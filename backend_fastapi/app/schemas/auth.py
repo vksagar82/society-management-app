@@ -5,6 +5,7 @@ This module defines Pydantic models for authentication operations.
 """
 
 from typing import List, Optional
+from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -47,5 +48,5 @@ class SignupRequest(BaseModel):
                            max_length=255, description="Full name")
     password: str = Field(..., min_length=8,
                           description="Password (min 8 characters)")
-    society_ids: Optional[List[int]] = Field(
+    society_ids: Optional[List[UUID]] = Field(
         default=None, description="List of society IDs to request access to")

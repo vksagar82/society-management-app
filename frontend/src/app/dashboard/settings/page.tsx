@@ -98,6 +98,19 @@ export default function SettingsPage() {
           phone: userData.phone || "",
           avatar_url: userData.avatar_url || "",
         });
+
+        // Load user preferences from settings
+        if (userData.settings) {
+          setLanguage(userData.settings.language || "English");
+          setCurrency(userData.settings.currency || "INR");
+          setDarkMode(userData.settings.darkMode ?? true);
+          setAutoSave(userData.settings.autoSave ?? true);
+          setAnimations(userData.settings.animations ?? true);
+          setEmailAlerts(userData.settings.emailAlerts ?? true);
+          setPushNotifications(userData.settings.pushNotifications ?? true);
+          setSmsAlerts(userData.settings.smsAlerts ?? false);
+          setMarketingEmails(userData.settings.marketingEmails ?? false);
+        }
       } catch (error) {
         console.error("Failed to fetch user data:", error);
       }
@@ -136,6 +149,43 @@ export default function SettingsPage() {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
       setSaveError(error.message || "Failed to update profile");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePreferencesUpdate = async () => {
+    if (!fullUserData) return;
+
+    setIsLoading(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const updated = await api.put<UserType>(
+        `/api/v1/users/${fullUserData.id}`,
+        {
+          settings: {
+            language,
+            currency,
+            darkMode,
+            autoSave,
+            animations,
+            emailAlerts,
+            pushNotifications,
+            smsAlerts,
+            marketingEmails,
+          },
+        }
+      );
+
+      setFullUserData(updated);
+      setSaveSuccess(true);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error: any) {
+      setSaveError(error.message || "Failed to update preferences");
     } finally {
       setIsLoading(false);
     }
@@ -228,7 +278,7 @@ export default function SettingsPage() {
   const [autoSave, setAutoSave] = useState(true);
   const [animations, setAnimations] = useState(true);
   const [language, setLanguage] = useState("English");
-  const [currency, setCurrency] = useState("EUR");
+  const [currency, setCurrency] = useState("INR");
 
   if (!user) {
     return (
@@ -1027,6 +1077,36 @@ export default function SettingsPage() {
                         />
                       </button>
                     </div>
+
+                    {/* Save Notifications Button */}
+                    <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-gray-800">
+                      {saveSuccess && (
+                        <div className="flex items-center gap-2 text-green-400 text-sm">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Settings saved successfully!</span>
+                        </div>
+                      )}
+                      {saveError && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>{saveError}</span>
+                        </div>
+                      )}
+                      <Button
+                        onClick={handlePreferencesUpdate}
+                        disabled={isLoading}
+                        className="bg-primary hover:bg-primary/90 text-white px-6"
+                      >
+                        {isLoading ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Notification Settings"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -1342,6 +1422,36 @@ export default function SettingsPage() {
                           Change
                         </Button>
                       </div>
+                    </div>
+
+                    {/* Save Preferences Button */}
+                    <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-gray-800">
+                      {saveSuccess && (
+                        <div className="flex items-center gap-2 text-green-400 text-sm">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Preferences saved successfully!</span>
+                        </div>
+                      )}
+                      {saveError && (
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>{saveError}</span>
+                        </div>
+                      )}
+                      <Button
+                        onClick={handlePreferencesUpdate}
+                        disabled={isLoading}
+                        className="bg-primary hover:bg-primary/90 text-white px-6"
+                      >
+                        {isLoading ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Preferences"
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
