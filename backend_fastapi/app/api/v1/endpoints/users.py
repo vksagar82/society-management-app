@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_active_user, require_admin
+from app.utils.blob import upload_to_blob
 from app.database import get_session
 from app.models import User, UserSociety
 from app.schemas.user import UserInDB, UserResponse, UserSettings, UserUpdate
@@ -204,6 +205,45 @@ async def update_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
             )
+
+    # Handle avatar upload to Vercel Blob if avatar_url is provided with base64 data
+    if "avatar_url" in update_data and update_data["avatar_url"]:
+        avatar_data = update_data["avatar_url"]
+
+        # Check if it's base64 data (starts with data: or is raw base64)
+        if avatar_data.startswith("data:") or (len(avatar_data) > 100 and not avatar_data.startswith("http")):
+            try:
+                # Extract content type if present
+                content_type = "image/jpeg"  # default
+                if avatar_data.startswith("data:"):
+                    content_type = avatar_data.split(";")[0].split(":")[1]
+
+                # Generate filename with user ID and timestamp
+                import time
+                file_extension = content_type.split(
+                    "/")[1] if "/" in content_type else "jpg"
+                filename = f"avatars/{user_id}_{int(time.time())}.{file_extension}"
+
+                # Upload to Vercel Blob
+                blob_url = await upload_to_blob(avatar_data, filename, content_type)
+
+                if blob_url:
+                    update_data["avatar_url"] = blob_url
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to upload avatar to blob storage"
+                    )
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid avatar data: {str(e)}"
+                )
+            except RuntimeError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=str(e)
+                )
 
     # Apply updates
     for field, value in update_data.items():

@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     max_file_size: int = 10485760  # 10MB
     upload_dir: str = "uploads"
 
+    # Vercel Blob Storage
+    blob_read_write_token: str = ""
+
     class Config:
         """Pydantic config class."""
 
